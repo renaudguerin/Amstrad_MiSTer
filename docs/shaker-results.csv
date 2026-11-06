@@ -221,7 +221,7 @@ crtc,module,page,status,build,evidence,detail
 0,B,019A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
 0,B,019B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,B,019C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
-0,B,019D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,019D,broken,fdf348c,docs/investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md,"Native13/14/26/26/1F/1F vsphysical27/14/26/27/1E/1E; currentCPCSEmatchesall6. Four differing checks; newly adjudicated, no regression or RTL fix inferred."
 0,B,019E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,B,019F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,B,01A4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
@@ -396,7 +396,7 @@ crtc,module,page,status,build,evidence,detail
 0,D,0302,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,D,0303,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,D,0304,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
-0,D,0305,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0305,stale,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,"Current canonical SSM grab0305 is the returned menu, not physical DT/J8 result page. Invalid identity remainsstale; rawPNG retained/excluded from selectedarchive, pendingcorrectcapture."
 0,D,0306,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,D,0307,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,D,0308,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
@@ -815,7 +815,7 @@ crtc,module,page,status,build,evidence,detail
 1,C,02D0,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D1,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D2,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
-1,C,02D3,unknown,c0939d8,docs/investigations/hardware-runs/shaker-s-history-2026-11-04.md,Direct/history now agree4E40; photograph4E30/program revision binding remains open
+1,C,02D3,broken,fdf348c,docs/investigations/hardware-runs/shaker-s-current-2026-11-06.md,Current canonical history0840 WRONG versus program4E40; same-RBF direct4E40 and fresh CPCSE history4E40. History-dependent; older photo4E30 binding separate.
 1,C,02D4,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D5,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D6,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
@@ -843,8 +843,8 @@ crtc,module,page,status,build,evidence,detail
 1,D,02EB,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,02EC,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,02ED,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
-1,D,02EE,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,02EF,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
+1,D,02EE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,"Current canonical milestone PNG and identity family inspected; no whole-page photo verdict. D3 uses separately verified manual capture, not bulk-exit image."
+1,D,02EF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,"Current canonical milestone PNG and identity family inspected; no whole-page photo verdict. D3 uses separately verified manual capture, not bulk-exit image."
 1,D,02F0,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,02F1,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,02F3,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
@@ -860,9 +860,9 @@ crtc,module,page,status,build,evidence,detail
 1,D,0300,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0301,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0302,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
-1,D,0303,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0304,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0305,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
+1,D,0303,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,"Current canonical milestone PNG and identity family inspected; no whole-page photo verdict. D3 uses separately verified manual capture, not bulk-exit image."
+1,D,0304,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,"Current canonical milestone PNG and identity family inspected; no whole-page photo verdict. D3 uses separately verified manual capture, not bulk-exit image."
+1,D,0305,stale,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,"Current canonical SSM grab0305 is the returned menu, not physical DT/J8 result page. Invalid identity remainsstale; rawPNG retained/excluded from selectedarchive, pendingcorrectcapture."
 1,D,0306,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0307,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0308,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override

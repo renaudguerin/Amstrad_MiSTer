@@ -5,7 +5,7 @@ Maintained page tally, 6 November 2026. Page judgments carry forward the
 adds scoped ASIC preservation, 44 fresh aligned CRTC1 D3 captures and the
 ongoing current-build archive refresh. CRTC0 A–E acquisition is complete except
 two missing PNGs; its 44 canonical D3 identities remain stale pending corrected
-manual capture. Fresh unadjudicated images become unknown, without new passing
+manual capture, as does DT0305 because its exit grab contains the menu. Fresh unadjudicated images become unknown, without new passing
 grades. A separate full-resolution C0 A4/AI check adds one passing and one
 broken judgment to previously unknown coverage. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
@@ -37,24 +37,24 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | CRTC | Module | Passing | Broken | Unknown | Stale | Total |
 |---:|:---|---:|---:|---:|---:|---:|
 | 0 | A | 2 | 1 | 119 | 0 | 122 |
-| 0 | B | 0 | 0 | 221 | 0 | 221 |
+| 0 | B | 0 | 1 | 220 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
-| 0 | D | 0 | 0 | 67 | 44 | 111 |
+| 0 | D | 0 | 0 | 66 | 45 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **5** | **2** | **436** | **44** | **487** |
+| **0** | **Total** | **5** | **3** | **434** | **45** | **487** |
 | 1 | A | 118 | 2 | 7 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
-| 1 | C | 76 | 0 | 4 | 0 | 80 |
-| 1 | D | 63 | 0 | 59 | 5 | 127 |
+| 1 | C | 76 | 1 | 3 | 0 | 80 |
+| 1 | D | 63 | 0 | 63 | 1 | 127 |
 | 1 | E | 3 | 0 | 4 | 0 | 7 |
-| **1** | **Total** | **363** | **3** | **109** | **5** | **480** |
+| **1** | **Total** | **363** | **4** | **112** | **1** | **480** |
 | 3 | A | 0 | 0 | 9 | 115 | 124 |
 | 3 | B | 0 | 0 | 8 | 113 | 121 |
 | 3 | C | 0 | 0 | 0 | 23 | 23 |
 | 3 | D | 0 | 0 | 0 | 150 | 150 |
 | 3 | E | 0 | 0 | 1 | 4 | 5 |
 | **3** | **Total** | **0** | **0** | **18** | **405** | **423** |
-| **All** | **Total** | **368** | **5** | **563** | **454** | **1390** |
+| **All** | **Total** | **368** | **7** | **564** | **451** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -67,14 +67,18 @@ most stale entries. This table does not classify those pages as failures.
 The focused current [CRTC0 A4/AI comparison](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md)
 adds an AI passing judgment and the A4 OUTI mismatch to previously unknown
 coverage; this does not establish a regression. Current CPCSE26/27 match the
-physical CRTC0 A4 result, unlike its CRTC1 result.
+physical CRTC0 A4 result, unlike its CRTC1 result. C0 B6 also has four confirmed
+photo/self-check differences; the fresh peer matches all six.
+[C0 B6 comparison](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md).
 
-- **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C1 AI/008D;
-  C1 B6/019D. E6's26/28 figure counts assertions across0407/0408/0409,
+- **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C0/1 B6/019D;
+  C1 AI/008D; current C1 S/02D3 (0840 versus4E40). E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
-  on MiSTer, while its MID glyph/reference binding remains open. S02D3
-  has matching direct/history4E40, with photo4E30/program binding unresolved.
+  on MiSTer, while its MID glyph/reference binding remains open. Earlier S
+  direct/history4E40 passes are superseded by the current failing history
+  capture; same-RBF direct entry still gives4E40.
+  [Current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
 - **Unknown dynamic/display checks:** D6/D7 physical phase/settling, DI02E3
   (58/59; the program labels CRTC1 unreliable), and DT02F8/02FA's full
   phase-matched photo verdict. DT's reported missing band was an acquisition
@@ -82,8 +86,8 @@ physical CRTC0 A4 result, unlike its CRTC1 result.
 - **D3 acquisition repaired:** all 44 current headers match after correcting
   one extra Space in our private manual overlay. These pages are unknown
   pending full digital-content/blanking comparison; CRT deflection belongs to
-  V1 separately. Five further D captures
-  remain stale. [Count correction](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
+  V1 separately. Four other formerly stale C1 D pages now become unknown;0305 remains stale
+  because its current exit grab is the menu, not the reference result. [Count correction](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 - **Current AI recheck:** 008E and 0091 pass the photographed VS fields;
   008F remains unknown because its physical V2 exception glyph is unresolved,
   and 0090 awaits full cell adjudication. The 0037 OUTI bit 0 mismatch cannot
@@ -126,8 +130,8 @@ For CRTC0, old e24 has 86 eligible pairs with−10/+6 reversals; current fdf has
 before/after, and CRTC3 retains 176/168. All current middle-band steps are 0/−2.
 All new CRTC0 frames are viewed; six rejected acquisition attempts remain
 recorded across its old/new runs. Static LEFT8, exact BI and scoped AE/AR/
-DSC4/Amazing preservation pass. Opus/promotion coverage and physical HDMI/CRT
-acceptance remain open.
+DSC4/Amazing preservation pass. Fresh Opus review and the enabled mixed-colour sprite proof pass; physical
+HDMI/CRT acceptance remains open.
 [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 
 ## Maintaining the tally

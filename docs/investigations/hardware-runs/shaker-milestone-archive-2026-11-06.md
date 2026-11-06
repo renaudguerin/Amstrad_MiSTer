@@ -17,6 +17,10 @@ requested and format-2 SSM records expose the actual mode per event.
 | CRTC0 D | 110 / 111 expected | 1 | Complete; 02EA timeout and 44 D3 identities excluded |
 | CRTC0 E | 11 / 11 expected | 0 | Complete; inventory/contact-sheet inspection done |
 | CRTC1 A | 127 / 127 expected | 0 | Complete; inventory/contact-sheet inspection done |
+| CRTC1 B | 139 / 139 expected | 0 | Complete; inventory/visual triage in progress |
+| CRTC1 C | 80 / 80 expected | 0 | Complete; inventory/visual triage in progress |
+| CRTC1 D | 127 / 127 expected | 0 | Complete; canonical D3 excluded, prior correct44 reused |
+| CRTC1 E | 7 / 7 expected | 0 | Complete; inventory/contact-sheet inspection done |
 | Remaining cells | In progress | Pending | Serial batch, not a completed baseline |
 
 Canonical D3 names cannot be used as page identities on this asynchronous host
@@ -27,9 +31,12 @@ qualified and await serial device access. This is the host's departure-marker
 retrieval limitation, not an author-package defect or a new CRTC finding.
 
 Fresh captures do not confer passing grades. CRTC0 A's 116 old stale entries
-now have current evidence and become unknown; a further 66 non-D3 module-D
+now have current evidence and become unknown; a further 65 non-D3 module-D
 entries make the same transition after inventory and full contact-sheet review; its historical passing judgment
-remains qualified as such. The source/tally retains page-level status separately
+remains qualified as such. Four formerly stale CRTC1 D pages also become unknown after current acquisition
+and inspection. The earlier provisional count included0305, whose full-resolution
+physical/native comparison instead identifies a returned menu;0305 remains
+stale on both CRTC0/1 and is excluded pending a correctly bound DT/J8 frame. The source/tally retains page-level status separately
 from archive acquisition. Five A7 images, 0081–0085, are identical and visibly
 cropped compared with the physical reference; their content/acquisition boundary
 needs further adjudication. Their distinct SSM records show advancing frames

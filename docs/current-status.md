@@ -9,8 +9,7 @@ retains the source milestones and remaining context.
 The [active unattended session](investigations/session-logs/overnight-resume-2026-11-04.md)
 may continue to weekly quota exhaustion; the user applies resets manually and
 provides further instructions. Prioritize justified fixes for known SHAKER and
-DSC4/Amazing defects. With the remaining defects needing hardware/author evidence,
-the user now authorizes V1 monitor-response design and review in parallel with a
+DSC4/Amazing defects. The user authorizes V1 monitor-response design and review in parallel with a
 milestone release draft and current-build SHAKER archive refresh. Original-CPC
 hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peers.
 
@@ -47,10 +46,10 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 5 | 2 | 436 | 44 | 487 |
-| 1 | 363 | 3 | 109 | 5 | 480 |
+| 0 | 5 | 3 | 434 | 45 | 487 |
+| 1 | 363 | 4 | 112 | 1 | 480 |
 | 3 | 0 | 0 | 18 | 405 | 423 |
-| All | 368 | 5 | 563 | 454 | 1390 |
+| All | 368 | 7 | 564 | 451 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
@@ -58,10 +57,11 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | A4/0037, CRTC0/1 | Native first OUTI bit0=0 versus physical1 on both. Current CPCSE matches the CRTC0 photo01/00 on available26/27, but gives00/00 on CRTC1. Bind the original C0 caller's successful IN/M1 phase before selecting a rule; photo-version identity remains open. [Current C0 discriminator](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md). |
 | C1 AI/008D | Direct208 gives1001 and canonicalc093 gives1000 versus physical1111. C0 AI now passes all16 photographed VS bits under the upper-PPI allowance. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | Fresh captures remain unknown: 008F physical V2 glyph is unresolved; 0090 needs complete cell adjudication. 008E, 0091 and direct/full-history 009A pass the bounded comparison. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
-| C1 B6/019D and DI/02E3 | Fresh fdf B6 fifth/fourth deadlines are 1F/1F versus photo 1E/1F; DI is 58 versus 59 but the original test labels CRTC1 unreliable. The original cold caller reproduces the failure; physical aperture and the optical R7.JIT mismatch remain open. [B6 evidence](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
-| C1 S/02D3 and B9 MID | Current direct/history S is 4E40 versus photo 4E30; program revision binding remains open. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
+| B6/019D, CRTC0/1 | C0 has four differing rows; current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Continue source-qualified original caller ordering after the C0 A4 phase diagnostic; no aperture selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
+| C1 DI/02E3 | Native58 versus photo59; original program labels CRTC1 unreliable, so this remains excluded from confirmed broken counts. |
+| C1 S/02D3 and B9 MID | Current full-history S is0840 WRONG versus program4E40; fresh CPCSE history gives4E40. Same-RBF direct gives4E40; qualify the canonical-prefix repeat before selecting the inherited-state cause. Older photo4E30 binding remains separate. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |
-| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All 44 D3 captures now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. Five other D captures remain stale. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
+| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All 44 CRTC1 D3 captures now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. DT0305 remains stale on CRTC0/1 because the exit grab contains the menu. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
 | Broader classic gates | Type1 inactive rearming; F13/F20 hardware gates; IA-5 simultaneous sync/interrupt; Q17 and D1 entry; wider phase/lifetime closure remain open. [Audit](classic/audit-findings.md), [discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md). |
 
 DT's missing band was an acquisition-epoch mismatch; full phase-matched photo

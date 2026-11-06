@@ -126,6 +126,14 @@ physical photograph. [C5](investigations/hardware-runs/shaker-crtc0-c5-parity-20
 [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md),
 [AI008D](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
 
+Current CRTC0 A4 and B6 provide further useful successful peer paths. Available
+2.6/2.7 direct A4 runs both give the photographed01/00, while native gives00/00;
+its type1 peer instead gives00/00. One original CRTC0 B6 run matches all six
+physical values27/14/26/27/1E/1E, versus native13/14/26/26/1F/1F. Preserve the
+type distinction and qualify original CPU phase before changing write timing.
+[A4 and AI](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md),
+[B6](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md).
+
 ## Interactive inspection
 
 The open GUI can be driven by its bundled `cpcse-ctl` client once its command
