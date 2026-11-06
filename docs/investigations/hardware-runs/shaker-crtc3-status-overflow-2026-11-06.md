@@ -336,7 +336,7 @@ a matching two-stage hardware verdict permits a scoped fail-first correction,
 without proving comparator topology or transposing it to other status bits.
 No production comparator or bit4 change is selected in this checkpoint.
 
-## Scoped bit0 candidate: original two-stage PASS, hardware pending
+## Scoped bit0 correction: original two-stage and native acceptance
 
 The candidate adds only `!in_adj` to the strict live STATUS2bit0 equality.
 It leaves R9 equality, vertical counters, timing and other status bits intact.
@@ -366,8 +366,23 @@ conditional experimentalGO. It reads the changed actual source/test regions;
 its sandbox cannot read the separate proof packet outside the worktree. Parent
 checks the exact two-file diff/hashes and independently binds the reported
 gates, physical reference and original CPU evidence. That scope limit is
-retained in the review receipt. Full fit with zeroTNS and native bit0 repair
-without anotherDUregression remain required before hardware acceptance.
+retained in the review receipt. Full fit and targeted native acceptance now
+pass on4e45417. The exact-SHA build is
+[run42265042336](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42265042336):
+seven setup/hold domains, minima0.471/0.204ns and zeroTNS. The RBF is
+`Amstrad_20261106_4e45417.rbf`,3,137,032bytes, SHA256
+`3e90278eb4965d36d2dc4e52950b984447a546336adda83563be45f035079dcc`.
+
+Four native CRTC3 runs retain26PNGs. DU03C0 now prints bit0OK and only the
+known bit4WRONG0000. Six earlier03BC/03BD/03BF captures are byte-identical to
+accepted5c1ab57 controls. The03BE register-discovery page changes R4/R6/R7;
+its R5-dependent geometry remains unresolved, so it gains no whole-page pass.
+All eleven ModuleE captures, including every0406 ordinary/ROM witness, are
+byte-identical to the accepted build. Root views the threeDSC4 and twoAmazing
+captures; credits and sampled main effects remain intact. DU/E provide16actual
+Full0 records; demos retain requested-only Full evidence. Normal WAIT and all
+four exact CFG restores pass. Private packet:
+`c3-status2-bit0-native-4e45417-20261106/`.
 
 MODEL LIMITB26: the observable pair is supported by the canonical physical
 reference; status-comparator topology and generalR5/live-write behavior remain
@@ -375,5 +390,38 @@ inferred. Suppression also affects adjustment in R8=1/3frames; it is not
 noninterlace-only. The separate extra-interlace-line behavior is unchanged.
 R5=16 would separate the ordinary-domain interpretation from a last-adjustment-
 line-only rival; no invented expectation for that unmeasured corner is added.
-Other status bits, especially bit4, remain separate. No whole03C0pass, native
-acceptance, master integration or release approval follows from this checkpoint.
+Other status bits, especially bit4, remain separate. No whole03C0pass, master
+integration or release approval follows from this acceptance.
+
+## Bit4: original AmSpirit path and bounded geometry controls
+
+The fresh resident bit4 input declares DI, SP=BFF0, original A092 setup,
+normal 9E73 capture and 9131 remap, then original 9736. AmSpirit 1.17.1,
+core2491682, executes that exact input to natural RET9761→C012 with
+HL9790/SPBFF0/A10/F10. Breakpoints observe the normal continuation at973A,
+adjusted remap completion at9745 and final return; no PC, RAM, register or
+counter edits occur after the before-first-instruction SNA load.
+
+The normal buffer has bit4HIGH in all19,968samples. The adjusted buffer,
+captured before the original9870 geometry restore, has LOW0000..4DFE and
+HIGH4DFF. This confirms the original software expectation in the peer and
+rules out an explanation confined to the final printed verdict. It does not
+establish physical topology or full native-history equivalence.
+
+Separate diagnostic inputs change only the declared R4/R5 table operands and
+use the original collector/remap. With R4=37 and R5=1/8/16, AmSpirit supplies
+one sampled bit4HIGH per buffer. Relative to bit0's body-endLOW, those HIGHs
+occur64/512/1024us later modulo the declared frame period. R4=38/R5=0 remains
+HIGH throughout. This suggests a final-adjustment-character interpretation
+for nonzeroR5, but only the canonical37/8case has the bound physical/program
+verdict. Broader R5, live-write and interlace rules remain hypotheses.
+
+CPCSyntaxError0.12.0 hardwires bit4HIGH. The inspected cpcec, caprice32 and
+konCePCja sources do not implement the relevant ASIC status group; their
+register aliases or floating-bus values do not supply a competing bit4 rule.
+French§21.3.4.2p249's Always1 row therefore remains an explicit conflict with
+the bound original-program/photo observation. No bit4 RTL is changed here.
+Private packets: `c3-status2-bit4-amspirit-20261106/`,
+`c3-status2-bit4-amspirit-geometry-20261106/`,
+`c3-status2-bit4-peer-source-20261106/` and the fail-first preparation in
+`c3-status2-bit4-original-proof-20261106/`.

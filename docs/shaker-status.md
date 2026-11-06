@@ -16,9 +16,10 @@ DU03BF passes while03C0 retains status2 bit0/bit4 failures. See the
 Current493 direct BR01F0/01F1 captures also reproduce the known ASIC numeric
 failures, pixel-identical to the priorfdf full-module captures; all3SSMrecords
 report actual Full0. This changes freshness, not counts.
-A scoped CRTC3status2bit0candidate now passes both originalCPUcaptures and
-46selectedbenches after a failing-before vector. Fullfit/native gates remain
-open; DU03C0staysbroken because bit4 is unresolved. No tally change.
+CRTC3 STATUS2 bit0 now passes both original CPU stages, 46 selected benches,
+full fit and native acceptance on4e45417. DU03C0 still fails bit4. Its separate
+original CPU replay qualifies the adjusted offset0000 failure; the same resident
+AmSpirit routine passes. A bit4 candidate is in progress. No tally change.
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 
@@ -101,7 +102,10 @@ allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
   [Current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
 - **Current CRTC3 numeric failures:** original Type3 callers/tables qualify
   BR01F0 and01F1 as broken against the current program. The fresh peer
-  passes; an original ACK/R52 trace must locate the responsible boundary.
+  passes. A qualified original resident replay preserves twelve controls and
+  reproduces CPI CC versus table/photo C4. The shaped ACK follows the R52
+  31-to-32 seam; its cause remains unresolved. No wiring mismatch or justified
+  numerical delay fix is established. [ACK evidence](investigations/hardware-runs/shaker-crtc3-br-ack-boundary-2026-11-06.md).
 - **Current CRTC3 status/overflow:** DU03C0 still fails its status2 checks. E0406 now passes all ordinary/ROM
   checks on5c1ab57; completed AmSpirit1.17.1 passes both pages. Status2bit4 has an apparent
   literal-table/collector tension, and E's final ROM-select race is already
