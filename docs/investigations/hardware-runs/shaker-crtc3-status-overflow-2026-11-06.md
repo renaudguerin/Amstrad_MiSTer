@@ -2,7 +2,7 @@
 
 > Physical-reference correction: the ignored canonical real-CPC cache contains
 > CRTC3 DU/03C0, showing STATUS2 bit0 andbit4 OK. Earlier no-photo assumptions
-> were wrong. The available-program binding is being checked; see the final
+> were wrong. The available2.6/2.7checks are byte-identical; see the final
 > section for the qualified adjusted-stage failure and reference provenance.
 
 Native baseline `fdf348c` fails the original program checks on DU/03C0 and E/0406.
@@ -335,3 +335,45 @@ separate and revises its recommendation after viewing the physical photo:
 a matching two-stage hardware verdict permits a scoped fail-first correction,
 without proving comparator topology or transposing it to other status bits.
 No production comparator or bit4 change is selected in this checkpoint.
+
+## Scoped bit0 candidate: original two-stage PASS, hardware pending
+
+The candidate adds only `!in_adj` to the strict live STATUS2bit0 equality.
+It leaves R9 equality, vertical counters, timing and other status bits intact.
+With normalR4=38/R5=0, the body-endLOW remains4DFF; withR4=37/R5=8 it remains
+4BFF and the512adjustment samples stayHIGH. A focused counter/status vector
+fails at adjusted4DFF before the RTL edit and passes unchanged afterward.
+All46selected benches pass, including82ASIC-video tests.
+
+Available original26D/27D collectors, status predicates, geometry helpers and
+synchronizers are byte-identical at the same addresses. The complete payload
+difference is accounted for by the version digit, relocated font workspace
+and10bytes of SSM stubs. This supports the canonical physical03C0OK verdict
+without claiming the photograph’s exact binarySHA is known. See private
+`c3-du-photo-program-binding-20261106/`.
+
+One candidate production-CPU replay with the unchanged observer, SNA, original
+guest and software oracle now reports QUALIFIED_PASS. Both19,968-sample captures qualify through IN/store/analyzer transport
+(39,936total samples), and originalRET9373 reaches9159 naturally,
+HL93A7/SP9DE6/F44. No source timing, phase or expectation changed. It retains
+one diagnostic difference at adjusted4DFF: actual counters still63/37/7 with
+in_adj1, but bit0 isHIGH instead of the former literal-comparatorLOW. The
+diagnostic never owns qualification. Private candidate packet:
+`c3-status2-bit0-body-candidate-20261106/`.
+
+Fresh Opus5.5 source review finds no correctness/regression bug and gives
+conditional experimentalGO. It reads the changed actual source/test regions;
+its sandbox cannot read the separate proof packet outside the worktree. Parent
+checks the exact two-file diff/hashes and independently binds the reported
+gates, physical reference and original CPU evidence. That scope limit is
+retained in the review receipt. Full fit with zeroTNS and native bit0 repair
+without anotherDUregression remain required before hardware acceptance.
+
+MODEL LIMITB26: the observable pair is supported by the canonical physical
+reference; status-comparator topology and generalR5/live-write behavior remain
+inferred. Suppression also affects adjustment in R8=1/3frames; it is not
+noninterlace-only. The separate extra-interlace-line behavior is unchanged.
+R5=16 would separate the ordinary-domain interpretation from a last-adjustment-
+line-only rival; no invented expectation for that unmeasured corner is added.
+Other status bits, especially bit4, remain separate. No whole03C0pass, native
+acceptance, master integration or release approval follows from this checkpoint.

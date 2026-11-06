@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -139,11 +140,11 @@ public:
                     where, dut.HCC, dut.LINE, dut.ROW, dut.MA, dut.RA, dut.DE);
     }
 
-    void run_to_frame_start() {
+    void run_to_frame_start(unsigned max_characters = 4096) {
         unsigned guard = 0;
         do {
             run_characters(1);
-            if (++guard > 4096) {
+            if (++guard > max_characters) {
                 throw TestFailure("run_to_frame_start did not converge");
             }
         } while (!(dut.LINE == 0 && dut.ROW == 0 && dut.HCC == 0));
@@ -2729,6 +2730,47 @@ void t07e_status2_vertical_events(TestBench& test) {
     expect_mask("t07e C4=R4 terminal", test.sample_selected(), 0x01, 0x00);
 }
 
+// ACCC FR v1.11 §21.3.4.2 p.249 gives the strict C4/R4,C9/R9,C0/R0
+// comparisons. §11.2.6 pp.85–86 keeps C4=R4 but gives C9 to R5 during
+// adjustment. The sampled bit0 arrays come independently from unchanged
+// SHAKE26D/SHAKE27D 9374..938D and 934B..936E, bound to the canonical
+// real-hardware CRTC3 DU03C0 OK photograph:
+// https://shaker.logonsystem.eu/images/cpc/CPC/DU_CRTC3_D.webp
+// The relevant 26/27 checks are byte-identical; the photo's exact payload
+// hash is unknown. Qualified original CPU replay exposed a duplicate LOW
+// at4DFF. This pins the shared counter/status boundary, not decoder topology.
+void t07h_status2_bit0_body_and_adjustment(TestBench& test) {
+    constexpr unsigned kFrameCharacters = 312 * 64; // 19968, original4E00 buffer
+    const std::array<std::uint8_t, 10> normal =
+        {{63, 40, 46, 14, 38, 0, 25, 30, 0, 7}};
+    struct Geometry { std::uint8_t r4, r5; unsigned low_offset; const char* name; };
+    const std::array<Geometry, 2> cases = {{{38, 0, 0x4DFF, "normal"},
+                                           {37, 8, 0x4BFF, "adjusted"}}};
+    for (const auto& geometry : cases) {
+        for (unsigned reg = 0; reg < normal.size(); ++reg)
+            test.write_register(reg, normal[reg]);
+        test.write_register(4, geometry.r4);
+        test.write_register(5, geometry.r5);
+        test.select_register(3);
+        // One full frame may be needed to leave the live programming phase.
+        // Two312-line periods are a mathematical bound, not a forced origin.
+        test.run_to_frame_start(2 * kFrameCharacters);
+        for (unsigned offset = 0; offset < kFrameCharacters; ++offset) {
+            // Normal:39*8*64-1=4DFF. Adjusted:38*8*64-1=4BFF;
+            // the following8*64=512adjustment samples are all HIGH.
+            const std::uint8_t expected = offset == geometry.low_offset ? 0 : 1;
+            char position[5];
+            std::snprintf(position, sizeof(position), "%04X", offset);
+            expect_mask(std::string("t07h ") + geometry.name + " offset " + position,
+                        test.sample_selected(), 0x01, expected);
+            test.run_characters(1);
+        }
+        test.expect_hcc("t07h312-line frame wrap", 0);
+        test.expect_line("t07h312-line frame wrap", 0);
+        test.expect_row("t07h312-line frame wrap", 0);
+    }
+}
+
 // ACCC §21.3.4.2 p.250 (FR p.249): bit 3 is stable for a whole frame and toggles
 // every 16 frame origins. With R9=7, R4=0, and R0=1, each frame has eight
 // scanlines and 16 characters. Two 16-frame intervals catch a frame-origin
@@ -3373,7 +3415,7 @@ void t02m_r4_source_window(TestBench& test, unsigned r0,
     test.expect_adj(false, "t02m no adjustment");
 }
 
-constexpr std::array<TestCase, 81> kTests = {{
+constexpr std::array<TestCase, 82> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3457,6 +3499,7 @@ constexpr std::array<TestCase, 81> kTests = {{
     {"t07d STATUS1 VSYNC band polarity", t07d_status1_vsync_band_polarity},
     {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
+    {"t07h STATUS2 bit0 normal and adjusted body", t07h_status2_bit0_body_and_adjustment},
     {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
     {"t08a screen split capture and advance", t08a_split_screen_capture_and_advance},
     {"t08b screen split disabled when zero", t08b_split_screen_disabled_when_zero},
@@ -3480,8 +3523,10 @@ constexpr std::array<TestCase, 81> kTests = {{
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
 
+    const std::string filter = argc > 1 ? argv[1] : "";
     unsigned passed = 0;
     for (const auto& test : kTests) {
+        if (std::string(test.name).find(filter) == std::string::npos) continue;
         try {
             TestBench bench;
             test.run(bench);
@@ -3493,6 +3538,10 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (passed == 0) {
+        std::cerr << "No asic_video tests matched: " << filter << '\n';
+        return 2;
+    }
     std::cout << "All " << passed << " asic_video foundation tests passed\n";
     return 0;
 }

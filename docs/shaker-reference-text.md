@@ -2,9 +2,9 @@
 
 Use `local/shaker-reference-text/INDEX.json` and the matching CRTC/test/page
 JSON or TXT before reopening a reviewed static text photograph. This private
-cache is a reading aid; the original image remains authoritative. Twelve pages
-have reviewed numeric coverage: the five-page C0 A4/B6/C5
-and C1 A4/B6 pilot, plus seven C0/C1 AI pages, with explicit partial coverage.
+cache is a reading aid; the original image remains authoritative. Thirteen pages
+have reviewed result fields: the five-page C0 A4/B6/C5 and C1 A4/B6 pilot,
+seven C0/C1 AI pages, and two CRTC3DU03C0verdicts, with explicit partial coverage.
 The complete private cache is also preserved in the main clone’s ignored
 `local/shaker-reference-text/`, which newly provisioned task worktrees share
 through their normal `local` link. Keep accepted fields and the raw batch
@@ -83,3 +83,12 @@ uncertain unless the image resolves them. Never globally replace letters,
 borrow a neighboring row's value or supply the core's expected passing result.
 Retain disagreements and source positions for image adjudication; spot-check
 agreements before broad batch acceptance.
+
+## CRTC3 status-reference recovery
+
+The canonical physicalDU03C0photo is present in the main clone’s ignored
+reference tree. Root,Astra and blindGemini read STATUS2bit0OK andbit4OK; only
+those two fields are accepted in `CRTC3-DU_03C0_D.json`. Earlier no-photo
+claims were an evidence-discovery error. Use `rg --files --no-ignore` for
+ignored reference/media trees. Available26/27DU predicates are byte-identical;
+that bounded binding does not identify the photo’s exact disk binary.

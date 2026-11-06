@@ -142,3 +142,23 @@ confirms both original stores8D4A/8D4B fail1E expectations with actual1F/1F
 (exit1). The RAM digest is1751f52d9d404d3b09c4c29b08df10e0f1a9ceb06ca519bdfe93e1bf1da3d3ab.
 No new DUT run, phase assumption or production test was added. Receipt:
 `c0-b6-r7-photo-failure-20261106/`.
+
+## Plus STATUS2 bit0 adjustment-domain qualification
+
+The scoped candidate qualifies the strictC4/R4,C9/R9,C0/R0 status0comparison
+with `!in_adj`; no counter or other status bit changes. Canonical physical
+CRTC3DU03C0showsbit0OK. Available26/27two-stage predicates and collector bytes
+are identical; exact photographed binary identity remains unknown. The
+original production-CPU baseline qualifies normalPASS/adjusted4DFFRED; the
+candidate qualifies both stagesPASS with the same observer/input/oracle.
+FocusedRED/GREEN and46selected benches pass. Fresh Opus source review gives
+conditional experimentalGO, with parent verification of the out-of-sandbox
+proof packet. Full fit/native gates remain owed.
+
+The source comment carries MODEL LIMIT(B26). A body-terminal event and a
+last-adjustment-line suppression rival fit the same R9=7/R5=8pair; a physical
+R5=16pair can distinguish them. Interlaced adjustment is also affected, while
+the separate extra line is unchanged. Live writes, sibling status bits and
+comparator topology remain unproved. Do not describe this as a decap-derived
+shared comparator or silently generalize it to bit4. Evidence:
+[status proof](hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).

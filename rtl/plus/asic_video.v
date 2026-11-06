@@ -1032,10 +1032,16 @@ wire s1_bit5 = (R3_v_sync_width == 0) ?
 wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
                  ((hcc == R0_h_total) && (vma_latch[7:0] == 8'h00)));
 
-// STATUS 2 (ACCC FR §21.3.4.2 p.249): vertical-event group. ACCC specifies literal
-// counter comparisons, so these remain live during vertical adjustment too;
-// whether hardware suppresses an adjustment-time duplicate is not evidenced.
-wire s2_bit0 = ~((charline == R4_v_total) &&
+// STATUS 2 (ACCC FR §21.3.4.2 p.249): vertical-event group.
+// MODEL LIMIT (B26): canonical physical CRTC3 DU03C0 OK, bound to unchanged
+// SHAKER26/27 predicates, establishes the normal39*8 and adjusted38*8+8 pair:
+// bit0 pulses at the body end, not again in adjustment. FR §11.2.6 pp.85–86
+// gives C9 to R5 there. Qualifying this strict comparator by !in_adj matches
+// that observable; comparator topology, live writes, interlace and other
+// status bits remain unproved. Ordinary extra-interlace-line behavior is
+// unchanged. See docs/investigations/hardware-runs/
+// shaker-crtc3-status-overflow-2026-11-06.md.
+wire s2_bit0 = ~(!in_adj && (charline == R4_v_total) &&
                  (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&
                  (raster == R9_v_max_line) && hcc_equal);

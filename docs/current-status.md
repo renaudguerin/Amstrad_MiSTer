@@ -15,8 +15,9 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 
 ## Current branch and artifact
 
-- Experimental branch `codex/classic-ga-boundary-native-20261105`, source
-  `493cdea`; not integrated into `master`. [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42239336164),
+- Experimental branch `codex/classic-ga-boundary-native-20261105`; latest
+  device-verified source`493cdea`, with the scoped bit0 candidate below pending
+  fit/native acceptance. Not integrated into `master`. [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42239336164),
   including production-T80, passes. Quartus17.0.2 full fit closes seven
   setup/hold domains, minima0.475/0.247ns and zeroTNS. Device-verified RBF
   `Amstrad_20261106_493cdea.rbf`,3,135,416bytes, SHA256
@@ -40,8 +41,10 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
   All original ordinary/ROM checks pass in that native proof, while DU03C0
   status2 remains broken. Its complete original bit0 replay now qualifies normalPASS and adjustedRED:
   a second LOW at4DFF takes9368→938E. The canonical physical CRTC3 photo
-  shows bit0/bit4OK; available-program binding is being checked. The prior
-  missing-photo premise was wrong. Bit4/table interpretation stays separate.
+  shows bit0/bit4OK, and available26/27checks are identical. A scoped bit0
+  candidate now passes both original CPU stages, focusedRED/GREEN and46benches;
+  Opus source review gives conditional experimentalGO. Fullfit/native gates
+  remain owed. The prior missing-photo premise was wrong. Bit4 stays separate.
   [Plus proof](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   still targets `fdf348c`, with its coherent 1,384-image SHAKER archive and six
@@ -133,7 +136,7 @@ further evidence. [Plus divergences](plus/source-divergences.md),
 
 ## Tools and remaining platform gates
 
-The [model-confidence inventory](investigations/rtl-model-confidence-2026-11-06.md) records six initial inferred policies/coverage limits for upstream review. The [private reference-text cache](shaker-reference-text.md) has twelve pages with reviewed numeric coverage and three additional draft pages.
+The [model-confidence inventory](investigations/rtl-model-confidence-2026-11-06.md) records six initial inferred policies/coverage limits for upstream review. The [private reference-text cache](shaker-reference-text.md) has thirteen pages with reviewed result fields and three additional draft pages.
 
 Updated SHAKER package and French B1 key override are installed; D1 page-state
 alignment needs care. [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md).

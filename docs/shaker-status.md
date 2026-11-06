@@ -16,6 +16,9 @@ DU03BF passes while03C0 retains status2 bit0/bit4 failures. See the
 Current493 direct BR01F0/01F1 captures also reproduce the known ASIC numeric
 failures, pixel-identical to the priorfdf full-module captures; all3SSMrecords
 report actual Full0. This changes freshness, not counts.
+A scoped CRTC3status2bit0candidate now passes both originalCPUcaptures and
+46selectedbenches after a failing-before vector. Fullfit/native gates remain
+open; DU03C0staysbroken because bit4 is unresolved. No tally change.
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 
