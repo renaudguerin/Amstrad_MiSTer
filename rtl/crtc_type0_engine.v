@@ -32,6 +32,7 @@ module crtc_type0_engine
 (
 	input            CLOCK,
 	input            CLKEN,
+	input            nCLKEN,
 	input            nRESET,
 	input            CRTC_TYPE,
 	input            SNA_LOAD,
@@ -81,6 +82,7 @@ module crtc_type0_engine
 
 	// Counter next-state contributions.
 	output           r0_frozen,
+	output           hcc_terminal,
 	output           line_new,
 	output     [4:0] line_next,
 	output     [4:0] c5_next,
@@ -153,6 +155,21 @@ module crtc_type0_engine
 /* verilator lint_off WIDTH */
 
 wire register_write = ENABLE & ~nCS & ~R_nW & RS;
+
+// FR §13.6.1 p124: a too-late update does not cancel an equality already
+// sampled. The phase is an implementation inference, not a silicon edge.
+// Coverage limit, not a rule: old R0=1 (§13.7.2) and sampled-false/live-true
+// late writes keep the live path pending hardware or an author ruling.
+reg type0_r0_eq_kept;
+wire [7:0] type0_r0_at_sample = (register_write && addr == 5'd0) ? DI : R0_h_total;
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || CRTC_TYPE || CLKEN) type0_r0_eq_kept <= 0;
+    else if (nCLKEN) type0_r0_eq_kept <= (hcc == type0_r0_at_sample) &&
+                                         (type0_r0_at_sample != 8'd1);
+end
+assign hcc_terminal = hcc_last ||
+                      (nRESET && !SNA_LOAD && !CRTC_TYPE && type0_r0_eq_kept);
+
 
 // ------------------------------------------------------------------
 // F10: type-0 IVM counting (ACCC v1.11 section 19.8.1 pp.220-221; the
@@ -323,7 +340,7 @@ assign     r0_widen_step = (type0_r0_widen_pending || type0_r0_widen_write_pendi
 
 // Type 0 still compares C0 with R0 when both are zero, but that repeated
 // equality pins C0 rather than completing a stream of one-character lines.
-wire       r0_frozen_w = !R0_h_total && !hcc;
+wire       r0_frozen_w = hcc_terminal && !hcc;
 assign     r0_frozen = !CRTC_TYPE && r0_frozen_w;
 
 // F10: the old `& ~interlace` halving of the limit is gone; the IVM limit
@@ -425,7 +442,7 @@ wire       type0_adjust_end = type0_r9_zero_adjust_end | type0_c0_1_r5_end;
 wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 
-assign line_new = hcc_last && !r0_frozen_w && !type0_r0_widen_accept;
+assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
 // its C9 continues the adjustment count to R5 (section 11.2 p.85).
 assign line_next = type0_add_intercept ? R5_v_total_adj :
@@ -785,7 +802,7 @@ always @(posedge CLOCK) begin
 		type0_vsync_delay_d1 <= 0;
 		type0_vsync_delay_d2 <= 0;
 	end
-	else if(CLKEN && hcc_last && !type0_r0_widen_accept) begin
+	else if(CLKEN && hcc_terminal && !type0_r0_widen_accept) begin
 		type0_vsync_delay_d1 <= vsync_fire_seam && type0_vsync_delay_arm;
 		type0_vsync_delay_d2 <= type0_vsync_delay_d1;
 	end
