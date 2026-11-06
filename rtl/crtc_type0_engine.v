@@ -333,18 +333,24 @@ wire       type0_r0_widen_write_accept = type0_r0_widen_write_eligible && frame_
 // before CLKEN, so C0 must advance 1->2 on that edge, with no duplicate
 // C0=1 character. Retain the vertical action until that edge. The existing
 // direct-CLKEN path still separates its accepting edge from the C0=2 step.
-reg        type0_r0_widen_write_pending;
+// Both routes retain the same vertical obligation. On CLKEN the wrapper
+// consumes the old obligation; independently replace it with a direct
+// frame-qualified acceptance, whose accepting edge holds C0=1. Between
+// CLKEN edges a qualifying early write sets it without duplicating C0=1.
 wire       type0_r0_widen_accept = CLKEN && type0_r0_widen_write_accept;
 always @(posedge CLOCK) begin
-    if(!nRESET || SNA_LOAD || CRTC_TYPE || CLKEN)
-        type0_r0_widen_write_pending <= 0;
+    if(!nRESET || SNA_LOAD || CRTC_TYPE)
+        type0_r0_widen_pending <= 0;
+    else if(type0_r0_widen_accept)
+        type0_r0_widen_pending <= 1;
+    else if(CLKEN)
+        type0_r0_widen_pending <= 0;
     else if(type0_r0_widen_write_accept ||
             (type0_r0_widen_write_eligible && line == R9_v_max_line))
-        type0_r0_widen_write_pending <= 1;
+        type0_r0_widen_pending <= 1;
 end
 assign     r0_widen_hold = type0_r0_widen_accept;
-assign     r0_widen_step = (type0_r0_widen_pending || type0_r0_widen_write_pending) &&
-                          !SNA_LOAD && !CRTC_TYPE;
+assign     r0_widen_step = type0_r0_widen_pending && !SNA_LOAD && !CRTC_TYPE;
 
 // Type 0 still compares C0 with R0 when both are zero, but that repeated
 // equality pins C0 rather than completing a stream of one-character lines.
@@ -625,18 +631,8 @@ always @(posedge CLOCK) begin
 		type0_zero_adj_entry <= 0;
 		type0_r5_adjust_override <= 0;
 		type0_r5_adjust_target <= 0;
-		type0_r0_widen_pending <= 0;
 	end
 	else begin
-		// The accepting edge is not a real line boundary: hold C0=1 and
-		// remember the already-evaluated last-line action.  One character
-		// later the wrapper advances into C0=2, increments C4 without
-		// resetting C9, and consumes this private state.  Snapshot load and a
-		// live switch away from type 0 discard the pending transition above.
-		if(type0_r0_widen_accept)
-			type0_r0_widen_pending <= 1;
-		else if(CLKEN && type0_r0_widen_pending)
-			type0_r0_widen_pending <= 0;
 		// French ACCC v1.11 section 13.2.1 p.106: vertical adjustment with
 		// ordinary C4=R4+1 progression requires R4 to have remained equal to
 		// C4 throughout the line. Any unequal R4 write within C0 in [2, R0]
