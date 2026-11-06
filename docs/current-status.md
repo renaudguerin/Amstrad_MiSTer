@@ -17,7 +17,8 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 
 - Active V1 integration branch `codex/v1-production-integration-20261106`
   starts at the preserved investigation branch tip `ef0c109`; its receiver
-  profile remains disabled pending the experimental enabled build.
+  profile is explicitly enabled for an experimental full build; native
+  acceptance remains pending.
   Latest device-verified functional source is still `cb3a1a6`, not integrated
   into `master`.
   [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273216780),
@@ -120,7 +121,7 @@ now has an isolated receiver/renderer on `codex/general/v1-crt-response-20261106
 (`b291826`, READY). Eighteen frozen streams match over5,432,672 output clocks;
 47 selected benches, unchanged CRTC soak, fresh Opus review and
 [exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273531215)
-pass. The active integration wires it behind a disabled private profile. Its
+pass. The active integration explicitly enables it for the experimental full build. Its
 production-boundary proof covers motherboard/compositor/lifecycle wiring,
 but fresh Opus review found a one-dot RGB/metadata alignment defect. Its
 combined consumer repair and fresh Opus supplement now pass. Owned import passes
