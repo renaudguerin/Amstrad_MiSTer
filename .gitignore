@@ -77,3 +77,6 @@ __pycache__/
 
 # Private SHAKER B9 replay build and traces
 /.roster-scratch/b9-mid/
+
+# Private V1 receiver prototype evidence (frozen inputs, RED/GREEN and reviews)
+/.roster-scratch/v1-crt-response/

@@ -114,7 +114,15 @@ The classic correction is shared by CRTC0/1; ASIC uses its separate tested
 correction. [ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
 The fdf348c SHAKER acquisition is complete: 1,384 images and six explicit gaps. A small [upstream comparison](investigations/hardware-runs/shaker-upstream-comparison-2026-11-06.md) is also complete; the candidate is restored on MiSTer.
 [V1 design and Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
-recommend a separate fourth CRT-response profile. The [offline causal prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md) passes fixed T/Y controls and gives partial held-out D3 direction/recovery acceptance; the reviewed coordinate/ownership repair now passes fail-first synthetic controls and preserves all real replays. Period admission, reset/mode and RTL gates remain open. FPGA behaviour is unchanged. Current original T/Y and first D3
+recommend a separate fourth CRT-response profile. The [private receiver/renderer](investigations/video-boundary/v1-rtl-candidate-2026-11-06.md)
+is READY on `codex/general/v1-crt-response-20261106`, based on `1e95fa0`:
+47 selected benches pass, the CRTC soak is unchanged, and fresh Opus review
+clears the repaired code. Eighteen frozen synthetic streams match the accepted
+model over 5,432,672 clocks, including source-loss and exact-HS anchor RED/GREEN
+proofs. Production wiring, RAM inference/fit/timing and exact-build hardware
+comparison remain open; FPGA behaviour and public modes are unchanged.
+The [offline prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md)
+retains T/Y and partial D3 acceptance. Current original T/Y and first D3
 [source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)
 is qualified separately from monitor acceptance.
 

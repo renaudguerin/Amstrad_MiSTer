@@ -95,11 +95,14 @@ current ±192 tick coordinate range and 256 tick cap is `L>640` master ticks.
 Shorter-period admission or larger storage remains an RTL gate, not a
 hardware timing claim.
 
-Reset-assertion and committed mode-change paths, ordinary width4/5/6 model
-response and a CPCSE-rendering comparison remain owed. General short-period
-admission, synchronous RAM scheduling, packing/resources, RTL timing and live
-sprite/owner transport also remain implementation gates. T's direction check
-alone does not prove recovery; D3 uses its separately preregistered checks.
+The [private RTL candidate](v1-rtl-candidate-2026-11-06.md) closes reset/mode
+refill, ordinary width4/5/6 response and conservative period admission offline.
+Its synchronous-history slice passes focused transport/ownership controls and
+4,941,152 accepted-model comparison clocks, including real sprite-leaf transport
+across owner changes. Opus clears the repaired code. Production compositor/output wiring,
+RAM inference/resources, Quartus timing and hardware acceptance remain open.
+A CPCSE rerender would not resolve these transport uncertainties. T's direction
+check alone does not prove recovery; D3 uses its separately preregistered checks.
 The signed fixed-point relaxation has a harmless sub-dot floor bias.
 
 Private manifests, frozen gates, images and parent receipts are under

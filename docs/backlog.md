@@ -495,7 +495,12 @@ V1 gate: original T/Y waveform export and offline candidates exist, but no
 validated dynamic response model is installed in production. The
 [Astra design revised after Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
 recommends a fourth CRT-response profile while retaining Full as default. Current
-coherent T/Y source transport is qualified. The [offline causal prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md) now passes its reviewed collector/coordinate/ownership controls and preserves T/Y/D3 replays. Period admission, reset/mode, ordinary-width response, RAM scheduling and RTL/resource gates remain open. Ordinary
+coherent T/Y source transport is qualified. The [offline causal prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md)
+preserves T/Y/D3 replays. Its [private RTL slice](investigations/video-boundary/v1-rtl-candidate-2026-11-06.md)
+is READY after lifecycle/period and ordinary-width closure, 47 passing benches,
+unchanged soak and fresh Opus review. Eighteen frozen streams match the accepted
+model for 5,432,672 clocks, including the review's source-loss/HS-anchor fixes.
+Production wiring, RAM fit/timing and hardware remain separate gates. Ordinary
 R3 width-position compensation is narrower than that model. Keep the current
 functional SHAKER work moving independently. [D3 boundary](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 

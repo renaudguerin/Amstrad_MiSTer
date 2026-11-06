@@ -142,3 +142,20 @@ confirms both original stores8D4A/8D4B fail1E expectations with actual1F/1F
 (exit1). The RAM digest is1751f52d9d404d3b09c4c29b08df10e0f1a9ceb06ca519bdfe93e1bf1da3d3ab.
 No new DUT run, phase assumption or production test was added. Receipt:
 `c0-b6-r7-photo-failure-20261106/`.
+
+## Private V1 presentation model
+
+The simulation-only `crt_response` candidate models qualitative horizontal
+monitor response downstream of pixel and sync production. Its fixed gains,
+priming rule, tip rejection/cap and displacement bounds describe a chosen
+presentation model; they are not measured CTM coefficients or inferred CRTC/GA
+quirks. Its two-record receiver admits nominal acquisition periods greater than
+640 master clocks and cumulative coordinate shifts within ±192 clocks; its
+16-bit timestamp slice also bounds nominal and observed intervals below 16384
+clocks, with a receiver-only watchdog before wrap. Those are storage/causality
+limits. Unsupported input must fall back to native
+position and re-prime, with acquisition transport continuing. `MODEL LIMIT
+(B26):` comments at these boundaries point to the [candidate contract](video-boundary/v1-rtl-candidate-2026-11-06.md).
+Physical calibration, production compositor/byte-policy wiring, Quartus fit
+and exact-build hardware comparison remain separate gates. Full and both Raw
+profiles retain their production semantics.
