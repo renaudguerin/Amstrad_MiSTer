@@ -17,9 +17,9 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 
 - Experimental branch `codex/classic-ga-boundary-native-20261105`, trial source
   `fdf348c`; prior native milestone `c0939d8`, comparison baseline `e24cb50`.
-  This is not integrated into `master`. The [milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-c15fe46775a05244113b)
+  This is not integrated into `master`. The [milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   targets exact `fdf348c` and remains unpublished; its current-build SHAKER archive
-  is being refreshed. Completed DT evidence remains on
+  now contains 1,384 images with six explicit gaps. Completed DT evidence remains on
   `codex/overnight-validation-20261103` (`18b58ce`).
 - Installed `Amstrad_20261106_fdf348c.rbf`, 3,138,276 bytes; SHA256
   `17466675860ee115418e712c55250a866c1b2f45bc9a796fd7f314a86d1cbf0d`,
@@ -46,22 +46,24 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 5 | 3 | 434 | 45 | 487 |
+| 0 | 5 | 3 | 478 | 1 | 487 |
 | 1 | 363 | 4 | 112 | 1 | 480 |
-| 3 | 0 | 0 | 18 | 405 | 423 |
-| All | 368 | 7 | 564 | 451 | 1390 |
+| 3 | 1 | 4 | 417 | 1 | 423 |
+| All | 369 | 11 | 1007 | 3 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
 | C0 E6/0409 | Cases 27/28 remain wrong; 26/28 pass. Resolve R4 rematch against physical behaviour; AmSpirit passes 28/28. [Forced-entry evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md), [stimulus](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md). |
-| A4/0037, CRTC0/1 | Native first OUTI bit0=0 versus physical1 on both. Current CPCSE matches the CRTC0 photo01/00 on available26/27, but gives00/00 on CRTC1. Bind the original C0 caller's successful IN/M1 phase before selecting a rule; photo-version identity remains open. [Current C0 discriminator](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md). |
+| A4/0037, CRTC0/1 | Native first OUTI bit0=0 versus physical1 on both. Current CPCSE matches the CRTC0 photo01/00 on available26/27, but gives00/00 on CRTC1. The original C0 caller now qualifies3C/3B and yields40/40, against French required0/40. Ordinary OUT 3D/3E neighbors and an asset-free OUTI 3C failure now qualify; zero-total OUTI independently fails while OUT(C) and C1 controls pass. One private sampling-stage candidate is in progress; no public RTL change. C1 continuation40/40 is compatible with its different rule; its scalar cause remains open. [Qualified C0 failure](investigations/hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md). |
 | C1 AI/008D | Direct208 gives1001 and canonicalc093 gives1000 versus physical1111. C0 AI now passes all16 photographed VS bits under the upper-PPI allowance. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | Fresh captures remain unknown: 008F physical V2 glyph is unresolved; 0090 needs complete cell adjudication. 008E, 0091 and direct/full-history 009A pass the bounded comparison. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | B6/019D, CRTC0/1 | C0 has four differing rows; current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Continue source-qualified original caller ordering after the C0 A4 phase diagnostic; no aperture selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
+| C3 DU/03C0 and E/0406 | Both fail current program checks; completed matching-FR AmSpirit passes all. Qualify status capture/table interpretation and ordinary overflow separately from the known ROM-select interface gap. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md). |
+| C3 B6 and BR | B6 passes all six current program checks, matching fresh CPCSE. BR01F0/01F1 are confirmed current-program failures; exact Type3 callers/tables are qualified and the peer passes. Original ACK/R52 replay must identify the cause. [Current C3 checks](investigations/hardware-runs/shaker-crtc3-b-current-2026-11-06.md). |
 | C1 DI/02E3 | Native58 versus photo59; original program labels CRTC1 unreliable, so this remains excluded from confirmed broken counts. |
-| C1 S/02D3 and B9 MID | Current full-history S is0840 WRONG versus program4E40; fresh CPCSE history gives4E40. Same-RBF direct gives4E40; qualify the canonical-prefix repeat before selecting the inherited-state cause. Older photo4E30 binding remains separate. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
+| C1 S/02D3 and B9 MID | Current full-history S is0840 WRONG versus program4E40; fresh CPCSE history gives4E40. Same-RBF direct gives4E40; the unchanged canonical-prefix repeat also gives4E40. Preserve current phase/history variability; require a diagnostic fit to retain the failing scalar before attributing a mechanism. Older photo4E30 binding remains separate. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |
-| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All 44 CRTC1 D3 captures now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. DT0305 remains stale on CRTC0/1 because the exit grab contains the menu. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
+| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All132 D3 captures across CRTC0/1/3 now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. DT0305 remains stale on CRTC0/1/3 because the exit grab contains the menu. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
 | Broader classic gates | Type1 inactive rearming; F13/F20 hardware gates; IA-5 simultaneous sync/interrupt; Q17 and D1 entry; wider phase/lifetime closure remain open. [Audit](classic/audit-findings.md), [discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md). |
 
 DT's missing band was an acquisition-epoch mismatch; full phase-matched photo
@@ -94,10 +96,9 @@ A single mixed-colour sprite passes; live-owner RGB isolation is accepted by
 inspection. Other sprite configurations and physical HDMI/CRT remain unproved.
 The classic correction is shared by CRTC0/1; ASIC uses its separate tested
 correction. [ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
-MiSTer is running the serial current-build SHAKER capture refresh under root's sole control.
+The current-build SHAKER acquisition is complete: 1,384 images and six explicit gaps. A small [upstream comparison](investigations/hardware-runs/shaker-upstream-comparison-2026-11-06.md) is also complete; the candidate is restored on MiSTer.
 [V1 design and Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
-recommend a separate fourth CRT-response profile; the offline prototype is under
-validation and changes no FPGA behaviour. Current original T/Y and first D3
+recommend a separate fourth CRT-response profile. The [offline causal prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md) passes fixed T/Y controls and gives partial held-out D3 direction/recovery acceptance; nonzero-coordinate extra-tip response still needs repair. FPGA behaviour is unchanged. Current original T/Y and first D3
 [source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)
 is qualified separately from monitor acceptance.
 

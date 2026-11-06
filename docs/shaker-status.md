@@ -2,11 +2,11 @@
 
 Maintained page tally, 6 November 2026. Page judgments carry forward the
 `c0939d8` milestone and qualified earlier builds; current trial `fdf348c`
-adds scoped ASIC preservation, 44 fresh aligned CRTC1 D3 captures and the
-ongoing current-build archive refresh. CRTC0 A–E acquisition is complete except
-two missing PNGs; its 44 canonical D3 identities remain stale pending corrected
-manual capture, as does DT0305 because its exit grab contains the menu. Fresh unadjudicated images become unknown, without new passing
-grades. A separate full-resolution C0 A4/AI check adds one passing and one
+adds scoped ASIC preservation, correctly aligned D3 captures on all three
+selectable CRTCs, and the completed archive refresh. A–E acquisition on CRTC0/1/3
+is complete: 1,384 images and six explicit gaps; DT0305 on all three remains stale
+because its exit grab contains the menu. Fresh unadjudicated images become
+unknown. A separate full-resolution C0 A4/AI check adds one passing and one
 broken judgment to previously unknown coverage. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
@@ -39,28 +39,29 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 0 | A | 2 | 1 | 119 | 0 | 122 |
 | 0 | B | 0 | 1 | 220 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
-| 0 | D | 0 | 0 | 66 | 45 | 111 |
+| 0 | D | 0 | 0 | 110 | 1 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **5** | **3** | **434** | **45** | **487** |
+| **0** | **Total** | **5** | **3** | **478** | **1** | **487** |
 | 1 | A | 118 | 2 | 7 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 1 | 3 | 0 | 80 |
 | 1 | D | 63 | 0 | 63 | 1 | 127 |
 | 1 | E | 3 | 0 | 4 | 0 | 7 |
 | **1** | **Total** | **363** | **4** | **112** | **1** | **480** |
-| 3 | A | 0 | 0 | 9 | 115 | 124 |
-| 3 | B | 0 | 0 | 8 | 113 | 121 |
-| 3 | C | 0 | 0 | 0 | 23 | 23 |
-| 3 | D | 0 | 0 | 0 | 150 | 150 |
-| 3 | E | 0 | 0 | 1 | 4 | 5 |
-| **3** | **Total** | **0** | **0** | **18** | **405** | **423** |
-| **All** | **Total** | **368** | **7** | **564** | **451** | **1390** |
+| 3 | A | 0 | 0 | 124 | 0 | 124 |
+| 3 | B | 1 | 2 | 118 | 0 | 121 |
+| 3 | C | 0 | 0 | 23 | 0 | 23 |
+| 3 | D | 0 | 1 | 148 | 1 | 150 |
+| 3 | E | 0 | 1 | 4 | 0 | 5 |
+| **3** | **Total** | **1** | **4** | **417** | **1** | **423** |
+| **All** | **Total** | **369** | **11** | **1007** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
-CRTC3 has scoped successful checks on BI/AE/AR, but no retained complete-page
-verdict: those15 pages remain unknown. Its old ungraded captures account for
-most stale entries. This table does not classify those pages as failures.
+CRTC3 now has a current B6 program-self-check pass. Scoped BI/AE/AR
+checks retain15 unknown whole-page judgments. All modules have current acquisition evidence; only the three invalid DT0305
+menu captures remain stale.
+[Current CRTC3 numeric checks](investigations/hardware-runs/shaker-crtc3-b-current-2026-11-06.md).
 
 ## What the remaining counts contain
 
@@ -70,20 +71,31 @@ coverage; this does not establish a regression. Current CPCSE26/27 match the
 physical CRTC0 A4 result, unlike its CRTC1 result. C0 B6 also has four confirmed
 photo/self-check differences; the fresh peer matches all six.
 [C0 B6 comparison](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md).
+The [original C0 A4 caller](investigations/hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md)
+now independently qualifies a3Ccounter-continuation failure; ordinaryOUT
+boundary controls now qualify the OUTI-only mismatch. The zero-total OUTI control independently fails while ordinary OUT and C1
+controls pass; one private sampling-stage candidate is in progress.
 
 - **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C0/1 B6/019D;
-  C1 AI/008D; current C1 S/02D3 (0840 versus4E40). E6's26/28 figure counts assertions across0407/0408/0409,
+  C1 AI/008D; current C1 S/02D3 (0840 versus4E40); C3 BR/01F0 and01F1, DU/03C0 and E/0406. E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
   on MiSTer, while its MID glyph/reference binding remains open. Earlier S
   direct/history4E40 passes are superseded by the current failing history
-  capture; same-RBF direct entry still gives4E40.
+  capture; same-RBF direct and an unchanged history repeat give4E40.
   [Current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
+- **Current CRTC3 numeric failures:** original Type3 callers/tables qualify
+  BR01F0 and01F1 as broken against the current program. The fresh peer
+  passes; an original ACK/R52 trace must locate the responsible boundary.
+- **Current CRTC3 status/overflow:** DU03C0 and E0406 fail their original
+  checks; completed AmSpirit1.17.1 passes all. Status2bit4 has an apparent
+  literal-table/collector tension, and E's final ROM-select race is already
+  excluded from the implementation. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - **Unknown dynamic/display checks:** D6/D7 physical phase/settling, DI02E3
   (58/59; the program labels CRTC1 unreliable), and DT02F8/02FA's full
   phase-matched photo verdict. DT's reported missing band was an acquisition
   epoch mismatch; its early native trace contains both bands.
-- **D3 acquisition repaired:** all 44 current headers match after correcting
+- **D3 acquisition repaired:** all132 current headers across CRTC0/1/3 match after correcting
   one extra Space in our private manual overlay. These pages are unknown
   pending full digital-content/blanking comparison; CRT deflection belongs to
   V1 separately. Four other formerly stale C1 D pages now become unknown;0305 remains stale

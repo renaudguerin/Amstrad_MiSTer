@@ -99,3 +99,21 @@ acceptance are under
 `local/overnight-20261103/resumed-20261104/d3-boundary-short-pulse-20261106/`.
 MiSTer is restored to the same `fdf348c` French Plus BASIC/BTF-ready state;
 the restoration completes 7 commands/one capture, viewed by the parent.
+
+## Current CRTC0 and ASIC archive overlays
+
+Count-corrected quiescent overlays now also complete on CRTC0 and CRTC3 with
+44captures each,187commands each, no capture failures and verified CFG
+restoration. They use the same exactfdf348cRBF/disk pins as the accepted CRTC1
+run; only the declared type and image labels differ. Root read every one of
+the88 R2/R3 headers against the original44-entry parameter table and viewed
+all88 complete images on12 contact sheets. No bulk exit-marker image is used.
+
+The capture identities are now current unknowns, rather than stale wrong-page
+images. This closes acquisition identity only; digital-content and physical
+CRT response are still separate acceptance work. Requested Full is applied
+through verified CFG; the manual runs have no per-marker mode observations.
+Private manifests, hashes, header/contact sheets and parent receipts are in
+`resumed-20261104/milestone-release-20261106/{captures,inspection}/`
+under `crtc0-D3-corrected-001`/`crtc3-D3-corrected-001` and their inspection
+counterparts. These are native captures, not physical-display validation.

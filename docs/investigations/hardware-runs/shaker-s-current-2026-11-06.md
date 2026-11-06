@@ -6,8 +6,9 @@ of the older photograph's unresolved4E30/program-revision binding. The earlier
 [scoped direct/history passes](shaker-s-history-2026-11-04.md) remain historical
 evidence; they do not establish current acceptance. A fresh direct-entry
 control on the same RBF gives4E40. This establishes a history/entry-path
-difference; one canonical prefix repeat is running before selecting the
-responsible state or attributing it to a particular later RTL change.
+difference; the unchanged canonical prefix repeat also gives4E40. Thus the failing
+history result is not yet stable: retain same-build phase/history variability
+before selecting responsible state or attributing a later RTL change.
 
 Direct entry completes13commands, two captures, no failures and one SSM
 record. The marker capture reads4E40; the later explicit grab is black and
@@ -38,3 +39,11 @@ Private evidence is under
 parent hash/assessment). Other CPCSE pages are not newly adjudicated.
 The ledger now marks this one previously unknown page broken, without
 claiming a newly introduced regression or changing its expected value.
+
+The repeat preserves the original script through `wait_ssm02D3`, then adds
+only a later explicit capture. It completes134commands/65captures without
+failures; the S marker reads4E40 and the later grab is black. Root viewed
+both images. The parser-only attempt is retained separately; it contacted no
+hardware. An enabled passive-observer fit is useful only if it preserves the
+failing path's scalar as well as direct4E40; a passing diagnostic history
+must not be presented as the mechanism for0840.
