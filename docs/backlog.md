@@ -20,24 +20,25 @@ them.
 
 ## B26. Consolidate inferred RTL exceptions before upstream submission
 
-**First bounded audit and source-derived RED complete, 2026-11-06.** The concern is accumulated local guards and pending
-state whose narrow outcomes are supported, while a simpler general timing rule
-may still be missing. This can hide errors outside observed cases and make an
-upstream review harder. It is distinct from ordinary RTL conditionals and
-accurately sourced chip quirks. The [initial source-checked inventory](investigations/rtl-model-confidence-2026-11-06.md)
-contains six candidate policies/coverage limits; it is not an exhaustive count.
-The frozen8ba384e source audit finds a French §13.7.2.1 p127 non-last-row
-widening defect, now reproduced with126/126 production-T80 transport guards.
-A private candidate separates row advance from true-frame adjustment without
-new state; the unchanged original C0 B6 baseline now qualifies46/46 and reproduces all six
-native values; private candidate preservation is next. B6 never storesR0=1,
-so it protects shared owners rather than directly proving the new admission. Keep
-the accepted ordinary/zero repair: late oldR0=1 horizontal timing remains
-underdetermined. The [model-confidence report](investigations/rtl-model-confidence-2026-11-06.md)
-links the frozen proof, candidate and remaining limits.
-Continue the current known SHAKER/demo fixes; prepare this audit in parallel,
-then examine one bounded area at a time before upstream submission. No broad
-RTL rewrite is authorized merely by this planning entry.
+**First bounded audit and reviewed candidate complete, 2026-11-06.** The concern
+is local guards and retained state whose narrow outcomes are supported while a
+simpler general timing rule remains unknown. This is distinct from ordinary
+conditional logic and sourced chip quirks. The [inventory](investigations/rtl-model-confidence-2026-11-06.md)
+classifies initial policies and records the new candidate limits.
+
+French §13.7.2.1 p127 requires a non-last C4 increment after R0=1 widening.
+The prepared candidate separates row advance from frame adjustment, then gives
+DE and ParityR6 a shared actual-C4-commit event. Independent counter, display
+and parity REDs become GREEN;126 original CPU guards and46 original B6 guards
+qualify, with all preservation outputs byte-identical. Opus finds no composition
+defect and permits experimental synthesis. Historical T80 harness wiring and
+frozen/true-last R6 DE/parity proofs now pass, including immediate DE and an
+R8=1 frame-length consequence. The final46-bench gate passes; supplemental
+Opus review permits the experimental build. [Candidate evidence](investigations/hardware-runs/shaker-crtc0-r0-nonlast-advance-2026-11-06.md).
+No native/page or upstream acceptance follows yet. Keep the sampledR0=1
+exclusion and explicit admission/zero/adjustment limits until discriminated;
+R4/R7 landing behavior remains unresolved. Continue known SHAKER fixes one
+bounded area at a time; this audit does not authorize a broad RTL rewrite.
 
 1. Survey the CRTC wrapper/engines and Plus video/GA timing for inferred
    exceptions, numeric apertures, coverage restrictions and overlapping pending

@@ -59,46 +59,51 @@ See [C0 proof and native limits](hardware-runs/shaker-crtc0-a4-qualified-phase-2
 [unsent questions](../classic/accc-author-questions-2026-11-06-fr.md).
 
 
-## First bounded strong-model audit
+## First bounded source audit and candidate
 
-The first frozen source audit is complete in the private session packet
-`b26-audit-results-20261106/REPORT.md`. It expands the classification and
-finds a concrete independent test from French§13.7.2.1 p127: the illustrated
-R0=1 widening increments C4 when C9=R9 even when C4 differs from R4, while
-continued adjustment depends on frame-terminal qualification. The current
-explicit widening path couples those decisions. A phase-qualified literal
-OUT/NOP/OUT diagnostic is being prepared before any fix; another existing
-path may still satisfy the rule, so the code reading is a prediction.
+The frozen classic8ba384e audit classifies nine policy groups, separating
+sourced quirks, inferred outcome models, coverage guards and initialization
+policy. French §13.7.2.1 p127 supplies an independent missing constraint:
+R0=1 widening increments C4 when C9=R9 even on a non-last frame row. The
+production-T80 cohort qualifies126/126 guards; baseline misses that increment
+while true-last and C9-negative controls agree. The candidate separates row
+advance from continued frame adjustment without new state. The original C0 B6
+replay qualifies46/46 and preserves all ten output artifacts byte-for-byte.
 
-Two late oldR0=1 horizontal rules still fit available evidence. Removing the
-numeric guard alone saves no proven state bits and is not endorsed. The
-original lower A4 caller remains a separate diagnostic. An additive reference
-correction after the frozen audit resolves row3 as5E5F; seven lower native VS
-bits disagree, with only row4 a confirmed matching negative control.
+A shared combinational C4 commit now feeds the independently proved R6 border
+and ParityR6 consumers. The selected suite has253 CRTC passes and46 passing
+benches. Root verifies all271 combined proof artifacts and56 additive R4=7
+artifacts; Opus finds no RTL composition defect and permits an experimental
+build. Historical T80 port wiring and extra frozen/true-last R6 route checks now
+pass; immediate DE and R8=1 frame length are also pinned. Final selected gate
+passes46 benches; supplemental Opus review permits experimental synthesis. No native/page or master/release acceptance yet.
+[Implementation and proof](hardware-runs/shaker-crtc0-r0-nonlast-advance-2026-11-06.md).
 
-## First bounded source audit
+| Candidate model limit | Evidence and unresolved boundary |
+|---|---|
+| Pre-CLKEN widening admission | Literal early OUT requires the result; admitting other pre-CLKEN writes, including late OUTI, is inferred. Restricted to !in_adj and R5=R8=0. Direct first-CLKEN non-last writes and the old-one horizontal deadline retain their previous model. |
+| Off-seam numeric C4=C9=0 | DE and parity preserve the old behavior without manufacturing an origin. The DE conflict coordinates are sourced; the matching parity exclusion is a coverage decision. Ordinary seam zero/origin handling is unchanged. |
+| Parity pre-edge !in_adj and R6>R4 | Inherited qualification admits the first forced adjustment-entry landing. French§19.5.2 p206 describes capture when C4 reachesR6, explaining R6>R4 freezing by unreachability; §19.6.1 p217 also states an unconditional R6>R4 freeze. The new true-last test chooses the event reading, including R6=R4+1. A comparator-gated rival predicts no capture. This needs a hardware/author discriminator; later adjustment behavior is also unproved. |
+| Off-seam R4 and R7 | No frame validation or VSYNC event is synthesized from the new C4 commit. R4=7 has a qualified local CPU trajectory, not a complete physical frame verdict. R7 onset requires a hardware discriminator. |
+| Adjustment and IVM landings | Reusing the actual C4 event does not establish every interlace/adjustment corner, alter pc9, or recover silicon topology. Targeted route checks cover only their stated geometry. |
 
-The frozen classic8ba384e audit classifies nine policy groups, separating sourced
-quirks, inferred outcome models, coverage guards and initialization policy.
-French §13.7.2.1 p127 supplies a missing constraint: after the specified oldR0=1
-widening, C4 advances when C9=R9 even when C4 differs from R4. The qualified
-production-T80 cohort has126/126 transport guards. Its true-last and R9-negative
-controls match, while the non-last case reaches2/6/7 instead of2/7/7. The
-initial39/40 transport stop and its analyzer remain immutable; the additive
-qualifier follows the source's five-character OUT spacing without imposing an
-unrelated NOP/HALT M1 phase convention.
+These are recorded by `MODEL LIMIT (B26):` implementation comments. They are
+not proved chip exceptions. Two late oldR0=1 horizontal models remain
+admissible; removing the numeric sampling guard alone saves no established
+state. The seven lower A4 mismatches remain open; an additive reference
+correction resolves row3 as5E5F, leaving only row4 as the matching negative.
 
-Astra's proposed private candidate reuses the precommit write ticket for that
-row advance and leaves entry into adjustment dependent on the previously armed
-true-frame condition. It adds no state or ports and preserves the existing
-direct-write horizontal hold. Original C0 B6 before/after is mandatory because
-its four R0 results already match hardware. No production RTL change is accepted
-yet. Two late oldR0=1 horizontal models remain admissible; removing the numeric
-sampling guard alone saves no established state. The seven lower A4 mismatches
-remain separate.
+Private immutable inputs/proofs remain under the active session evidence root:
+`b26-audit-frozen-20261106/`, `b26-audit-results-20261106/`,
+`c0-r0-p127-readiness-20261106/`, `c0-r0-p127-candidate-20261106/`,
+`c0-r0-p127-r4-adjacent-20261106/` and
+`c0-r6-commit-integration-20261106/`. Initial transport failures remain preserved;
+additive source-qualified evidence does not rewrite them.
 
-Private source/proof/design packets are `b26-audit-frozen-20261106/`,
-`b26-audit-results-20261106/` and `c0-r0-p127-readiness-20261106/` under the active
-session evidence root. Root verifies all174 final proof artifacts against the
-frozen manifest. This is a behavioral counterexample and a narrower candidate,
-not a recovered silicon schematic or a completed upstream audit.
+French§13.2.6 p110 also has an internal wording conflict: its bullet says C4
+increments irrespective of R4, while its non-last summary literally gives
+C4=R4+1. The existing frozen counter and new consumer tests use C4+1;
+this candidate does not introduce that counter rule. Record both readings and
+seek author clarification rather than treating the summary as silently fixed.
+Before master, add both rival readings beside t35e/f/h when next editing them.
+See the [unsent questions](../classic/accc-author-questions-2026-11-06-fr.md).

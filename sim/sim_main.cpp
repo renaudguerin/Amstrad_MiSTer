@@ -6967,6 +6967,289 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
         "main: C0=1 widening resets C9 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.128)", 0);
 }
 
+// French ACCC v1.11 §13.7.2.1 p127: widening old R0=1 on C0=1
+// advances C4 at C0=2 when C9=R9 even though C4!=R4. The row-only
+// consequence retains C9 and then resumes ordinary row carry; it does not
+// persist frame adjustment. The explicit C9!=R9 control must not advance C4.
+// The production-T80 literal OUT cohort separately qualifies real bus reachability.
+void t35_type0_r0_one_nonlast_widening_preserves_row_carry(TestBench& test) {
+    for (const std::uint8_t raster_limit : {std::uint8_t{4}, std::uint8_t{3}}) {
+        const RegisterProgram registers = {{
+            {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
+            {5, 0}, {6, 2}, {7, 1}, {8, 0}, {9, raster_limit},
+        }};
+        test.set_crtc_type(0);
+        program_registers(test, registers);
+        test.select_register(0);
+        test.reset();
+
+        // Three two-character lines, then the first CLKEN of C0=1:
+        // natural C4=0/C9=3. Stop within that character so waiting for
+        // nCLKEN cannot cross its end. Neither arm is a last frame line.
+        test.run_characters(6);
+        test.run_clock_ticks(1);
+        test.expect_byte("p127 non-last widening starts at C0=1", 1, test.c0());
+        test.expect_c4("p127 non-last widening starts at C4=0", 0);
+        test.expect_ra("p127 non-last widening starts at C9=3", 3);
+        test.expect_adjustment_inactive("p127 non-last setup is outside adjustment");
+
+        // Store before the consuming character edge; keep the existing
+        // direct-CLKEN path's distinct contract in t35a unchanged.
+        test.write_selected_register_at_nclken(7);
+        test.expect_byte("p127 pre-CLKEN write remains on C0=1", 1, test.c0());
+        test.run_characters(1);
+        const bool raster_terminal = raster_limit == 3;
+        test.expect_byte("p127 widening reaches C0=2 without a duplicate", 2, test.c0());
+        test.expect_c4(
+            "FR §13.7.2.1 p127: C4 advances only for C9=R9, independently of R4",
+            raster_terminal ? 1 : 0);
+        test.expect_ra("FR §13.7.2.1 p127: widening retains C9", 3);
+        test.expect_adjustment_inactive(
+            "FR §13.7.2.1 p127: non-last widening does not retain frame adjustment");
+
+        // Six remaining characters reach the widened line end. A real row
+        // carry follows the partial C4 advance only in the raster-terminal arm.
+        test.run_characters(6);
+        test.expect_byte("p127 widened remainder ends at C0=0", 0, test.c0());
+        test.expect_c4("FR §13.7.2.1 p127: subsequent ordinary C4 carry",
+                       raster_terminal ? 2 : 0);
+        test.expect_ra("FR §13.7.2.1 p127: subsequent ordinary raster progression",
+                       raster_terminal ? 0 : 4);
+        test.expect_adjustment_inactive("p127 widened end stays outside adjustment");
+    }
+}
+
+// Shared natural p127 landing for independent border and next-frame parity
+// consumers. FR §13.7.2.1 p127, §18.2.2 p189 and §19.5.2 p206.
+void t35_run_nonlast_r6_landing(TestBench& test, std::uint8_t border_row,
+                                bool check_immediate_border = false) {
+    const RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x8e}, {4, 8},
+        {5, 0}, {6, border_row}, {7, 30}, {8, 0}, {9, 7},
+    }};
+    test.set_crtc_type(0);
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+    test.run_characters(72 * 64 + 2);
+    test.expect_c4("R6 row-step control reaches active frame row0", 0);
+    test.expect_ra("R6 row-step control reaches active raster0", 0);
+    test.expect_de_high("R6 row-step control begins with visible DE");
+    // Reset parity is even. The first full frame reaches R6=7/8, capturing
+    // odd ParityR6; the origin samples that into ParityFrame. R6=9 is unreached.
+    test.expect_parity_frame("FR19.5.2 p206: first origin samples prior R6 hit",
+                             border_row != 9);
+    test.run_characters(62);
+    test.expect_byte("R6 control shortens at C0=0", 0, test.c0());
+    test.expect_ra("R6 control shortens on raster1", 1);
+    test.write_selected_register_now(1);
+    test.run_characters(108);  // 54 two-character lines from raster1.
+    test.expect_byte("R6 row-step write starts within C0=1", 1, test.c0());
+    test.expect_c4("R6 row-step starts at C4=6", 6);
+    test.expect_ra("R6 row-step starts at C9=7", 7);
+    test.expect_adjustment_inactive("R6 row-step starts outside adjustment");
+    test.write_selected_register_at_nclken(63);
+    test.expect_byte("R6 widening write remains within C0=1", 1, test.c0());
+    test.run_characters(1);
+    test.expect_byte("p127 R6 landing reaches C0=2", 2, test.c0());
+    test.expect_c4("p127 R6 landing reaches C4=7", 7);
+    test.expect_ra("p127 R6 landing retains C9=7", 7);
+    if (check_immediate_border) {
+        if (border_row == 7) {
+            test.expect_de_low("FR18.2.2 p189: R6 closes DE immediately at C0=2");
+        } else {
+            test.expect_de_high("FR18.2.2 p189: unreached R6 leaves DE high at C0=2");
+        }
+    }
+    test.run_characters(64);
+    test.expect_byte("R6 consumers checked within next full line", 2, test.c0());
+    test.expect_c4("R6 consumers checked after ordinary row carry", 8);
+    test.expect_ra("R6 consumers checked after ordinary raster reset", 0);
+}
+
+// FR §18.1/18.2.2 p189: reaching C4=R6 makes border definitive. Check
+// public DE away from R0=1's horizontal half-character border; the unreached
+// arm also proves the horizontal active interval is observable.
+void t35_type0_r0_one_midline_row_keeps_r6_border(TestBench& test) {
+    for (const std::uint8_t border_row :
+         {std::uint8_t{9}, std::uint8_t{8}, std::uint8_t{7}}) {
+        t35_run_nonlast_r6_landing(test, border_row, true);
+        if (border_row == 9) {
+            test.expect_de_high("FR18.1 p189: unreached R6 keeps display active");
+        } else {
+            test.expect_de_low(
+                "FR18.2.2 p189: C4 crossing R6 makes border definitive until origin");
+        }
+    }
+}
+
+// FR §19.5.2 p206: an actual C4=R6 landing captures ParityFrame xor1
+// independently of R8. Observe the capture through its transfer at the next
+// ordinary origin, rather than adding a test-only internal parity export.
+void t35_type0_r0_one_midline_r6_updates_next_frame_parity(TestBench& test) {
+    for (const std::uint8_t border_row :
+         {std::uint8_t{9}, std::uint8_t{8}, std::uint8_t{7}}) {
+        t35_run_nonlast_r6_landing(test, border_row);
+        // The last row has eight full 64-character rasters left. Starting
+        // at C0=2 leaves us at C0=2 again, after the actual frame origin.
+        test.run_characters(8 * 64);
+        test.expect_byte("R6 parity check follows the next actual origin", 2, test.c0());
+        test.expect_c4("R6 parity check reaches frame row0", 0);
+        test.expect_ra("R6 parity check reaches frame raster0", 0);
+        // Hit arms begin odd and must capture even; the unreached arm
+        // begins even and stays even because C4 never reaches its R6=9.
+        test.expect_parity_frame(
+            "FR19.5.2 p206: next origin reflects the actual R6 landing", false);
+    }
+}
+
+// FR §13.2.6 p110: the first repeated C0=0 consumes one previously
+// armed C4 increment while C9 remains frozen. R8=1 deliberately connects
+// the independent §19.5.2 p206 capture to §19.6.1 p217's additional line.
+void t35_run_frozen_r6_landing(TestBench& test, std::uint8_t border_row) {
+    const RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x8e}, {4, 3},
+        {5, 0}, {6, border_row}, {7, 30}, {8, 1}, {9, 0},
+    }};
+    test.set_crtc_type(0);
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+    // Four ordinary rasters; only R6=2 captures odd and appends an
+    // interlace line. R6=4 is never reached in the even control frame.
+    test.run_characters((border_row == 2 ? 5 : 4) * 64 + 2);
+    test.expect_byte("frozen R6 warmup reaches C0=2", 2, test.c0());
+    test.expect_c4("frozen R6 warmup reaches row0", 0);
+    test.expect_ra("frozen R6 warmup reaches raster0", 0);
+    test.expect_parity_frame("FR19.5.2 p206: frozen-route starting parity",
+                             border_row == 2);
+    test.expect_de_high("frozen R6 fixture starts with visible display");
+
+    // Stop just after the row0->row1 seam, before another CLKEN. This
+    // is the established deferred-freeze fixture's public bus phase.
+    test.run_characters(61);
+    test.run_clock_ticks(1);
+    test.expect_byte("frozen R6 write is within C0=0", 0, test.c0());
+    test.expect_c4("frozen R6 write starts at row1", 1);
+    test.expect_ra("frozen R6 write starts with C9=R9=0", 0);
+    test.write_selected_register_now(0);
+    test.run_characters(2);
+    test.expect_byte("FR13.2.6 p110: C0 remains frozen", 0, test.c0());
+    test.expect_c4("FR13.2.6 p110: deferred advance reaches row2", 2);
+    test.expect_ra("FR13.2.6 p110: deferred advance retains C9", 0);
+    test.run_characters(4);
+    test.expect_c4("FR13.2.6 p110: repeated frozen clocks cannot advance C4 again", 2);
+    test.expect_adjustment_inactive("non-last frozen advance stays outside adjustment");
+
+    test.write_selected_register_at_nclken(63);
+    test.run_characters(2);
+    test.expect_byte("frozen R6 recovery exposes horizontal display at C0=2", 2, test.c0());
+    test.expect_c4("frozen R6 recovery retains the landed row2", 2);
+    test.expect_ra("frozen R6 recovery retains raster0", 0);
+}
+
+void t35_type0_frozen_row_keeps_r6_border(TestBench& test) {
+    for (const std::uint8_t border_row : {std::uint8_t{4}, std::uint8_t{2}}) {
+        t35_run_frozen_r6_landing(test, border_row);
+        if (border_row == 2) {
+            test.expect_de_low("FR18.2.2 p189: frozen C4 landing closes DE");
+        } else {
+            test.expect_de_high("FR18.2.2 p189: frozen unreached R6 keeps DE active");
+        }
+        test.run_characters(64);
+        test.expect_c4("frozen border persistence leaves the matched row", 3);
+        test.expect_ra("frozen border persistence remains on raster0", 0);
+        if (border_row == 2) {
+            test.expect_de_low("FR18.2.2 p189: frozen R6 border persists after row2");
+        } else {
+            test.expect_de_high("FR18.2.2 p189: unreached R6 stays active after row2");
+        }
+    }
+}
+
+void t35_type0_frozen_r6_updates_next_frame_parity(TestBench& test) {
+    for (const std::uint8_t border_row : {std::uint8_t{4}, std::uint8_t{2}}) {
+        t35_run_frozen_r6_landing(test, border_row);
+        // Two full rasters finish row2 and row3. Hit: starting PF1
+        // captures 0, so R8=1 must not append a line. Miss: PF0 stays0.
+        // Check the origin first: stale odd capture would still be row4.
+        test.run_characters(2 * 64);
+        test.expect_byte("frozen parity check reaches C0=2", 2, test.c0());
+        test.expect_c4("FR19.6.1 p217: frozen capture suppresses an extra interlace line", 0);
+        test.expect_ra("frozen parity check reaches origin raster0", 0);
+        test.expect_parity_frame("FR19.5.2 p206: frozen R6 capture reaches next origin", false);
+    }
+}
+
+// FR §13.7.2.2 p128: true-last widening commits R4+1 at C0=2
+// with C9 retained; R5=0 keeps adjustment until C9=31. R6=R4+1
+// really is reached here, while the higher R6 control remains unreached.
+void t35_run_last_r6_landing(TestBench& test, std::uint8_t border_row) {
+    const RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x8e}, {4, 2},
+        {5, 0}, {6, border_row}, {7, 30}, {8, 0}, {9, 3},
+    }};
+    test.set_crtc_type(0);
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+    test.run_characters(12 * 64 + 2);
+    test.expect_c4("true-last R6 warmup reaches row0", 0);
+    test.expect_ra("true-last R6 warmup reaches raster0", 0);
+    test.expect_parity_frame("FR19.5.2 p206: ordinary frame never reaches R6>R4", false);
+    test.expect_de_high("true-last R6 fixture starts with visible display");
+    test.run_characters(62);
+    test.expect_byte("true-last shortening starts at C0=0", 0, test.c0());
+    test.expect_ra("true-last shortening starts on raster1", 1);
+    test.write_selected_register_now(1);
+    test.run_characters(20);  // Ten two-character rasters from raster1.
+    test.expect_byte("true-last widening starts within C0=1", 1, test.c0());
+    test.expect_c4("true-last widening starts at C4=R4=2", 2);
+    test.expect_ra("true-last widening starts at C9=R9=3", 3);
+    test.expect_adjustment_inactive("true-last landing starts before adjustment");
+    test.write_selected_register_at_nclken(63);
+    test.expect_byte("true-last widening write stays within C0=1", 1, test.c0());
+    test.run_characters(1);
+    test.expect_byte("FR13.7.2.2 p128: true-last landing reaches C0=2", 2, test.c0());
+    test.expect_c4("FR13.7.2.2 p128: true-last landing reaches R4+1", 3);
+    test.expect_ra("FR13.7.2.2 p128: true-last landing retains C9", 3);
+    test.expect_adjustment_active("FR13.7.2.2 p128: true-last landing enters adjustment");
+}
+
+void t35_type0_last_row_keeps_r6_border(TestBench& test) {
+    for (const std::uint8_t border_row : {std::uint8_t{4}, std::uint8_t{3}}) {
+        t35_run_last_r6_landing(test, border_row);
+        if (border_row == 3) {
+            test.expect_de_low("FR18.2.2 p189: true-last R6 landing closes DE immediately");
+        } else {
+            test.expect_de_high("FR18.2.2 p189: true-last unreached R6 keeps DE active");
+        }
+        test.run_characters(64);
+        test.expect_c4("true-last R6 border remains on adjustment row3", 3);
+        test.expect_ra("true-last R6 border continues to adjustment raster4", 4);
+        if (border_row == 3) {
+            test.expect_de_low("FR18.2.2 p189: R6 border persists in adjustment");
+        } else {
+            test.expect_de_high("FR18.2.2 p189: unreached R6 stays active in adjustment");
+        }
+    }
+}
+
+void t35_type0_last_r6_updates_next_frame_parity(TestBench& test) {
+    for (const std::uint8_t border_row : {std::uint8_t{4}, std::uint8_t{3}}) {
+        t35_run_last_r6_landing(test, border_row);
+        // Current raster3 plus 4..31: 29 full lines to the actual origin,
+        // with the same C0=2 phase. Capture is 0 xor1 for the hit only.
+        test.run_characters(29 * 64);
+        test.expect_byte("true-last parity check reaches C0=2", 2, test.c0());
+        test.expect_c4("true-last parity check follows the actual origin", 0);
+        test.expect_ra("true-last parity check reaches origin raster0", 0);
+        test.expect_adjustment_inactive("true-last parity check completes adjustment");
+        test.expect_parity_frame("FR19.5.2 p206: true-last R6 capture reaches next origin",
+                                 border_row == 3);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // t21: F10 type-1 IVM toggle parity table (ACCC v1.11 section 19.5.3 p.209
 // and its R8-toggle setup p.210, and the 16 SHAKER 22C/3 truth-table panels on
@@ -10041,6 +10324,27 @@ int main(int argc, char** argv) {
         {"t35a_type0_r0_one_c0_1_widening_persists_adjustment",
          "ACCC v1.11 French section 13.7.2 pp.126-128; IA-6",
          false, t35_type0_r0_one_c0_1_widening_persists_adjustment},
+        {"t35b_type0_r0_one_nonlast_widening_preserves_row_carry",
+         "ACCC v1.11 French §13.7.2.1 p127; non-last row advance and C9-negative control",
+         false, t35_type0_r0_one_nonlast_widening_preserves_row_carry},
+        {"t35c_type0_r0_one_midline_row_keeps_r6_border",
+         "ACCC v1.11 FR §18.1/18.2.2 p189 and §13.7.2.1 p127; C4 commit to DE",
+         false, t35_type0_r0_one_midline_row_keeps_r6_border},
+        {"t35d_type0_r0_one_midline_r6_updates_next_frame_parity",
+         "ACCC v1.11 FR §19.5.2 p206; R6 counter landing to next frame parity",
+         false, t35_type0_r0_one_midline_r6_updates_next_frame_parity},
+        {"t35e_type0_frozen_row_keeps_r6_border",
+         "ACCC v1.11 FR §13.2.6 p110 and §18.2.2 p189; frozen C4 commit to DE",
+         false, t35_type0_frozen_row_keeps_r6_border},
+        {"t35f_type0_frozen_r6_updates_next_frame_parity",
+         "ACCC v1.11 FR §19.5.2 p206 and §19.6.1 p217; frozen R6 capture with R8=1",
+         false, t35_type0_frozen_r6_updates_next_frame_parity},
+        {"t35g_type0_last_row_keeps_r6_border",
+         "ACCC v1.11 FR §13.7.2.2 p128 and §18.2.2 p189; true-last C4 commit to DE",
+         false, t35_type0_last_row_keeps_r6_border},
+        {"t35h_type0_last_r6_updates_next_frame_parity",
+         "ACCC v1.11 FR §19.5.2 p206; true-last R6 capture transferred after adjustment",
+         false, t35_type0_last_r6_updates_next_frame_parity},
     };
 
     unsigned passed = 0;

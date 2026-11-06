@@ -247,8 +247,8 @@ reg        field;
 // even-R9 discriminator and any resulting behavior correction.  ParityC9 is bit
 // 0 of the line value used for video address construction in IVM.  ParityR6 is
 // the type-0-only companion latch: ParityFrame xor 1 captured when C4 reaches
-// R6, independent of R8; frozen
-// when R6>R4 (French section 19.5.2 pp.206-208).  The F10 per-type engines drive
+// R6, independent of R8; frozen when C4 cannot reach R6 (ordinary R6>R4
+// geometry, French section 19.5.2 pp.206-208). The F10 engines drive
 // the update strobes and values for these shared flops below.
 reg        parity_frame;
 reg        parity_c9;
@@ -269,6 +269,7 @@ wire       e0_vsync_delay_suppress, e0_vsync_delay_half;
 wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
 wire       e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value;
 wire       e0_pr6_write, e0_pr6_value, e0_ivm_disp;
+wire       row_r6_landing;
 wire [4:0] e0_line_vma;
 wire [4:0] e0_line_next, e0_c5_next;
 wire [6:0] e0_row_next;
@@ -284,7 +285,7 @@ crtc_type0_engine crtc_type0_engine
 	R4_v_total, R5_v_total_adj, R6_v_displayed, R7_v_sync_pos,
 	R8_skew, R8_interlace, R9_v_max_line,
 	hcc, hcc_next, hcc_last, line, row, in_adj, vsync_tick_mid,
-	line_last_r, row_last_r, frame_adj_r,
+	line_last_r, row_last_r, frame_adj_r, row_r6_landing,
 	VSYNC_r, vsync_allow, hsc,
 	parity_frame, parity_c9, parity_r6,
 	e0_r0_frozen, e0_hcc_terminal, e0_line_new, e0_line_next, e0_c5_next,
@@ -360,6 +361,15 @@ wire       row_new        = CRTC_TYPE ? e1_row_new    : e0_row_new;
 wire       frame_adj      = CRTC_TYPE ? e1_frame_adj  : e0_frame_adj;
 wire       frame_new      = row_new & row_frame_last;
 
+// Publish the actual C4 writer and its value once. Ordinary row_new has
+// priority over the frozen/widening increment; both engines return row_next=0
+// on frame_new. A commit still counts when its numeric value is unchanged.
+wire       type0_widen_row_step = e0_r0_widen_step &&
+                                  (frame_adj_r || (hcc == 1 && hcc_next == 2));
+wire       row_commit = row_new || e0_frozen_row_advance || type0_widen_row_step;
+wire [6:0] row_commit_value = row_new ? row_next : row + 7'd1;
+assign     row_r6_landing = row_commit && (row_commit_value == R6_v_displayed);
+
 wire       crtc0_reload     = e0_reload;
 wire       crtc1_reload     = e1_reload;
 wire       row_addr_save    = CRTC_TYPE ? e1_row_addr_save : e0_row_addr_save;
@@ -390,6 +400,7 @@ always @(posedge CLOCK) begin
 		else if(CRTC_TYPE && e1_line_poke)
 			line <= {line[4:1], e1_line_poke_bit};
 		c5 <= c5_next;
+		if(row_commit) row <= row_commit_value;
 		if(hcc == 0 && !r0_frozen) begin
 			line_last_r <= CRTC_TYPE ? e1_line_last : e0_c0_line_last;
 			row_last_r <= CRTC_TYPE ? e1_row_last : e0_c0_row_last;
@@ -413,23 +424,22 @@ always @(posedge CLOCK) begin
 		// already-armed C4 increment exactly once. A simultaneous C4/R4
 		// match enters the short-R0 default adjustment route.
 		if(e0_frozen_row_advance) begin
-			row <= row + 1'd1;
 			if(row == R4_v_total) in_adj <= 1;
 		end
 		// French ACCC v1.11 sections 13.7.2 p.127 and 13.7.2.2 p.128: a type-0
-		// R0=1 widening accepted on C0=1 of a true last frame line first
-		// consumes the old equality, then reaches C0=2 with C4=R4+1 while
-		// C9 is retained.  The engine's one-character pending state separates
-		// that vertical side effect from a real horizontal line boundary.
-		if(e0_r0_widen_step) begin
-			row <= row + 1'd1;
-			in_adj <= 1;
-			// The old last-line capture has now been consumed into adjustment.
-			// Clear it so the end of the widened remainder compares C9 with
-			// the live adjustment target instead of ending immediately on R9.
-			line_last_r <= 0;
-			row_last_r <= 0;
-			frame_adj_r <= 0;
+		// R0=1 widening reaches C0=2 with a raster-terminal C4 increment
+		// and C9 retained, even without a frame-terminal match. Continued
+		// adjustment and capture consumption belong only to the prior frame
+		// arm. The row-only route must be a non-wrapping 1->2 edge.
+		if(type0_widen_row_step) begin
+			if(frame_adj_r) begin
+				in_adj <= 1;
+				// Consume the old last-line capture into adjustment, leaving
+				// the widened remainder on the live adjustment comparison.
+				line_last_r <= 0;
+				row_last_r <= 0;
+				frame_adj_r <= 0;
+			end
 		end
 
 
@@ -442,14 +452,12 @@ always @(posedge CLOCK) begin
         end
 
 		if(row_new) begin
-			row <= row_next;
 			if(frame_adj) begin
 				in_adj <= 1;
 				if(e1_adj_from_row0) crtc1_adj_from_row0 <= 1;
 			end
 			else if(frame_new) begin
 				in_adj <= 0;
-				row <= 0;
 				field <= ~field & R8_interlace[0];
 				frame_interlace <= interlace[0];
 				crtc1_adj_from_row0 <= 0;
@@ -873,15 +881,17 @@ always @(posedge CLOCK) begin
 			if(frame_new | (CRTC_TYPE & e1_r6_origin)) begin
 				vde <= 1; vde_r <= 1;
 			end
-			// ACCC v1.11 French section 18.3.2 p.191: on a type-0
-			// frame-origin line with C4=R6=C9=0, DISPLAY ENABLE starts
-			// high and falls at nCLKEN.  Do not let the ordinary R6
-			// border assignment below overwrite frame_new's start value;
-			// all non-origin matches, including type 1, keep the normal
-			// priority.
-			if(row_next == R6_v_displayed && !(frame_new && !CRTC_TYPE)) begin
-				vde <= 0; vde_r <= 0;
-			end
+		end
+		// French §§18.1/18.2.2 p189: reaching stored R6 closes display,
+		// including the row-only C4 writers. Keep ordinary Type0 origin
+		// opening and its §18.3.2 p191 nCLKEN conflict handling unchanged.
+		// MODEL LIMIT (B26): an off-seam numeric C4=C9=0 landing has no
+		// qualified origin/conflict model; preserve its old behavior. R6
+		// border and parity now consume C4 commits, but off-seam R4/R7
+		// management/VS landings and adjustment parity remain separate limits.
+		if(row_r6_landing && (row_new ? !(frame_new && !CRTC_TYPE) :
+				!(row_commit_value == 0 && line == 0))) begin
+			vde <= 0; vde_r <= 0;
 		end
 		if(type0_r6_zero_origin_r1_hit) begin
 			vde <= 0; vde_r <= 0;

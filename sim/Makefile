@@ -264,13 +264,14 @@ CRTC_OLD_ENGINES_DIR := $(OBJ_DIR)/old_engines
 CRTC_T80_OLD_RTL := crtc_t80_top.sv $(T80_NETLIST) ../rtl/CRTC.v $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v $(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
 CRTC_T80_OLD_BIN := $(OBJ_DIR)/crtc_t80_old/crtc_t80_old_tests
 
-# The current wrapper has a C0=1 last-line validation output after c0_row_last.
-# Keep that event inert in this historical negative control without changing
-# any pre-B8 engine rules.
+# Match the current wrapper's clock, terminal, row-landing and validation ports.
+# The added row_r6_landing input is unused by the frozen engine; keep the
+# validation event inert without changing any pre-B8 engine rules.
 $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v: Makefile
 	mkdir -p $(CRTC_OLD_ENGINES_DIR)
 	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type0_engine.v | \
 		sed -e 's/input            CLKEN,/input            CLKEN, input nCLKEN,/' \
+		    -e 's/input            frame_adj_r,/input            frame_adj_r, input row_r6_landing,/' \
 		    -e 's/output           r0_frozen,/output           r0_frozen, output hcc_terminal,/' \
 		    -e 's/output           c0_row_last,/output           c0_row_last, output c1_last_line_validate,/' \
 		    -e "s/^endmodule/assign hcc_terminal = hcc_last; assign c1_last_line_validate = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@

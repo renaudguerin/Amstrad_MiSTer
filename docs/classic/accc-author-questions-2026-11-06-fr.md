@@ -59,3 +59,25 @@ Le premier couple E0406 distingue l’annulation tardive d’une égalité, mais
 pas sa création. Nous conservons pour cette dernière le comportement existant
 en attendant une mesure ou une clarification, sans en déduire un front
 interne de comparaison. Le cas simultané « ROM Select » reste séparé.
+
+## Type0 : capture ParitéR6 lors d'un C4 forcé à R4+1
+
+La §19.5.2 p206 décrit une capture lorsque C4 atteint R6 et explique le gel
+pour R6>R4 par le fait que C4 ne peut pas atteindre R6. La §19.6.1 p217
+énonce aussi un gel pour R6>R4 sans cette condition. Quel comportement
+s'applique lorsqu'un mécanisme anormal atteint réellement R6=R4+1 ?
+
+Cas précis : ParitéFrame paire, R4=2, R6=3, R9=3, R5=R8=0 ; lors du dernier
+raster, R0=1 est élargi à63 sur C0=1, selon §13.7.2.2 p128. C4 atteint3
+avec C9 retenu. ParitéR6 capture-t-elle alors1, ou reste-t-elle figée parce
+que R6>R4 ? Les deux lectures donnent une différence observable si le mode
+entrelacé est activé ensuite. Notre modèle expérimental retient la capture
+sur l'événement, sans prétendre que ce cas a été confirmé sur un CPC.
+
+## Type0 : résumé du dernier hoquet C4, §13.2.6 p110
+
+Le paragraphe indique que C4 est incrémenté quelle que soit R4. Le résumé
+pour C9=R9 et C4<>R4 donne pourtant C4=R4+1. Faut-il lire C4=C4+1 dans ce
+résumé ? Exemple discriminant : C4=1, R4=3, C9=R9=0 au gel R0=0 ; obtient-on
+C4=2 ou4 ? Notre compteur existant utilise l'incrément, et le nouveau test de
+consommation R6 conserve cette hypothèse. Aucun message n'a été envoyé.

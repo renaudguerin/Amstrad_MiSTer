@@ -27,12 +27,14 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
   is verified on device. Native E0406 clears all checks; DU captures are
   byte-identical to9c11daf. Scoped DSC4/Amazing and seven AE/AR frames preserve acceptance.
   [Proof, review and limits](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
-- C0's accepted8ba384e controls give A4 first pair01/00 and B6's four R0
-  results27/14/26/27. Seven lower A4 VS-bit discrepancies and both B6 R7
-  failures remain. Source-derived p127 non-last widening now has a qualified
-  RED; the original B6 baseline qualifies46/46 with all six native bytes.
-  Private candidate preservation is next. No further
-  classic production fix is accepted. [C0 evidence](investigations/hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md),
+- The prepared C0 row-advance/R6 candidate passes253/253 CRTC tests,
+  46 selected benches, all126 original p127 CPU guards and all46 original B6
+  preservation guards. Root verifies both frozen artifact manifests. Opus finds
+  no RTL composition defect and permits an experimental build; the historical
+  T80 interface repair and additional R6 route proofs now pass. The final
+  46-bench gate passes; supplemental Opus review permits the experimental build. No new RBF or whole-page acceptance yet. R4/R7 landings,
+  late widening and degenerate parity policies remain unresolved.
+  [Candidate and limits](investigations/hardware-runs/shaker-crtc0-r0-nonlast-advance-2026-11-06.md),
   [model audit](investigations/rtl-model-confidence-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   still targets `fdf348c`, with its coherent 1,384-image SHAKER archive and six
@@ -81,19 +83,21 @@ and [display evidence](investigations/video-boundary/v1-sync-response-evidence-2
 
 ## Demos and Plus
 
-These are sampled native results, not full-demo or physical HDMI/CRT sign-off.
+Renaud confirms manual MiSTer acceptance of **DSC4, Amazing and Before the
+Storm on CRTC0/1/3**, closing the reported demo defects. The tested filename/SHA
+was not specified; exact-build sampled evidence remains separate.
+[Manual acceptance](investigations/hardware-runs/demos-manual-acceptance-2026-11-06.md).
 
-| CRTC | DSC4 | Amazing | Evidence and remaining bounds |
+| CRTC | DSC4 | Amazing | Before the Storm |
 |---:|---|---|---|
-| 0 | Credits clear; sampled main effects restored | Sampled effects preserved | [Classic display](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md); wider phases remain open. |
-| 1 | Credits clear; sampled main effects restored | Sampled effects preserved | DSC4 green lines and Amazing coloured bands also appear in fresh AmSpirit; [comparison](investigations/hardware-runs/dsc4-c1-main-lines-reference-2026-11-05.md). Bottom row is outside AmSpirit's default viewport; [crop](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md). |
-| 3 / ASIC | Credits clear; sampled main effects restored | Logo and lower effects restored | fdf348c preservation; [ASIC boundary](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md); full demo remains untested. |
+| 0 | Manually confirmed working | Manually confirmed working | Manually confirmed working |
+| 1 | Manually confirmed working | Manually confirmed working | Manually confirmed working |
+| 3 / ASIC | Manually confirmed working | Manually confirmed working | Manually confirmed working |
 
-Before the Storm now has bounded native before/after acceptance on **CRTC0/1/3**.
-The new CRTC0 comparison has 86 eligible pairs per build: old e24 reverses by
-−10/+6; fdf348c has 43 holds/43 left-two steps. CRTC1 has 176 current eligible
-pairs and CRTC3 has 168, also with only holds/left-two steps. All new frames
-are viewed; acquisition limits are unchanged. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+Reproducible earlier bounds remain in the [classic display](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md),
+[ASIC display](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md)
+and [BTF before/after](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md)
+reports. Native samples do not independently validate physical HDMI/CRT response.
 
 ASIC static LEFT8, eight exact BI controls and scoped DSC4/Amazing/AE/AR
 preservation pass. AR colour variants reproduce the original INK10 cycle.
