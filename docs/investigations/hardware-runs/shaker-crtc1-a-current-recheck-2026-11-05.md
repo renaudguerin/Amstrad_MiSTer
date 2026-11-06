@@ -30,7 +30,7 @@ full size. Incidental captures are not a new graded Module A baseline.
 | A4/`0037` | Broken | First OUTI result has bit0=0 on MiSTer; the hardware photograph has bit0=1. |
 | AI/`008D` | Broken | Current canonical zero-length groups give1000 against photographed1111; the earlier direct native run gave1001. |
 | AI/`008E` | Passing | All four photographed and current native VS fields are high. A focused photo reading resolves the disputed final glyphs as F. |
-| AI/`008F` | Unknown | Fresh capture exists; physical V2 exception glyphs remain insufficiently resolved for a whole-page verdict. |
+| AI/`008F` | Passing | Two blind vision passes plus direct source/crop review resolve the numeric glyphs; all30 result bytes match the8ba384e native page under the existing upper-PPI allowance. |
 | AI/`0090` | Unknown | Six footer low bits001111 and length66 match; the328 matrix cells are not fully readable/adjudicated. |
 | AI/`0091` | Passing | All four photographed and current native VS fields are1111. |
 | AO/`009A` | Passing | Both native entry paths produce the photographed RAM-pattern family, with continuing changes in later captures. |
@@ -209,3 +209,20 @@ successful drifting IN and corresponding post-prefix opcode M1 points give
 type1 diagram. This supplies no physical aperture or scalar-photo resolution.
 The newly matching CPCSE type0 result motivates a separate original type0
 ledger. [Current C0/C1 discriminator and exact calibration](shaker-crtc0-a4-ai-photo-check-2026-11-06.md).
+
+## AI008F numeric adjudication — 6 November
+
+The new reviewed reference cache resolves both C0/C1 physical008F photos.
+Gemini3.8 and Claude Haiku independently transcribe all30 result tokens, and
+root checks both source PNGs and pixel-preserving exception-glyph crops. V2 in
+the first exception row isF; C1's final two footer bytes are5E, while C0's are5F.
+The current8ba384e native captures match every numeric field on each page:
+FE/FF versus photographed5E/5F differs only by the established unrelated upper
+PPI A0 allowance. Bit0 is never masked. Parameters and field ordering match;
+no analogue geometry or photographed binary identity claim is added.
+
+Both text pages become passing in the maintained ledger. The accepted native
+captures remain byte-identical to their prior controls; no new baseline or DUT
+run was needed. Private `c0-r0-native-20261106/AI-008F-REFERENCE-ACCEPTANCE.json`
+binds the60 observed/photographed values, native hashes and cache hashes.
+The other dense0090 grid remains unknown.

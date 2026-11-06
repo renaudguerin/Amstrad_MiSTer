@@ -20,12 +20,19 @@ them.
 
 ## B26. Consolidate inferred RTL exceptions before upstream submission
 
-**Planned, 2026-11-06.** The concern is accumulated local guards and pending
+**First bounded audit and source-derived RED complete, 2026-11-06.** The concern is accumulated local guards and pending
 state whose narrow outcomes are supported, while a simpler general timing rule
 may still be missing. This can hide errors outside observed cases and make an
 upstream review harder. It is distinct from ordinary RTL conditionals and
 accurately sourced chip quirks. The [initial source-checked inventory](investigations/rtl-model-confidence-2026-11-06.md)
 contains six candidate policies/coverage limits; it is not an exhaustive count.
+The frozen8ba384e source audit finds a French §13.7.2.1 p127 non-last-row
+widening defect, now reproduced with126/126 production-T80 transport guards.
+A private candidate separates row advance from true-frame adjustment without
+new state; original C0 B6 preservation is its next acceptance boundary. Keep
+the accepted ordinary/zero repair: late oldR0=1 horizontal timing remains
+underdetermined. The [model-confidence report](investigations/rtl-model-confidence-2026-11-06.md)
+links the frozen proof, candidate and remaining limits.
 Continue the current known SHAKER/demo fixes; prepare this audit in parallel,
 then examine one bounded area at a time before upstream submission. No broad
 RTL rewrite is authorized merely by this planning entry.
@@ -69,7 +76,7 @@ is next edited, without invalidating an active frozen proof for housekeeping.
 
 ## B27. Reviewed text cache for static real-CPC SHAKER photographs
 
-**Pilot complete; batch work planned, 2026-11-06.** Avoid repeated vision reads
+**Native OCR pilot and first vision batch complete, 2026-11-06.** Avoid repeated vision reads
 of immutable text-only hardware references. This can run alongside current RTL
 work in the same worktree: one worker owns only the private reference-text
 cache and its batch artifacts; the coordinator owns shared docs/ledger. Workers
@@ -77,20 +84,15 @@ do not operate MiSTer/AmSpirit or alter another task's frozen inputs.
 
 The [cache protocol and five-photo pilot](shaker-reference-text.md) cover C0
 A4/B6/C5 and C1 A4/B6, with explicit partial field coverage. Source images are
-unchanged and source-hash bound. Local Apple Vision returned no text in this
-host attempt; Tesseract produced drafts but severely misread hex and mostly
-missed B6. Accepted numeric fields were visually checked. This pilot establishes
-that raw OCR is not sufficient to grade a core.
+unchanged and source-hash bound. The initial Apple Vision attempt returned no text; URL/CPU Vision and native VisionKit Live Text now each process allfive photos, with raw transcripts still poor on this CRT font. Tesseract drafts also severely misread hex and mostly missed B6. Independent Gemini vision checks88fields (87agreements, one E/F correction), and root accepts30 added fields after crop review. This pilot establishes that raw OCR is not sufficient to grade a core.
 
-Batch plan: select static text-only reference pages; make one local OCR pass
-when useful; have a vision-capable model transcribe/correct directly against
-the image in bounded batches. Prefer a suitable free/cheap route such as
+The first blind Gemini3.8/Haiku batch adds128 root-adjudicated numeric fields on seven AI photos, bringing reviewed coverage to twelve pages. Two dense grids and C0/0091 remain drafts. Crouton hit its free-pool quota before reading images; its failed receipt is preserved, with no paid retry. These readings also close C0/C1 AI008F numeric comparisons. Continue bounded static text-only batches with two different cheap/free vision models independently. Local OCR is optional experimental draft material; do not rerun it as a prerequisite. Give field-grammar hints (hex0–9/A–F), preserve raw readings/normalizations and mark ambiguity; never provide expected passing values. Prefer a suitable free/cheap route such as
 Gemini3.8. Crouton may review text/structure if its current route and capabilities
 are verified; its undisclosed maker cannot establish cross-provider review
 independence. Independently check decisive hex values and resolve disagreements
-against the image. Sample a second vision provider at batch admission and review
-ambiguous/low-confidence fields; do not pay for exhaustive duplicate transcription
-unless observed error rates justify it. Engine confidence alone is insufficient.
+against the image. Compare the two blind passes, then adjudicate ambiguous/low-confidence numeric
+fields against the image. Preserve unresolved fields instead of launching
+unbounded additional passes. Engine confidence alone is insufficient.
 
 Store literal text/numeric fields, source path/hash, CRTC/module/page/variant,
 review status and explicit uncertainty/omission markers. Separate hardware

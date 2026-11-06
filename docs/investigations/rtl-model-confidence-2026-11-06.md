@@ -20,8 +20,8 @@ checkpoint. The later reviewed Plus R4 branch candidate is identified below.
 The task branch now also contains a reviewed **Plus R4 deadline model**:
 `entered_r4_match` contributes only during the selected R4 write at terminal
 CLKEN, using existing READY/A13-shaped ENABLE. Independent ordinary/ROM REDs,
-all17 original callers and46 selected benches pass. It remains an experimental
-source candidate pending synthesis/native acceptance. The rival model commits
+all17 original callers and46 selected benches pass. Full synthesis and targeted native E/DU/demo/owner acceptance pass; it remains
+an experimental behavioral model. The rival model commits
 R4's counter-visible value at write end; both fit every existing E row and
 predict differently for late false→true writes. Neither exact silicon mechanism
 is established. The B26 comment names this limit and the extension beyond
@@ -75,3 +75,30 @@ numeric guard alone saves no proven state bits and is not endorsed. The
 original lower A4 caller remains a separate diagnostic. An additive reference
 correction after the frozen audit resolves row3 as5E5F; seven lower native VS
 bits disagree, with only row4 a confirmed matching negative control.
+
+## First bounded source audit
+
+The frozen classic8ba384e audit classifies nine policy groups, separating sourced
+quirks, inferred outcome models, coverage guards and initialization policy.
+French §13.7.2.1 p127 supplies a missing constraint: after the specified oldR0=1
+widening, C4 advances when C9=R9 even when C4 differs from R4. The qualified
+production-T80 cohort has126/126 transport guards. Its true-last and R9-negative
+controls match, while the non-last case reaches2/6/7 instead of2/7/7. The
+initial39/40 transport stop and its analyzer remain immutable; the additive
+qualifier follows the source's five-character OUT spacing without imposing an
+unrelated NOP/HALT M1 phase convention.
+
+Astra's proposed private candidate reuses the precommit write ticket for that
+row advance and leaves entry into adjustment dependent on the previously armed
+true-frame condition. It adds no state or ports and preserves the existing
+direct-write horizontal hold. Original C0 B6 before/after is mandatory because
+its four R0 results already match hardware. No production RTL change is accepted
+yet. Two late oldR0=1 horizontal models remain admissible; removing the numeric
+sampling guard alone saves no established state. The seven lower A4 mismatches
+remain separate.
+
+Private source/proof/design packets are `b26-audit-frozen-20261106/`,
+`b26-audit-results-20261106/` and `c0-r0-p127-readiness-20261106/` under the active
+session evidence root. Root verifies all174 final proof artifacts against the
+frozen manifest. This is a behavioral counterexample and a narrower candidate,
+not a recovered silicon schematic or a completed upstream audit.

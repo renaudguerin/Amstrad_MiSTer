@@ -202,3 +202,51 @@ Evidence under the session root: `c3-e-rom-window-candidate-20261106/`
 (753 artifact hashes verified; manifest707b28400595f25afd39a6a4f4ecf73b5f7b5525227d79c09a8077adb2f2b599),
 `c3-e-public-integration-20261106/` (gate/source/hash receipts), and
 `c3-e-final-opus-review-20261106/` (review, root acceptance and provider limits).
+
+## E2 full build and targeted native acceptance
+
+Source5c1ab5771e76eae0cff9cd2a76c73f6831551e5b passes the exact-SHA selected
+simulation and production-T80 CI jobs. Full synthesis run
+[42209634374](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42209634374),
+artifactAmstrad-build-408-1-full, uses Quartus17.0.2 build602 SJLite, Standard
+Fit at maximum effort. All seven clocks close: setup minimum0.550ns, hold
+minimum0.241ns, zeroTNS. The3,149,156-byte RBF has SHA256
+`0165785e2120f16a748f31543338d7faf8c5b4e4e4513fb2b22fd2a164f65d17`,
+verified on MiSTer before loading. Packaging uses dry-run only; the existing
+release draft and master remain unchanged.
+
+Original native E entry retains its four preceding R5 pages. E0406 now clears
+all12 ordinary witnesses and all five ROM-select checks, including0D/1D. Root
+views every capture and the settled page against the failing fdf348c and matching
+AmSpirit pages. There are11 PNGs and10 actual requested/appliedFull0 records;
+hashes, dimensions, normal-wait CFG and CFG restoration verify. The four settled
+03FA–03FD images are byte-identical to fdf348c. E0406 becomes passing by its
+original-program checks; no indexed original-CPC E photograph is available.
+
+The first transport attempt stopped at AmSpirit's unsupported wait_frames
+instruction after03FA. Its inputs/manifest remain preserved. The native variant
+uses a conservative1s settling wait instead and completes; guest code and DUT
+are unchanged. This is not classified as a failed hardware result. Private
+packet: `c3-e-native-20261106/`, including PARENT-E-ACCEPTANCE.json.
+
+DU preservation also completes: all ten captures are byte-identical to9c11daf,
+including passing03BF and the retained03C0 status2 failures at4DFF/0000.
+Six actualFull0 records and CFG restoration verify. PARENT-DU-ACCEPTANCE.json
+binds every PNG. DSC4/Amazing and AE/AR preservation also pass in the scoped native samples:12
+PNGs with verified hashes/dimensions and CFG restoration. Credits and the first
+otter are byte-identical to9c11daf; later otter and both Amazing samples retain
+their visible effects with animation-phase differences. All seven AE/AR frames
+have exact accepted fdf348c/c093 phase counterparts. AE/AR has12 actualFull0
+records; demo runs supply requestedFull/CFG evidence only. No whole-demo or
+physical HDMI/CRT sign-off follows. PARENT-PRESERVATION-ACCEPTANCE.json and its
+comparison bind the images.
+
+A separate pinned CPCSyntaxError0.12.0 DSC4 trace contains527,529 register events
+and1,349 R4 writes. It reaches the intended credits/otter scenes but supplies no
+changed nonzero R4 write qualifying the coarse late-terminal discriminator.
+The initial zero-event report was an offline parser whitespace bug, preserved
+and corrected without replay. UK peer firmware and character-rounded writes
+could not establish MiSTer bus/CLKEN phase anyway. Broader late nonzero R4 title
+coverage therefore stays open, as do false-to-true behavior, the rival write-end
+model and the split consumer. Native acceptance does not establish silicon
+latch topology or complete R4 behavior.

@@ -8,8 +8,9 @@ is complete: 1,384 images and six explicit gaps; DT0305 on all three remains sta
 because its exit grab contains the menu. Fresh unadjudicated images become
 unknown. A separate full-resolution C0 A4/AI check adds one passing and one
 broken judgment to previously unknown coverage. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
-The targeted9c11daf CRTC3 DU check repairs status1 bit5;03BF passes its
-complete program checks while03C0 remains broken on status2 bits0/4.
+Targeted5c1ab57 CRTC3 E0406 now passes all original program checks; DU03BF
+remains passing and03C0 retains status2 bit0/4 failures. Reviewed physical008F
+readings also close CRTC0/1 numeric-page comparisons on8ba384e.
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
@@ -40,25 +41,25 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 
 | CRTC | Module | Passing | Broken | Unknown | Stale | Total |
 |---:|:---|---:|---:|---:|---:|---:|
-| 0 | A | 2 | 1 | 119 | 0 | 122 |
+| 0 | A | 3 | 1 | 118 | 0 | 122 |
 | 0 | B | 0 | 1 | 220 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
 | 0 | D | 0 | 0 | 110 | 1 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **5** | **3** | **478** | **1** | **487** |
-| 1 | A | 118 | 2 | 7 | 0 | 127 |
+| **0** | **Total** | **6** | **3** | **477** | **1** | **487** |
+| 1 | A | 119 | 2 | 6 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 1 | 3 | 0 | 80 |
 | 1 | D | 63 | 0 | 63 | 1 | 127 |
 | 1 | E | 3 | 0 | 4 | 0 | 7 |
-| **1** | **Total** | **363** | **4** | **112** | **1** | **480** |
+| **1** | **Total** | **364** | **4** | **111** | **1** | **480** |
 | 3 | A | 0 | 0 | 124 | 0 | 124 |
 | 3 | B | 1 | 2 | 118 | 0 | 121 |
 | 3 | C | 0 | 0 | 23 | 0 | 23 |
 | 3 | D | 1 | 1 | 147 | 1 | 150 |
-| 3 | E | 0 | 1 | 4 | 0 | 5 |
-| **3** | **Total** | **2** | **4** | **416** | **1** | **423** |
-| **All** | **Total** | **370** | **11** | **1006** | **3** | **1390** |
+| 3 | E | 1 | 0 | 4 | 0 | 5 |
+| **3** | **Total** | **3** | **3** | **416** | **1** | **423** |
+| **All** | **Total** | **373** | **10** | **1004** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -79,7 +80,7 @@ The [original C0 A4 caller](investigations/hardware-runs/shaker-crtc0-a4-qualifi
 now independently qualifies a3Ccounter-continuation failure; ordinaryOUT
 boundary controls now qualify the OUTI-only mismatch. The zero-total OUTI control independently fails while ordinary OUT and C1
 controls pass. Reviewed source8ba384e passes the qualified original caller, full CI and
-native01/00 pair. A4 stays broken: six existing lower R0=1 first-byte VS
+native01/00 pair. A4 stays broken: seven existing lower R0=1 first-byte VS
 bits still disagree after the upper-PPI allowance. The changed extra C9
 sweep matches current CPCSE but is absent from the photo and remains unknown.
 

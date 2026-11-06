@@ -134,17 +134,20 @@ matching current CPCSE26/27, but absent from the physical photo. All five
 following C0 AI marker images are byte-identical to the milestone baseline.
 This accepts the narrow R0 repair, not the complete page or every phase.
 
-A complete lower-section recheck identifies **six existing VS-bit mismatches**
-in the R0=1-origin pairs. The photograph and current CPCSE give
-5E5F/5E5F/5F5F/5F5F/5E5F/5E5F/5E5F/5E5F. Both native builds giveFFFF
+A complete lower-section recheck identifies **seven existing VS-bit mismatches**
+in the R0=1-origin pairs. The photograph gives
+5E5F/5E5F/5E5F/5F5F/5E5F/5E5F/5E5F/5E5F. Both native builds giveFFFF
 throughout. Removing only the documented unrelatedA0 upper-input difference
-leaves5F5F throughout: six first-byte bit0 values still disagree. These are
-not repaired by the p124 change. The exact photo binary remains unbound;
-peer agreement supplies a useful discriminator, not a hardware timing rule.
+leaves5F5F throughout: seven first-byte bit0 values still disagree. These are
+not repaired by the p124 change. The exact photo binary remains unbound. Peer agreement for the repaired
+first pair is useful, while the corrected lower-row glyph must be compared
+separately; it supplies no hardware timing rule.
 A4 therefore stays **broken** in the maintained tally. The unreferenced C9
 row is a separate unknown, not a reason to hide those confirmed differences.
 
 Private native inputs/commands, quality receipts, full-page comparison and
 preservation checks are in `c0-r0-native-20261106/`. The additive full-page
-receipt corrects an initial pre-run grading note that overlooked those six
-low-bit differences. No R0=1 repair is selected from this image.
+receipt corrects an initial pre-run grading note that overlooked the lower
+section’s low-bit differences. No R0=1 repair is selected from this image.
+
+Independent text-cache review corrected one E/F glyph: lower row3 is5E5F. Root verifies the enlarged glyph against rows2/4; seven lower first-byte VS mismatches remain, rather than the initial six. Only row4 is a matching negative control. Exact peer agreement for the corrected row is not assumed.
