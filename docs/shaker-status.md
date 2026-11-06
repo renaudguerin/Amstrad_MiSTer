@@ -85,7 +85,7 @@ bits still disagree after the upper-PPI allowance. The changed extra C9
 sweep matches current CPCSE but is absent from the photo and remains unknown.
 
 - **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C0/1 B6/019D;
-  C1 AI/008D; current C1 S/02D3 (0840 versus4E40); C3 BR/01F0 and01F1, DU/03C0 and E/0406. E6's26/28 figure counts assertions across0407/0408/0409,
+  C1 AI/008D; current C1 S/02D3 (0840 versus4E40); C3 BR/01F0 and01F1, DU/03C0. E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
   on MiSTer, while its MID glyph/reference binding remains open. Earlier S
@@ -95,8 +95,8 @@ sweep matches current CPCSE but is absent from the photo and remains unknown.
 - **Current CRTC3 numeric failures:** original Type3 callers/tables qualify
   BR01F0 and01F1 as broken against the current program. The fresh peer
   passes; an original ACK/R52 trace must locate the responsible boundary.
-- **Current CRTC3 status/overflow:** DU03C0 and E0406 fail their original
-  checks; completed AmSpirit1.17.1 passes all. Status2bit4 has an apparent
+- **Current CRTC3 status/overflow:** DU03C0 still fails its status2 checks. E0406 now passes all ordinary/ROM
+  checks on5c1ab57; completed AmSpirit1.17.1 passes both pages. Status2bit4 has an apparent
   literal-table/collector tension, and E's final ROM-select race is already
   excluded from the implementation. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - **Unknown dynamic/display checks:** D6/D7 physical phase/settling, DI02E3
@@ -109,8 +109,8 @@ sweep matches current CPCSE but is absent from the photo and remains unknown.
   V1 separately. Four other formerly stale C1 D pages now become unknown;0305 remains stale
   because its current exit grab is the menu, not the reference result. [Count correction](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 - **Current AI recheck:** 008E and 0091 pass the photographed VS fields;
-  008F remains unknown because its physical V2 exception glyph is unresolved,
-  and 0090 awaits full cell adjudication. The 0037 OUTI bit 0 mismatch cannot
+  008F now passes30/30 numeric fields on C0/C1 after blind vision and root
+  adjudication; 0090 awaits full cell adjudication. The 0037 OUTI bit 0 mismatch cannot
   be masked as an unrelated upper-PPI input difference.
 - **009A passes:** original direct and full A1-history native paths both show
   the dynamic full-screen RAM-noise family seen in the photograph. The old
@@ -125,34 +125,18 @@ covers O/E/P/S, Module E, all ten D7 pages and D9→E. See the
 [AI residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md),
 and [next discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md).
 
-## DSC4 and Amazing acceptance
+## Demo acceptance
 
-| CRTC | DSC4 | Amazing | Last targeted native evidence |
-|---:|---|---|---|
-| 0 | Credits clear; sampled main effects restored | Sampled effects preserved | 208bacf preservation |
-| 1 | Credits clear; sampled main effects restored | Sampled effects preserved | c0939d8 preservation |
-| 3 / ASIC | Credits clear; sampled main effects restored | Logo/lower effects restored | fdf348c targeted preservation |
+Renaud confirms manual MiSTer testing of **DSC4, Amazing and Before the Storm,
+all working on CRTC0/1/3**, closing the reported demo defects. The tested
+filename/SHA was not supplied; do not silently attribute this to an exact build.
+[Manual acceptance](investigations/hardware-runs/demos-manual-acceptance-2026-11-06.md).
 
-These are sampled hardware results, not full-demo sign-off. DSC4's CRTC1
-bottom row also exists in AmSpirit's uncropped buffer; desired visible bounds
-remain a viewport question. Fresh CRTC1 AmSpirit runs also show DSC4's long
-green lines and Amazing's later coloured bands; their physical-CPC status
-remains unverified. [Reference comparison](investigations/hardware-runs/dsc4-c1-main-lines-reference-2026-11-05.md),
-[classic evidence](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md),
-[ASIC evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md),
-[bottom-row comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md).
-
-The R3 compensation is shared by classic CRTC0/1 and has deterministic
-coverage for both. ASIC display timing uses its separate fix. BTF's reported
-reversing wobble now has native before/after acceptance on **CRTC0/1/3**.
-For CRTC0, old e24 has 86 eligible pairs with−10/+6 reversals; current fdf has
-43 holds/43 left-two steps in 86 pairs. CRTC1 retains 82/176 eligible pairs
-before/after, and CRTC3 retains 176/168. All current middle-band steps are 0/−2.
-All new CRTC0 frames are viewed; six rejected acquisition attempts remain
-recorded across its old/new runs. Static LEFT8, exact BI and scoped AE/AR/
-DSC4/Amazing preservation pass. Fresh Opus review and the enabled mixed-colour sprite proof pass; physical
-HDMI/CRT acceptance remains open.
-[BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+The source-bound native samples and BTF displacement measurements remain in
+[classic display](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md),
+[ASIC display](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md)
+and [BTF](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+This does not change the SHAKER page tally or validate a CRT-response model.
 
 ## Maintaining the tally
 
