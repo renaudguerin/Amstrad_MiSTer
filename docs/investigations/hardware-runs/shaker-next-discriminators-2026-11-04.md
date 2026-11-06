@@ -29,8 +29,9 @@ reports. The maintained execution/photo denominator is in
 Use [CPCSyntaxError](../../cpcsyntaxerror-testing.md) where a fresh original
 caller matches hardware and its source explains a difference; use AmSpirit1.17.1
 where CPCSE fails or cannot resolve it. Neither supplies an unmeasured physical
-bus aperture. D3's44 held-Space captures remain invalid for page-state comparison;
-avoid blind full-walk timing retries.
+bus aperture. D3 now has44 correctly bound current captures after a private
+Space-count correction; full physical geometry/temporal comparison remains
+open. Avoid blind full-walk timing retries. [D3 proof](shaker-d3-count-correction-2026-11-06.md).
 
 Resume monitor/filter changes only with raw boundary evidence and an explicit
 physical viewport contract. DSC4's extra bottom row matches uncropped AmSpirit

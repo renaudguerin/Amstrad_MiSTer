@@ -2,7 +2,8 @@
 
 Maintained page tally, 6 November 2026. Page judgments carry forward the
 `c0939d8` milestone and qualified earlier builds; current trial `fdf348c`
-adds scoped ASIC preservation without changing whole-page verdicts.
+adds scoped ASIC preservation and 44 fresh aligned D3 captures. Passing/broken
+counts are unchanged; those 44 pages move from stale to unknown.
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
@@ -36,16 +37,16 @@ validation remains unknown, even when a specific defect on it is repaired.
 | 1 | A | 118 | 2 | 7 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 0 | 4 | 0 | 80 |
-| 1 | D | 63 | 0 | 15 | 49 | 127 |
+| 1 | D | 63 | 0 | 59 | 5 | 127 |
 | 1 | E | 3 | 0 | 4 | 0 | 7 |
-| **1** | **Total** | **363** | **3** | **65** | **49** | **480** |
+| **1** | **Total** | **363** | **3** | **109** | **5** | **480** |
 | 3 | A | 0 | 0 | 9 | 115 | 124 |
 | 3 | B | 0 | 0 | 8 | 113 | 121 |
 | 3 | C | 0 | 0 | 0 | 23 | 23 |
 | 3 | D | 0 | 0 | 0 | 150 | 150 |
 | 3 | E | 0 | 0 | 1 | 4 | 5 |
 | **3** | **Total** | **0** | **0** | **18** | **405** | **423** |
-| **All** | **Total** | **367** | **4** | **339** | **680** | **1390** |
+| **All** | **Total** | **367** | **4** | **383** | **636** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -65,8 +66,10 @@ most stale entries. This table does not classify those pages as failures.
   (58/59; the program labels CRTC1 unreliable), and DT02F8/02FA's full
   phase-matched photo verdict. DT's reported missing band was an acquisition
   epoch mismatch; its early native trace contains both bands.
-- **Stale CRTC1 captures:** 44 D3 pages have invalid page-state alignment;
-  five further D captures need acquisition/parameter recheck.
+- **D3 acquisition repaired:** all 44 current headers match after correcting
+  one extra Space in our private manual overlay. These pages are unknown
+  pending full physical geometry/temporal comparison; five further D captures
+  remain stale. [Count correction](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 - **Current AI recheck:** 008E and 0091 pass the photographed VS fields;
   008F remains unknown because its physical V2 exception glyph is unresolved,
   and 0090 awaits full cell adjudication. The 0037 OUTI bit 0 mismatch cannot

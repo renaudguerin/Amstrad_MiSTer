@@ -1,5 +1,12 @@
 # SHAKER D3: held Space across handler entry — 4 November 2026
 
+**Superseded capture diagnosis, 6 November:** the private 100 ms overlay sends
+one extra Space before 0329. Correcting that count, with unchanged timing,
+now yields 44 correctly bound native captures. See the [count proof and current
+acceptance](shaker-d3-count-correction-2026-11-06.md). The source-level held-key
+mechanism below remains possible, but does not establish the cause of that
+specific offset. No canonical author-script defect is inferred.
+
 The missing host capture is an input/capture problem until a faithful page-state
 comparison proves otherwise. A focused Astra-medium source analysis resolves one
 ambiguity: R2=35/R3=4 is not inherently transient. A held Space can advance that
@@ -37,7 +44,7 @@ level mechanism; it does not measure which sample occurred on MiSTer.
 ## Captures and limits
 
 The bulk70ms overlay loses advances; a200ms probe repeats them. A100ms short
-probe reaches35→3A→3B, but its full walk matches only the first 22 headers before
+probe reaches35→3A→3B, but its full walk matches only the first 21 headers before
 one extra advance at the R3=4 transition. Separate70ms Space calls, each with
 MBC's two-second open/close release interval, still show that transition offset.
 All runs and ledgers are retained; none supplies44 accepted parameter states.

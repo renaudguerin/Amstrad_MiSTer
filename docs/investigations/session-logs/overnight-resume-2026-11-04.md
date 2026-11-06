@@ -321,6 +321,23 @@ Both workers finish; MiSTer remains idle on fdf348c in French Plus BASIC with
 BTF mounted. Root next reads the D3 boundary rather than launching another
 full44-page timing sweep.
 
+## D3 capture alignment — 6 November
+
+The unchanged100ms prefix repeats21 correct headers then0329R3=4/R2=35.
+Before sending any proposed5ms pulse, root finds line96 sends two Spaces from
+R2=26: one enters27, the next enters the next R3 group. The original44-byte
+classic SSM target table independently proves the count. A one-Space private
+correction predicts all44 headers; original has23 wrong states. One corrected
+native walk completes187 commands/44 captures/zero failures, every header and
+full image parent-viewed and accepted. Timing and guest bytes are unchanged;
+no5ms pulse or canonical-script change occurs. The new private overlay is
+installed separately, with all old inputs retained.
+
+The tally moves44 D3 pages stale→unknown, not passing: C1 is now363/3/109/5/480
+and allCRTC367/4/383/636/1390. Whole-page physical CRT geometry/temporal comparison
+remains open. MiSTer is restored to fdfPlusBASIC/BTF; sevencommands/oneviewed
+ready image. [Current count proof](../hardware-runs/shaker-d3-count-correction-2026-11-06.md).
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3
@@ -330,8 +347,8 @@ consumer and OUTI CPU-phase audit are already preserved, not work to repeat.
 VSCLK native matches the model and still needs an original-CRTC1 result.
 0090 remains unknown after focused reading; A4 version/physical deadline,
 C0 E6 cases27/28, C1 C5 count/RFD lifetime and D7 physical settling remain
-bounded open questions. DI's Type1 warning and D3's invalid held-Space captures
-remain exclusions. Do not launch a broad milestone baseline before the known
+bounded open questions. DI's Type1 warning remains an exclusion; D3's input alignment is repaired,
+with full physical geometry/temporal comparison still open. Do not launch a broad milestone baseline before the known
 fixes are complete, and do not add a speculative AI zero guard.
 
 Private paths are relative to `local/overnight-20261103/resumed-20261104/`.

@@ -877,50 +877,50 @@ crtc,module,page,status,build,evidence,detail
 1,D,0311,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0312,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0313,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
-1,D,0314,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0315,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0316,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0317,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0318,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0319,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,031A,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,031B,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,031C,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,031D,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,031E,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,031F,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0320,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0321,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0322,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0323,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0324,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0325,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0326,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0327,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0328,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0329,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,032A,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,032B,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,032C,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,032D,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,032E,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,032F,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0330,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0331,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0332,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0333,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0334,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0335,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0336,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0337,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0338,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,0339,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,033A,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,033B,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,033C,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,033D,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,033E,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
-1,D,033F,stale,5fba168,docs/investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md,"Wrong page/parameter, menu, or obsolete acquisition capture; rerun/re-review required"
+1,D,0314,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0315,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0316,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0317,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0318,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0319,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,031A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,031B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,031C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,031D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,031E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,031F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0320,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0321,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0322,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0323,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0324,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0325,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0326,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0327,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0328,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0329,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,032A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,032B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,032C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,032D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,032E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,032F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0330,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0331,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0332,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0333,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0334,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0335,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0336,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0337,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0338,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,0339,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,033A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,033B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,033C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,033D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,033E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
+1,D,033F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md,Fresh aligned capture after private Space-count correction; full physical CRT geometry/temporal verdict remains open
 1,D,037F,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0380,passing,5fba168,docs/investigations/hardware-runs/shaker-package-device-2026-11-03.md,Historical D photo match; later exceptions override
 1,D,0381,unknown,c0939d8,docs/investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md,Sampled patterns/preservation accepted; dynamic phase or physical settling remains a test observable

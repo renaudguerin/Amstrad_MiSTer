@@ -41,9 +41,9 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
 | 0 | 4 | 1 | 256 | 226 | 487 |
-| 1 | 363 | 3 | 65 | 49 | 480 |
+| 1 | 363 | 3 | 109 | 5 | 480 |
 | 3 | 0 | 0 | 18 | 405 | 423 |
-| All | 367 | 4 | 339 | 680 | 1390 |
+| All | 367 | 4 | 383 | 636 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
@@ -53,7 +53,7 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | C1 B6/019D and DI/02E3 | B6 fifth/fourth deadlines are 1F/1F versus photo 1E/1F; DI is 58 versus 59 but the original test labels CRTC1 unreliable. Physical aperture and coherent R7.JIT remain open. [B6 evidence](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
 | C1 S/02D3 and B9 MID | Current direct/history S is 4E40 versus photo 4E30; program revision binding remains open. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |
-| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; 44 D3 pages have invalid page-state alignment and five other D captures need acquisition/parameter recheck (49 stale total). [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md). |
+| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All 44 D3 captures now have correct parameters after a private Space-count fix; full physical geometry remains unknown. Five other D captures remain stale. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
 | Broader classic gates | Type1 inactive rearming; F13/F20 hardware gates; IA-5 simultaneous sync/interrupt; Q17 and D1 entry; wider phase/lifetime closure remain open. [Audit](classic/audit-findings.md), [discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md). |
 
 DT's missing band was an acquisition-epoch mismatch; full phase-matched photo
