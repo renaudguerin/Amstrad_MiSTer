@@ -74,22 +74,18 @@ These are sampled native results, not full-demo or physical HDMI/CRT sign-off.
 | 1 | Credits clear; sampled main effects restored | Sampled effects preserved | DSC4 green lines and Amazing coloured bands also appear in fresh AmSpirit; [comparison](investigations/hardware-runs/dsc4-c1-main-lines-reference-2026-11-05.md). Bottom row is outside AmSpirit's default viewport; [crop](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md). |
 | 3 / ASIC | Credits clear; sampled main effects restored | Logo and lower effects restored | fdf348c preservation; [ASIC boundary](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md); full demo remains untested. |
 
-Before the Storm: CRTC1 has native before/after acceptance; CRTC0 has 63
-eligible pairs without reversal. Old c0939d8 CRTC3 reverses in 176 pairs.
-The fdf348c candidate passes static native controls: the complete R3=4/5
-image moves by eight pixels with exact translated RGB identity, while 5/6
-stay byte-identical to the old build. The original BTF3 trial now has 168
-eligible pairs with no reversal, all 192 frames viewed. Eight BI/R3-JIT images are byte-identical to c0939d8; scoped
-DSC4/Amazing and AE/AR preservation pass. AR colour differences are the
-original INK10 cycle, reproduced exactly on the old build. Opus,
-live-owner and enabled-sprite promotion coverage remain open.
-[ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md),
-[BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
-The GA/R3 compensation is shared by classic CRTC0/1 and has deterministic
-coverage for both; ASIC uses a separately tested correction. Physical HDMI/CRT
-acceptance remains open. CRTC0/1 demo results retain their prior evidence;
-CRTC3 preservation is refreshed on fdf348c. MiSTer is left in French Plus
-BASIC with the BTF disk mounted and the new trial RBF active.
+Before the Storm now has bounded native before/after acceptance on **CRTC0/1/3**.
+The new CRTC0 comparison has 86 eligible pairs per build: old e24 reverses by
+−10/+6; fdf348c has 43 holds/43 left-two steps. CRTC1 has 176 current eligible
+pairs and CRTC3 has 168, also with only holds/left-two steps. All new frames
+are viewed; acquisition limits are unchanged. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+
+ASIC static LEFT8, eight exact BI controls and scoped DSC4/Amazing/AE/AR
+preservation pass. AR colour variants reproduce the original INK10 cycle.
+Opus, live-owner/enabled-sprite coverage and physical HDMI/CRT remain open.
+The classic correction is shared by CRTC0/1; ASIC uses its separate tested
+correction. [ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
+MiSTer is left in French Plus BASIC with BTF mounted and the new trial active.
 
 Plus retains bounded BI/AE/AR and credit acceptance. A4 first/third rows are
 0/1 versus the older physical photo's 1/1, with program/history binding open;

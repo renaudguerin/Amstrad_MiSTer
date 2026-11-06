@@ -63,6 +63,14 @@ alone cannot establish their full geometry or temporal match, or identify a
 CRTC/GA versus filter/monitor defect. Use these current inputs for that later
 comparison instead of repeating a blind input-timing sweep.
 
+A subsequent Gemini 3.8 high diagnosis inspects ten representative physical/
+current pairs and identifies no concrete missing-content discrepancy. Root
+spot-checks five pairs and confirms the broad surviving-digit/cutout families.
+This is limited corroboration: exact-width and exposure/viewport claims in
+the provisional report exceed the evidence and are not adopted. It proves
+neither raw counter execution nor a filter root cause. The parent assessment
+is retained under `photo-discriminator/`; all 44 page grades remain unknown.
+
 For author feedback: this count error is in our private MiSTer overlay, not in
 Longshot’s canonical scripts. The earlier bulk-SSM retrieval limitation is also
 a host acquisition limitation; neither is evidence of an author-package defect.

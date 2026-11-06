@@ -106,15 +106,14 @@ remains unverified. [Reference comparison](investigations/hardware-runs/dsc4-c1-
 
 The R3 compensation is shared by classic CRTC0/1 and has deterministic
 coverage for both. ASIC display timing uses its separate fix. BTF's reported
-reversing wobble now has native before/after acceptance on **CRTC1**:
-82eligible reference pairs include−10/+6reversals;176current pairs contain
-only0/−2steps. A fresh CRTC0 run adds63eligible pairs without reversal;
-CRTC3 now also has native before/after acceptance: old c0939d8 reverses in176
-eligible pairs; fdf348c has168 eligible pairs with85 holds/83 left-two steps
-and no reversal. All192 candidate frames are viewed, with11 rejected
-acquisition attempts retained. Static LEFT8, eight exact BI controls and
-scoped AE/AR/DSC4/Amazing preservation pass; Opus/promotion coverage and
-physical HDMI/CRT acceptance remain open.
+reversing wobble now has native before/after acceptance on **CRTC0/1/3**.
+For CRTC0, old e24 has 86 eligible pairs with−10/+6 reversals; current fdf has
+43 holds/43 left-two steps in 86 pairs. CRTC1 retains 82/176 eligible pairs
+before/after, and CRTC3 retains 176/168. All current middle-band steps are 0/−2.
+All new CRTC0 frames are viewed; six rejected acquisition attempts remain
+recorded across its old/new runs. Static LEFT8, exact BI and scoped AE/AR/
+DSC4/Amazing preservation pass. Opus/promotion coverage and physical HDMI/CRT
+acceptance remain open.
 [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 
 ## Maintaining the tally

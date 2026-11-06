@@ -12,8 +12,9 @@ promotion coverage remain open. No full-demo or physical HDMI/CRT claim follows.
 On prior source `c0939d8`, eight CRTC3 bursts provide 192 complete frames
 and 176 eligible consecutive pairs. The fixed middle-band registration gives
 88 holds, 43 left 10 and 45 right 6 steps. Root views every frame. The same
-qualified reader and geometry guards show no reversal on sampled CRTC0,
-while CRTC1 already has before/after acceptance. The
+qualified reader and geometry guards now provide before/after acceptance on
+CRTC0 as well:86 pairs per build, old−10/+6 reversals versus current0/−2.
+CRTC1 already has before/after acceptance. The
 [BTF report](before-the-storm-r3-2026-11-05.md) owns input identities,
 capture-storage recovery and physical-display limits.
 
@@ -211,7 +212,9 @@ run `20261106T011845Z-68309-6dd2`, exit 0. It finds no blocking issue and makes
 no edits or test runs. Its assurance is limited to this small test change;
 the pending Opus, enabled-sprite, live-owner and physical-display gates remain.
 Private commands, hashes, review and parent receipt are in sibling
-`asic-return-qualification-20261106/`. No new RBF is required for this test-only
+`asic-return-qualification-20261106/`. Exact-code [CI42143649213](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42143649213)
+also passes simulation, production-T80 and the required gate on `dbeea61`.
+Synthesis is correctly skipped. No new RBF is required for this test-only
 change; the installed artifact remains the accepted `fdf348c` build.
 
 Private evidence is under

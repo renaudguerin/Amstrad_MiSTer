@@ -355,6 +355,24 @@ This closes the earlier cumulative-counter P2, not a new DUT timing defect or
 filter retraining epoch. The RBF remains fdf348c. Logs/review/parent acceptance
 are in asic-return-qualification-20261106/; no worker/provider remains active.
 
+## BTF CRTC0 before-control and D3 photo check — 6 November
+
+Identical original normalboot CRTC0 controls on e24/fdf complete10commands,
+oneprimary and4×24frames per build. Each yields91qualifiedframes/86pairs.
+Oldmiddlemotion43hold/22right6/21left10 becomes43hold/43left2 with no reversal.
+All192 frames plus bothprimary images are viewed. Sixrejected attempts are
+retained (old2copy, new3copy/1poll); unchanged12ms/1ms and next-header guards.
+The reader hash remains01d76b2c…724e5bce. All200remoteoriginals matchlocalSHA
+before eightownedtempdirs are removed,120,820,575bytes. fdfPlusBASIC/BTF is
+restored and itsready image viewed. BTF now has boundednativebefore/after
+acceptance on0/1/3. No newRTL, RBF, broadbaseline or physicaldisplayclaim.
+
+Gemini3.8high10pair D3diagnosis exits0, rootreadsreport and fiveactualpairs.
+No confidentlyidentified missingcontent mismatch; broadglyph/cutoutagreement
+only. Exactgeometry, exposure20–50ms, fixedviewport and rawcounterexecution
+claims are not accepted fromstillphotos. Parentassessment preserved. All44
+D3pages stayunknown; no further tallychange or filterrepair follows.
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3

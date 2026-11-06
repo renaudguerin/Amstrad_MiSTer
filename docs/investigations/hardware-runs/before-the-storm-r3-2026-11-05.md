@@ -2,6 +2,41 @@
 
 The user reports alternating-frame horizontal wobble on CRTC1 in an earlier build. The author confirms alternating R3 values. Media is`btf.dsk`, launched with`RUN"-BTF`; the affected landscape scroller is approximately373–403 seconds after RUN (the supplied video enters RUN near2s and shows the effect at6:15–6:45). The video frames have not been independently inspected: retrieval was throttled.
 
+## Current native acceptance by CRTC — 6 November
+
+The sampled reversing wobble now has native before/after acceptance on all
+three selectable CRTCs. These are normal-boot original-demo results with the
+reviewed frame reader and unchanged timing/geometry guards, not full-demo or
+physical HDMI/CRT sign-off.
+
+| CRTC | Before: build / eligible pairs | After: build / eligible pairs | Current middle-band motion |
+|---:|---|---|---|
+| 0 | e24cb50 / 86 | fdf348c / 86 | 43 holds, 43 left-two steps; no reversal |
+| 1 | e24cb50 / 82 | c0939d8 / 176 | 88 holds, 88 left-two steps; no reversal |
+| 3 | c0939d8 / 176 | fdf348c / 168 | 85 holds, 83 left-two steps; no reversal |
+
+The new CRTC0 control collects four 24-frame bursts per build, three seconds
+apart. Both runs yield 96 complete frames, 91 geometry-qualified frames and 86
+eligible pairs. Old e24 has 43 holds, 22 right-six and 21 left-ten steps. Current
+fdf has only holds/left-two. Root views both primary screenshots and all 192
+frames. The prior 72-frame C0 sample is retained, but is no longer the sole
+current evidence or a substitute for a before-control.
+
+The original CRTC0 CSL/disk/command and x32:736/y98:122/dx−24..24 registration
+are unchanged. Two old attempts exceed 12 ms copy; the new run rejects three
+slow copies and one poll gap above 1 ms. Accepted maxima are 10.175699 ms/0.922185 ms
+old and 9.678316 ms/0.602102 ms new for copy/poll gap. Final and pre-gap frames
+remain excluded. The reader’s post-run SHA256 still matches its reviewed
+`01d76b2c…724e5bce` binary. The existing original CRTC0 peer trace independently
+qualifies 276 writes at 08A0, 138 each 4/5, strictly alternating; it is not rerun.
+
+Private evidence is `btf-crtc0-before-after-20261106/` under the usual resumed
+root, including `PARENT-ACCEPTANCE.json`, rejections, raw hashes and the
+[slowed native comparison](../../../local/overnight-20261103/resumed-20261104/btf-crtc0-before-after-20261106/btf-crtc0-native-before-after-5x.gif).
+All 200 original remote files match local SHA256 copies before only the eight
+owned temporary directories are removed (120,820,575 bytes). MiSTer is restored
+to fdf French Plus BASIC with BTF mounted; its ready screenshot is viewed.
+
 ## Current CRTC3 native result — 6 November
 
 The ASIC correction on `fdf348c` removes the sampled reversing wobble.
@@ -10,7 +45,7 @@ frame reader produce eight complete bursts:192 frames,180 geometry-qualified
 frames and168 eligible consecutive pairs. The fixed middle-band window gives
 85 holds and83 left-two steps, with no rightward or left-ten step. Old
 c0939d8 gave88 holds,43 left-ten and45 right-six steps in176 eligible pairs.
-Root views all192 frames and the primary screenshot.
+Root views all 192 frames and the primary screenshot.
 
 Eleven attempts are explicitly rejected: eight exceed the12ms copy limit,
 three the1ms poll-gap limit. Accepted maxima are11.782361ms copy and
@@ -46,7 +81,8 @@ contact sheets. The same predecessor reader, successor-header geometry
 guard and preselected registration window are retained. CRTC0 has five
 explicit capture rejections/gaps;67 complete frames qualify and63 links
 survive the guard. CRTC3 has184 eligible frames and no explicit rejection.
-No pre-fix CRTC0 or CRTC3 comparison is claimed.
+At that earlier checkpoint no pre-fix CRTC0 or CRTC3 comparison was available;
+the current before/after results above supersede that limit.
 
 CRTC0's fourth burst stopped on a full MiSTer `/tmp`; its partial files are
 preserved and entirely excluded. Before continuing, root verifies397
@@ -115,7 +151,7 @@ The upper mountain and foreground bands retain distinct parallax speeds.
 Copies take8.745–11.774ms; accepted periods19.533–20.462ms and maximum
 poll gap0.592ms remain within the reader's bounds.
 
-The same reader/CSL on e24cb50 captures four24-frame bursts. Eight explicit
+The same reader/CSL on e24cb50 captures four 24-frame bursts. Eight explicit
 copy/poll rejections and gaps are retained; only82eligible motion pairs enter
 the comparison. The same middle band gives **−10 in20 pairs, 0 in41 and
 +6 in21**. Its upper band also reverses, while the foreground combines into
