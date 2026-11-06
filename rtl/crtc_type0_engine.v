@@ -68,6 +68,7 @@ module crtc_type0_engine
 	input            line_last_r,
 	input            row_last_r,
 	input            frame_adj_r,
+	input            row_r6_landing, // wrapper-owned actual C4 commit reaches stored R6
 
 	// Wrapper-owned VSYNC state read by type-0 rules.
 	input            VSYNC_r,
@@ -310,18 +311,24 @@ wire       type0_c0_1_r5_owner = type0_c0_1_adjust_active && !type0_c0_1_r9_owne
 
 // Technical information sourced from the "Amstrad CPC CRTC Compendium" by
 // Longshot (CC BY-NC-ND). French ACCC v1.11 section 13.7.2 pp.126-128:
-// on a true last frame line, an R0=1 -> R0>1 write accepted during C0=1
-// evaluates the old C0=R0 equality first, but the new total prevents the old
-// horizontal wrap. C0 reaches 2 with C4 incremented, C9 retained, and the
-// additional-management state still active even though R5 was zero. Limit
-// this correction to that fully sourced R5=0/R8=0 recipe; section 13.7.2.1's
-// non-last-line overflow variant remains a separate behavior boundary.
-wire       type0_r0_widen_write_accept = nRESET && !SNA_LOAD && !CRTC_TYPE &&
+// a pre-CLKEN R0=1 -> R0>1 write on C0=1 retains the raster-terminal
+// row increment even without a frame-terminal match. The prior frame arm
+// separately owns continued additional management (§13.7.2.2 p128).
+// Keep the existing direct first-CLKEN route frame-qualified.
+wire       type0_r0_widen_write_eligible = nRESET && !SNA_LOAD && !CRTC_TYPE &&
 									 register_write &&
 									 (addr == 5'd00) && (hcc == 1) &&
 									 (R0_h_total == 1) && (DI > 1) &&
-									 frame_adj_r && !in_adj &&
+									 !in_adj &&
 									 (R5_v_total_adj == 0) && (R8_interlace == 0);
+wire       type0_r0_widen_write_accept = type0_r0_widen_write_eligible && frame_adj_r;
+// MODEL LIMIT (B26): the literal early OUT in FR §13.7.2.1 p127 requires
+// the row-only result modeled by this pre-CLKEN ticket for R5=R8=0.
+// Applying that admission
+// to other pre-CLKEN writes (including late OUTI) is an inferred extension.
+// Non-last direct first-CLKEN admission and the old-one horizontal deadline
+// remain unresolved; the existing direct route and sample exclusion stay.
+// See docs/backlog.md B26.
 // French section 13.7.2 p.127: an early write has already updated R0
 // before CLKEN, so C0 must advance 1->2 on that edge, with no duplicate
 // C0=1 character. Retain the vertical action until that edge. The existing
@@ -331,7 +338,8 @@ wire       type0_r0_widen_accept = CLKEN && type0_r0_widen_write_accept;
 always @(posedge CLOCK) begin
     if(!nRESET || SNA_LOAD || CRTC_TYPE || CLKEN)
         type0_r0_widen_write_pending <= 0;
-    else if(type0_r0_widen_write_accept)
+    else if(type0_r0_widen_write_accept ||
+            (type0_r0_widen_write_eligible && line == R9_v_max_line))
         type0_r0_widen_write_pending <= 1;
 end
 assign     r0_widen_hold = type0_r0_widen_accept;
@@ -464,7 +472,8 @@ wire       crtc0_row_frame_last = (type0_last_line_armed | in_adj) &
 // 3) and ParityR6 odd, one additional line is appended after the R5
 // adjustment lines -- directly after the last character row when R5=0 --
 // before the frame origin.  ParityR6 is captured when C4 reaches R6 and
-// freezes when R6>R4 (section 19.5.2 p.206), so the gate persists: a line
+// freezes when C4 cannot reach R6 (ordinary R6>R4 geometry, §19.5.2
+// p.206), so the gate persists: a line
 // every frame if frozen odd, never if frozen even (section 19.6.1 p.217).
 // C4 is incremented only once for the whole additional-lines period and
 // equals R4+1 there (section 19.6.1 p.217): the adjustment-entry increment
@@ -492,15 +501,20 @@ wire       frame_new_w = row_new & row_frame_last;
 // Type-0 parity rules (section 19.5.2 p.206): ParityFrame snapshots
 // ParityR6 at the frame origin (C4=C9=C0=0); ParityR6 captures
 // ParityFrame xor 1 when C4 reaches R6 -- independent of R8, frozen when
-// R6>R4 (the event then never fires).  The frame origin itself is excluded
+// C4 cannot reach R6 (ordinary R6>R4 geometry). The frame origin is excluded
 // from the R6 capture (same convention as the R6-border-condition
 // exclusion at C4=C9=C0=0).  The p.220 pseudocode's alternative frame-end
 // toggle (ParityFrame ^= ParityR6 when C4==R4) is equivalent to this
 // snapshot at the origin and is not duplicated here.
 assign pf_write  = frame_new_w;
 assign pf_value  = parity_r6;
-assign pr6_write = row_new && !frame_new_w && !in_adj &&
-                   (row_next == R6_v_displayed);
+// French §19.5.2 p206: capture a C4 landing, independently of DE.
+// MODEL LIMIT (B26): retain pre-edge !in_adj and ordinary origin policy;
+// off-seam zero/zero parity is unmeasured, so preserve its old behavior
+// independently of the display conflict rule. R4/R7 off-seam consumers
+// and adjustment/IVM landing generalization are not resolved by this R6 proof.
+assign pr6_write = row_r6_landing && !frame_new_w && !in_adj &&
+                   (row_new || !(R6_v_displayed == 0 && line == 0));
 assign pr6_value = parity_frame ^ 1'd1;
 
 wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc < 2;
