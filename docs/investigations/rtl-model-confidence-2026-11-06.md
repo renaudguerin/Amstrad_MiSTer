@@ -194,6 +194,8 @@ path; its generic CRTC3/4 heading is not itself the type identifier.
 Focused RED/GREEN and46 selected benches pass. The unchanged original CPU
 replay now qualifies both stages PASS and natural RET9761 toC012; only adjusted
 prefix bit4 bytes change. Fresh Opus review finds no RTL or test bug and permits
-a private full fit. Exact-SHA fit and native whole03C0 acceptance remain pending.
+a private full fit. Exact-SHA full fit and native whole03C0 acceptance pass on
+cb3a1a6, with E/R5 and scoped DSC4/Amazing preservation. This accepts the
+sampled readback behaviour; the broader model limits above remain open.
 Evidence and source-table conflict:
 [status proof](hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).

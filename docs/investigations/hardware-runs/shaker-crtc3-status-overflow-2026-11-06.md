@@ -1,10 +1,10 @@
 # CRTC3 status and C4-overflow failures
 
-Current boundary: native4e45417 passes E0406 and DU bit0, retaining only
-DU bit4 WRONG0000. The separate bit4 correction passes both original CPU
-stages and the selected gate, with fresh Opus conditional GO; fit/native
-acceptance are pending. Earlier sections retain their checkpoint-specific
-limits. The final section records the current bit4 derivation and scope.
+Current boundary: native cb3a1a6 passes E0406 and every DU03C0 check after
+the two scoped STATUS2 corrections. Original CPU proofs, selected gates,
+fresh Opus review, exact-SHA full fit and targeted preservation pass. Wider
+R5/interlace/live-write rules remain inferred. Earlier sections retain their
+checkpoint-specific limits; the final section records native acceptance.
 
 > Physical-reference correction: the ignored canonical real-CPC cache contains
 > CRTC3 DU/03C0, showing STATUS2 bit0 andbit4 OK. Earlier no-photo assumptions
@@ -484,3 +484,34 @@ approval follows. Private evidence:
 `c3-status2-bit4-candidate-20261106/`. The
 [unsent author draft](../../classic/accc-author-questions-2026-11-06-fr.md)
 now asks about the table conflict and the interlace discriminator directly.
+
+## Native acceptance: cb3a1a6
+
+[Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273216780)
+passes simulation, production-T80 and the required gate. Quartus17.0.2 clean
+full fit closes seven setup/hold domains, minima0.645/0.197ns, with zeroTNS.
+The artifact archive digest and installed device RBF are independently checked.
+RBF `Amstrad_20261106_cb3a1a6.rbf` is3,098,272bytes, SHA256
+`0e27d4c89f03e1bf609a055586e69abd9a4096e4f17a7a23aa0810c3051cd56a`.
+
+The original native DU walk now prints all ten03C0 checks OK, including both
+WELL DONE lines and STATUS2bit0/bit4. Both marker and settled captures agree.
+The03BF controls and earlier03BC/03BD views are byte-identical to4e45417.
+The adjusted register-discovery table03BE now reads R4/R5=25/08 and
+R6/R7=19/1E, matching its source setup; its full photo verdict stays separate.
+Root views both changed unique DU images. A source-font pixel decoder agrees
+without using expected result digits or a nearest-glyph guess.
+
+All eleven ModuleE captures, including the four preceding R5 pages and all0406
+ordinary/ROM results, are byte-identical to4e45417. DSC4 credits and its first
+main capture are also identical; root views its later main capture and both
+Amazing images, which preserve the scoped effects. Four runs retain26PNGs,
+16actualFull0 records on DU/E, normal WAIT and four exact saved-CFG restores.
+The title runs retain requested-only Full evidence because they emit no SSM.
+
+DU03C0 moves from broken to passing: the maintained tally is375passing,
+8broken,1004unknown,3stale out of1390pages. This is targeted acceptance,
+not a new full matrix, proof of the wider decoder, master integration or
+release publication. Private packet:
+`c3-status2-bit4-native-cb3a1a6-20261106/`; source-font observations:
+`native-shaker-text-cb3a1a6-20261106/`.

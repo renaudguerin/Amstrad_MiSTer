@@ -11,17 +11,15 @@ Targeted493cdea fixes C0 A4's sole lower-field mismatch. Earlier seven-failure
 claims misreadFEFF asFFFF. All photographed fields now match, but A4 stays
 unknown because extraC9sweep lacks hardware reference. CRTC0/1 AI008F numeric
 comparisons pass after reviewed reference readings. CRTC3 E0406 passes on5c1ab57;
-DU03BF passes while03C0 retains status2 bit0/bit4 failures. See the
+DU03BF and03C0 pass on cb3a1a6 after the status corrections. See the
 [A4 correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
 Current493 direct BR01F0/01F1 captures also reproduce the known ASIC numeric
 failures, pixel-identical to the priorfdf full-module captures; all3SSMrecords
 report actual Full0. This changes freshness, not counts.
-CRTC3 STATUS2 bit0 now passes both original CPU stages, 46 selected benches,
-full fit and native acceptance on4e45417. DU03C0 still fails bit4. Its separate
-original CPU replay qualifies the adjusted offset0000 failure; the same resident
-AmSpirit routine passes. The bit4 correction passes the unchanged original CPU
-caller and46 benches with fresh Opus conditional GO; fit/native remain pending.
-No tally change.
+Both CRTC3 STATUS2 corrections pass original CPU RED/GREEN, 46 selected benches,
+fresh Opus review, full fit and native acceptance on cb3a1a6. DU03C0 now shows
+every check OK; all eleven Module E captures match4e45417, and scoped CRTC3
+DSC4/Amazing samples remain intact. This moves one page from broken to passing.
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 
@@ -63,14 +61,14 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 3 | A | 0 | 0 | 124 | 0 | 124 |
 | 3 | B | 1 | 2 | 118 | 0 | 121 |
 | 3 | C | 0 | 0 | 23 | 0 | 23 |
-| 3 | D | 1 | 1 | 147 | 1 | 150 |
+| 3 | D | 2 | 0 | 147 | 1 | 150 |
 | 3 | E | 1 | 0 | 4 | 0 | 5 |
-| **3** | **Total** | **3** | **3** | **416** | **1** | **423** |
-| **All** | **Total** | **374** | **9** | **1004** | **3** | **1390** |
+| **3** | **Total** | **4** | **2** | **416** | **1** | **423** |
+| **All** | **Total** | **375** | **8** | **1004** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
-CRTC3 now has current B6 and DU03BF program-self-check passes. Scoped BI/AE/AR
+CRTC3 now has B6 and DU03BF/03C0 program-self-check passes. Scoped BI/AE/AR
 checks retain15 unknown whole-page judgments. All modules have current acquisition evidence; only the three invalid DT0305
 menu captures remain stale.
 [Current CRTC3 numeric checks](investigations/hardware-runs/shaker-crtc3-b-current-2026-11-06.md).
@@ -95,12 +93,13 @@ allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
 [Correction and evidence](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
 
 - **Confirmed broken:** C0 E6/page0409, cases27/28; C1 A/0037; C0/1 B6/019D;
-  C1 AI/008D; current C1 S/02D3 (0840 versus4E40); C3 BR/01F0 and01F1, DU/03C0. E6's26/28 figure counts assertions across0407/0408/0409,
+  C1 AI/008D; C1 S/02D3 (history0840/0440 versus4E40); C3 BR/01F0 and01F1. E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
   on MiSTer, while its MID glyph/reference binding remains open. Earlier S
   direct/history4E40 passes are superseded by the current failing history
-  capture; same-RBF direct and an unchanged history repeat give4E40.
+  capture. Same-RBF direct gives4E40, but exact source-font checking corrects
+  the fdf prefix-repeat reading to0440. That repeat is not a passing control.
   [Current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
 - **Current CRTC3 numeric failures:** original Type3 callers/tables qualify
   BR01F0 and01F1 as broken against the current program. The fresh peer
@@ -108,10 +107,11 @@ allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
   reproduces CPI CC versus table/photo C4. The shaped ACK follows the R52
   31-to-32 seam; its cause remains unresolved. No wiring mismatch or justified
   numerical delay fix is established. [ACK evidence](investigations/hardware-runs/shaker-crtc3-br-ack-boundary-2026-11-06.md).
-- **Current CRTC3 status/overflow:** DU03C0 still fails its status2 checks. E0406 now passes all ordinary/ROM
-  checks on5c1ab57; completed AmSpirit1.17.1 passes both pages. Status2bit4 has an apparent
-  literal-table/collector tension, and E's final ROM-select race is already
-  excluded from the implementation. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
+- **Closed CRTC3 status/overflow:** DU03C0 and all E0406 ordinary/ROM checks
+  pass on cb3a1a6. Source-bound CPU replay and native captures support the
+  sampled STATUS2 corrections despite the literal French bit4 table conflict;
+  wider R5/interlace/live-write topology remains inferred.
+  [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - **Unknown dynamic/display checks:** D6/D7 physical phase/settling, DI02E3
   (58/59; the program labels CRTC1 unreliable), and DT02F8/02FA's full
   phase-matched photo verdict. DT's reported missing band was an acquisition

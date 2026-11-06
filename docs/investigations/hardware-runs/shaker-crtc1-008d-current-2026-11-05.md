@@ -77,9 +77,27 @@ does not isolate history, omitted state or phase. Its S2/S3 photo mismatch
 is qualified, but complete native state/phase equivalence and the
 fourth-sample mechanism are not. Classic-v2 omits hidden beam,
 parity and divider state. The unchanged original caller synchronizes
-naturally; this does not restore those omitted states. A passive reference
-capture immediately after64EC, before restoration A304, could locate that
-provenance gap without changing guest timing.
+naturally; this does not restore those omitted states.
+
+### Original reference before cleanup, 6 November
+
+A fresh uninterrupted normal-boot AmSpirit run now observes that missing
+boundary. The first original6491 call has PC6491/SP4063, return6411 and A0;
+its complete caller block matches the accepted preinitializer. A second
+breakpoint stops at64ED, immediately after64EC's fourth store and before
+the JP toA304 cleanup. No snapshot reload, PC/RAM/register/counter edit or
+phase selection occurs between these stops.
+
+At64ED, raw RAM64F0..64F3 is **1F/1F/1F/1F**, hence1111. SP4063 still
+holds return6411; stopped A/E equal the third/fourth stored bytes. Original
+bytes64E6..64EF are `ED78 ED58 77 23 73 C304A3`. The original CSL then
+completes normally and the instance is left paused. This excludes formatter
+or cleanup as the source of the high reference result on this path. It does
+not observe the internal width counter or establish native fourth-sample
+phase equivalence. The physical width-clock discriminator below is still
+needed before changing RTL. Private packet:
+`c1-ai-008d-current/amspirit-raw-precleanup-20261106/`, including raw state,
+entry/precleanup snapshots, script completion and parent acceptance.
 
 Focused independent Astra-medium judgment also finds no selected RTL rule.
 A small physical discriminator should start a pulse under ordinary timing

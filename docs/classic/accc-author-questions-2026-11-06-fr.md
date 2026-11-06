@@ -37,11 +37,13 @@ L'identité CRTC3 vient de l'index et du chemin de la photo, dont le titre
 « CRTC3/4 » est générique.
 
 Nous avons maintenant qualifié les lectures IN, leur stockage, la reconstruction
-du tampon et les branches AND10 du programme original. Le MiSTer échoue au
-premier échantillon ajusté ; AmSpirit passe le même appel résident et fournit
+du tampon et les branches AND10 du programme original. L'ancienne constante
+échouait au premier échantillon ajusté ; AmSpirit passe le même appel et fournit
 bien ces deux motifs de données. Ses contrôles R5=1/8/16 placent l'échantillon
 haut64/512/1024µs après le dernier caractère du corps. Ces derniers contrôles
 restent des observations d'émulateur, sans nouvelle mesure sur CPC.
+Le modèle fondé sur R5 et son dernier caractère passe maintenant les deux
+contrôles sur MiSTer ; nous ne le présentons pas comme un décodeur physique prouvé.
 
 Faut-il lire « toujours1 lorsque R5=0 », puis une impulsion au dernier
 caractère de l'ajustement lorsque R5 est non nul ? Ou le bit désigne-t-il

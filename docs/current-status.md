@@ -16,13 +16,13 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 ## Current branch and artifact
 
 - Experimental branch `codex/classic-ga-boundary-native-20261105`; latest
-  device-verified source `4e45417`, not integrated into `master`.
-  [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42265042336),
+  device-verified source `cb3a1a6`, not integrated into `master`.
+  [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273216780),
   including production-T80, passes. Quartus 17.0.2 full fit closes seven
-  setup/hold domains, minima 0.471/0.204 ns and zero TNS. Device-verified RBF
-  `Amstrad_20261106_4e45417.rbf`, 3,137,032 bytes, SHA256
-  `3e90278eb4965d36d2dc4e52950b984447a546336adda83563be45f035079dcc`.
-  Four targeted CRTC3 runs capture 26 PNGs: DU bit0 now reports OK; all eleven
+  setup/hold domains, minima 0.645/0.197 ns and zero TNS. Device-verified RBF
+  `Amstrad_20261106_cb3a1a6.rbf`, 3,098,272 bytes, SHA256
+  `0e27d4c89f03e1bf609a055586e69abd9a4096e4f17a7a23aa0810c3051cd56a`.
+  Four targeted CRTC3 runs capture 26 PNGs: DU03C0 now passes every check; all eleven
   Module E images match the accepted build; scoped DSC4/Amazing samples are
   preserved. DU/E supply sixteen actual Full0 records. Normal WAIT and every
   CFG restore pass. Classic RTL is unchanged from the accepted 493cdea proof.
@@ -37,17 +37,11 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
   [Correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md),
   [candidate proof](investigations/hardware-runs/shaker-crtc0-r0-nonlast-advance-2026-11-06.md),
   [model audit](investigations/rtl-model-confidence-2026-11-06.md).
-- Plus E0406 acceptance carries from5c1ab57; ASIC source is unchanged in493cdea.
-  All original ordinary/ROM checks pass in that native proof, while DU03C0
-  remains broken only on bit4 in the targeted4e45417 capture. The canonical
-  physical CRTC3 photo shows bit0/bit4 OK, and available26/27 checks are
-  identical. The bit0 correction passes both original CPU stages and46benches;
-  Opus source review, full fit and targeted native acceptance now pass. Bit4
-  remains broken: its original CPU replay qualifies normal PASS and adjusted
-  RED at offset0000; the same resident AmSpirit routine passes. The separate
-  bit4 correction passes both original CPU stages, focused RED/GREEN and46
-  benches, with fresh Opus conditional GO. Exact-SHA fit and whole03C0 native
-  acceptance remain pending. The prior missing-photo premise was wrong.
+- Plus DU03C0 and E0406 now pass natively on cb3a1a6. Both status corrections
+  have original CPU RED/GREEN proofs, selected gates and fresh Opus reviews.
+  The register-discovery page now reports25/08/19/1E for R4–R7, matching its
+  source setup; its complete photo verdict remains open. Wider R5/interlace,
+  live-write and decoder-topology claims remain B26 model limits.
   [Plus proof](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   still targets `fdf348c`, with its coherent 1,384-image SHAKER archive and six
@@ -68,20 +62,19 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 |---:|---:|---:|---:|---:|---:|
 | 0 | 7 | 2 | 477 | 1 | 487 |
 | 1 | 364 | 4 | 111 | 1 | 480 |
-| 3 | 3 | 3 | 416 | 1 | 423 |
-| All | 374 | 9 | 1004 | 3 | 1390 |
+| 3 | 4 | 2 | 416 | 1 | 423 |
+| All | 375 | 8 | 1004 | 3 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
 | C0 E6/0409 | Cases 27/28 remain wrong; 26/28 pass. Resolve R4 rematch against physical behaviour; AmSpirit passes 28/28. [Forced-entry evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md), [stimulus](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md). |
 | A4/0037, CRTC0/1 | C0 upper01/00 remains correct and all8 photographed lower pairs now match on493cdea. Prior seven-lower-failure claim was an E/F transcription error: baselineFEFF×8 had only row4 wrong, nowFFFF. Page becomes unknown because extraC9sweep lacks hardware reference. C1 first pair00/00 remains broken. [Correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md). |
-| C1 AI/008D | Direct208 gives1001 and canonicalc093 gives1000 versus physical1111. C0 AI now passes all16 photographed VS bits under the upper-PPI allowance. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
+| C1 AI/008D | S2/S3 remain low versus physical1111 on both direct/canonical paths. Fresh normal-boot AmSpirit has raw1111 at64ED before cleanup, excluding its formatter/restoration as the cause. The width-clock rule still needs physical/author evidence. C0 retains its16 photographed VS-bit passes. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | 008F now passes30/30 numeric fields after independent vision/source adjudication, also on C0. 0090 still needs complete cell adjudication. 008E, 0091 and direct/full-history 009A retain acceptance. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | B6/019D, CRTC0/1 | C0 now matches all four R0 rows on8ba384e; both R7 rows remain1F versus1E. Current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Astra finds the lateR7 ordering underdetermined; a physical R7=32/33 paired discriminator is prepared. No aperture or RTL fix selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
-| C3 DU/03C0 and E/0406 | Native4e45417 has bit0/bit5 OK and retains only bit4 WRONG0000; all0406 ordinary/ROM checks remain clear. The separate bit4 correction passes the original two-stage CPU caller and46 benches with fresh Opus conditional GO; full fit/native acceptance remain pending. DU03C0 stays broken until then. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md). |
 | C3 B6 and BR | B6 passes all six current program checks. BR01F0/01F1 remain broken. The original resident BR replay preserves twelve passing controls, then produces CPI CC versus table/photo C4. No IC116 wiring mismatch is found; the I-register and small local interrupt-delivery-delay explanations are excluded for that ACK. CPU/WAIT versus READY/HSYNC ordering and internal counter clearing remain unresolved; no fitted timing fix is selected. [ACK evidence](investigations/hardware-runs/shaker-crtc3-br-ack-boundary-2026-11-06.md). |
 | C1 DI/02E3 | Native58 versus photo59; original program labels CRTC1 unreliable, so this remains excluded from confirmed broken counts. |
-| C1 S/02D3 and B9 MID | Current full-history S is0840 WRONG versus program4E40; fresh CPCSE history gives4E40. Same-RBF direct gives4E40; the unchanged canonical-prefix repeat also gives4E40. Preserve current phase/history variability; require a diagnostic fit to retain the failing scalar before attributing a mechanism. Older photo4E30 binding remains separate. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
+| C1 S/02D3 and B9 MID | Exact source-font reading confirms full-history0840, direct4E40 and prefix-repeat0440. The earlier passing-repeat claim misread its glyphs. Preserve both bad scalars and source-bound diagnostic history before choosing a mechanism. Older photo4E30 binding remains separate. B9's repaired3F rows pass; MID binding remains open. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |
 | D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All132 D3 captures across CRTC0/1/3 now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. DT0305 remains stale on CRTC0/1/3 because the exit grab contains the menu. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
 | Broader classic gates | Type1 inactive rearming; F13/F20 hardware gates; IA-5 simultaneous sync/interrupt; Q17 and D1 entry; wider phase/lifetime closure remain open. [Audit](classic/audit-findings.md), [discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md). |
