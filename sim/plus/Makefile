@@ -133,8 +133,8 @@ P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
 
 # Static lint/elaboration pass over the whole Amstrad_motherboard hierarchy
 # (queued P1 review follow-up: the gap that let two BLOCKING wiring bugs
-# reach Quartus). Runs under --language 1364-2001 like every other Plus
-# target; children Verilator cannot read in that mode are replaced by
+# reach Quartus). Keeps .v in Verilog-2001 and explicitly reads the frozen
+# crt_response.sv as SystemVerilog. Other children replaced by
 # full-port-list stubs — ga40010/YM2149/hid in motherboard_lint_stubs.v and
 # T80pa in t80pa_lint_stub.v (see each file's header for why it is stubbed
 # and where its port list comes from). -UVERILATOR matches the production
@@ -149,9 +149,9 @@ P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
 #   CASEX / SYNCASYNCNET / WIDTHTRUNC :
 #                                  upstream style idioms in files owned by
 #                                  other streams
-#   PROCASSINIT / IMPLICITSTATIC are deliberately absent: their only
-#   sources were fixed (Amstrad_MMU block-local initializer) or are
-#   version-dependent, and CI's older Verilator rejects the -Wno names.
+#   PROCASSINIT / IMPLICITSTATIC remain absent from global switches. The
+#   frozen receiver's declaration-initializer waiver is file-scoped and
+#   version-gated below; upstream legacy modules retain the existing policy.
 # Everything else under -Wall stays fatal — above all IMPLICIT (undeclared
 # nets at instance pins, the original review-finding bug class) and UNDRIVEN.
 MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
@@ -166,6 +166,7 @@ MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/plus/asic_sprites.v) \
 	$(abspath ../../rtl/plus/asic_dma.v) \
 	$(abspath ../../rtl/crt_filter.v) \
+	$(abspath ../../rtl/crt_response.sv) \
 	$(abspath ../../rtl/Amstrad_MMU.v) \
 	$(abspath ../../rtl/i8255.v)
 
@@ -360,6 +361,7 @@ P10DMAMOBO_RTL      := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/plus/asic_sprites.v) \
 	$(abspath ../../rtl/plus/asic_dma.v) \
 	$(abspath ../../rtl/crt_filter.v) \
+	$(abspath ../../rtl/crt_response.sv) \
 	$(abspath ../../rtl/CRTC.v) \
 	$(abspath ../../rtl/crtc_type0_engine.v) \
 	$(abspath ../../rtl/crtc_type1_engine.v) \
@@ -493,7 +495,7 @@ SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silic
 pa7-dma-overlap:
 	python3 pa7_dma_overlap_test.py --cxx "$(CXX)"
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
-FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
+FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS))) b6-response-consumer
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 
@@ -696,21 +698,21 @@ $(SPRRAM_TEST_BIN): $(SPRRAM_RTL) $(SPRRAM_TEST_SRC) Makefile | $(OBJ_DIR)
 		-o $(notdir $(SPRRAM_TEST_BIN)) $(SPRRAM_RTL) $(SPRRAM_TEST_SRC)
 
 $(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Makefile | $(OBJ_DIR)
-	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
+	$(VERILATOR) $(VERILATOR_FLAGS) +1800-2017ext+.sv -UVERILATOR --public-flat-rw \
 		--top-module $(MOBO_TOP) \
 		--Mdir $(MOBO_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(MOBO_TEST_BIN)) $(MOBO_TEST_TOP) $(MOBO_RTL) \
 		$(MOBO_CPU) $(MOBO_TEST_SRC)
 
 $(B8FIELD_TEST_BIN): $(B8FIELD_TEST_TOP) $(B8FIELD_RTL) $(B8FIELD_CPU) $(B8FIELD_TEST_SRC) Makefile | $(OBJ_DIR)
-	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
+	$(VERILATOR) $(VERILATOR_FLAGS) +1800-2017ext+.sv -UVERILATOR --public-flat-rw \
 		--top-module $(B8FIELD_TOP) \
 		--Mdir $(B8FIELD_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(B8FIELD_TEST_BIN)) $(B8FIELD_TEST_TOP) $(B8FIELD_RTL) \
 		$(B8FIELD_CPU) $(B8FIELD_TEST_SRC)
 
 $(B8PAL_TEST_BIN): $(B8PAL_TEST_TOP) $(B8PAL_RTL) $(B8PAL_CPU) $(B8PAL_TEST_SRC) Makefile | $(OBJ_DIR)
-	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
+	$(VERILATOR) $(VERILATOR_FLAGS) +1800-2017ext+.sv -UVERILATOR --public-flat-rw \
 		--top-module $(B8PAL_TOP) \
 		--Mdir $(B8PAL_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(B8PAL_TEST_BIN)) $(B8PAL_TEST_TOP) $(B8PAL_RTL) \
@@ -769,14 +771,24 @@ ifeq ($(VERILATOR_HAS_SIMILARNAME),yes)
 SIMILAR_NAME_WAIVERS := $(abspath legacy-similar-names.vlt)
 endif
 
+# The frozen receiver uses blocking temporaries in its sequential model and
+# declaration initialization. Scope these style waivers to that file only.
+CRT_RESPONSE_WAIVERS := $(abspath crt-response-style.vlt)
+# PROCASSINIT first appears in upstream 5.038 (V3Error.h); older tools reject it.
+VERILATOR_HAS_PROCASSINIT := $(shell $(VERILATOR) --version | awk '{split($$2,v,"."); if (v[1] > 5 || (v[1] == 5 && v[2] >= 38)) print "yes"}')
+ifeq ($(VERILATOR_HAS_PROCASSINIT),yes)
+CRT_RESPONSE_WAIVERS += $(abspath crt-response-initializers.vlt)
+endif
+
 # Standalone form of the motherboard hierarchy lint that `lint` runs first.
+MBOARD_LINT_FLAGS ?=
 motherboard-lint:
-	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
-		--top-module Amstrad_motherboard -Wall \
+	$(VERILATOR) --lint-only --language 1364-2001 +1800-2017ext+.sv -UVERILATOR \
+		--top-module Amstrad_motherboard -Wall $(MBOARD_LINT_FLAGS) \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
 		-Wno-DECLFILENAME -Wno-CASEX \
 		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
-		$(SIMILAR_NAME_WAIVERS) $(MBOARD_LINT_RTL)
+		$(SIMILAR_NAME_WAIVERS) $(CRT_RESPONSE_WAIVERS) $(MBOARD_LINT_RTL)
 
 lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 \
@@ -851,10 +863,10 @@ lint: motherboard-lint
 		$(P10DMAMOBO_TOP_SRC) $(P10DMAMOBO_CPU) $(P10DMAMOBO_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module video_interlace -Wall $(abspath ../../rtl/video_interlace.v)
-	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR --public-flat-rw \
+	$(VERILATOR) --lint-only --language 1364-2001 +1800-2017ext+.sv -UVERILATOR --public-flat-rw \
 		--top-module $(B8FIELD_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
 		$(B8FIELD_TEST_TOP) $(B8FIELD_RTL) $(B8FIELD_CPU)
-	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR --public-flat-rw \
+	$(VERILATOR) --lint-only --language 1364-2001 +1800-2017ext+.sv -UVERILATOR --public-flat-rw \
 		--top-module $(B8PAL_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
 		$(B8PAL_TEST_TOP) $(B8PAL_RTL) $(B8PAL_CPU)
 	$(VERILATOR) --lint-only --language 1364-2001 \
@@ -976,3 +988,19 @@ $(MODE_TEST_BIN): $(MODE_TOP_SRC) $(MODE_TEST_SRC) $(MODE_RTL) Makefile
 .PHONY: asic-mode-latch
 asic-mode-latch: $(MODE_TEST_BIN)
 	./$(MODE_TEST_BIN)
+
+# Combined real-consumer regression for V1 alignment; reuse B6's CPU/SDRAM.
+B6_RESPONSE_BIN := obj_dir/b6_response/b6_response_tests
+B6_RESPONSE_MBOARD ?= ../../rtl/Amstrad_motherboard.v
+B6_RESPONSE_RTL := $(subst $(abspath ../../rtl/Amstrad_motherboard.v),$(abspath $(B6_RESPONSE_MBOARD)),$(B7_RTL))
+.PHONY: b6-response-consumer motherboard-response-lint
+b6-response-consumer: $(B6_RESPONSE_BIN)
+	./$(B6_RESPONSE_BIN)
+motherboard-response-lint:
+	"$(MAKE)" motherboard-lint MBOARD_LINT_FLAGS="$(MBOARD_LINT_FLAGS) -GENABLE_CRT_RESPONSE=1"
+$(B6_RESPONSE_BIN): $(P10BOOT_TEST_TOP) $(B6_RESPONSE_RTL) $(B6_VIDEO_RTL) b6_response_consumer_test.cpp b6_video_boundary_test.cpp $(B7_TEST_SRC) Makefile
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv \
+		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DB6_VIDEO_BOUNDARY -DB6_RESPONSE_CONSUMER -DP10_DMA_MOBO_REAL_IO \
+		--public-flat-rw --top-module $(P10BOOT_TOP) --Mdir $(@D) \
+		-Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		-o $(@F) $(P10BOOT_TEST_TOP) $(B6_RESPONSE_RTL) $(B6_VIDEO_RTL) $(abspath b6_response_consumer_test.cpp)

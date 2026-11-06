@@ -77,3 +77,21 @@ native-sampled relative lag for the qualified production source phases, not
 an assertion of260 physical registers or every arbitrary asynchronous edge.
 The timing path has261 registers. Opus requests retaining the combined consumer
 regression at import and keeping strict lint/enabled-fit/native gates open.
+
+
+## Owned source import
+
+The active branch imports the reviewed production aggregate unchanged, including
+the four timing stages. The retained full-board regression scores655104 native
+samples per owner for RGB/metadata/FIELD at the actual output consumer, and
+655104 separate FRAME_FIELD samples at the motherboard export. Each owner
+exercises all four acquisition bits and both independent field transitions.
+The test is a zero-offset transport check, not acquisition/priming or nonzero
+classic-response proof; it makes no final ASCAL coherence claim.
+
+Fresh Gemini test/plumbing review is reconciled. Strict disabled/enabled
+motherboard lint passes with receiver-only BLKSEQ/PROCASSINIT controls and an
+explicit lint parameter. Final `python3 sim/select_tests.py --run` passes48
+benches; receipt and source hashes are in the private owned-integration packet,
+review-triage-20261106/FINAL-RECEIPT.json. Enabled fullfit, RAM inference,
+physical timing, full-top/ASCAL and native original-caller acceptance remain.

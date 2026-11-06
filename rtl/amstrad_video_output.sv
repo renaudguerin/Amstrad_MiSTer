@@ -7,7 +7,7 @@
 // No framework module is copied or changed
 // (docs/investigations/video-boundary/b6-video-boundary.md).
 module amstrad_video_output (
-    input CLK_VIDEO, ce_16, raw_crt, pixel_vblank, plus_mode,
+    input CLK_VIDEO, ce_16, raw_crt, native_cadence, pixel_vblank, plus_mode,
     input [1:0] mode, scale, ar, integer_scale,
     input [2:0] mix,
     input [3:0] r4, g4, b4,
@@ -51,11 +51,13 @@ wire HSync, VSync, HBlank, VBlank;
 // adaptive pixel rate, no HQ2x), no scandoubler, no scanline effect and no
 // vertical crop.  The retained OSD settings themselves are untouched and
 // come back when a safe mode is selected again.
-wire       hq2x = (scale == 1) & ~raw_crt;
+// Native dot cadence is independent of Raw CRT acquisition/crop bypass.
+// V1 retains the existing downstream scanline/scandoubler/crop policy.
+wire       hq2x = (scale == 1) & ~(raw_crt | native_cadence);
 
 amstrad_video_color video_color (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
-    .hq2x(hq2x), .pixel_rate_select(pixel_rate_select & ~raw_crt),
+    .hq2x(hq2x), .pixel_rate_select(pixel_rate_select & ~(raw_crt | native_cadence)),
     .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
     .mode(mode), .mix(mix), .r4(r4), .g4(g4), .b4(b4),
     .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl), .ce_pix(ce_pix),
@@ -81,7 +83,7 @@ always @(posedge CLK_VIDEO) begin
     if (ce_pix) obs_field_r <= field_in;
 end
 assign obs_field  = obs_field_r;
-assign obs_native_cadence = ~(pixel_rate_select | (scale == 2'd1) | raw_crt);
+assign obs_native_cadence = ~raw_crt & (native_cadence | ~(pixel_rate_select | (scale == 2'd1)));
 assign obs_applied_config = {plus_mode, mix, hq2x, pixel_rate_select, raw_crt, obs_native_cadence};
 
 // Raw CRT forces the core's own post-processing off: native ce_16 (no
