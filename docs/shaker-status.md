@@ -13,6 +13,9 @@ unknown because extraC9sweep lacks hardware reference. CRTC0/1 AI008F numeric
 comparisons pass after reviewed reference readings. CRTC3 E0406 passes on5c1ab57;
 DU03BF passes while03C0 retains status2 bit0/bit4 failures. See the
 [A4 correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
+Current493 direct BR01F0/01F1 captures also reproduce the known ASIC numeric
+failures, pixel-identical to the priorfdf full-module captures; all3SSMrecords
+report actual Full0. This changes freshness, not counts.
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 

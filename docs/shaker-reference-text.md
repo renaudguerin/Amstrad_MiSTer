@@ -21,13 +21,14 @@ transcription, or infer geometry/animation from the text. A source hash change
 means a new reference. No CRTC/GA passing grade follows automatically from a
 transcription.
 
-One local Tesseract pass produced TXT/TSV drafts for all five photos; perspective
-and CRT texture caused severe hex errors and almost empty B6 drafts. Root
-visually reviewed the accepted numeric fields. C0 A4 now records all eight
-lower pairs, preventing the existing seven VS-bit mismatches from disappearing
-behind the unrelated upper-PPI allowance. Independent Gemini vision review and root crop checks accept C5’s18 raw
-PPI pairs and C1 A4’s six visible lower pairs. One C0 A4 E/F correction
-raises its lower VS mismatch count from six to seven; page grading is unchanged.
+The pilot records all eight C0 A4 lower pairs. Independent Gemini vision
+review and root crop checks also accept C5’s18 raw PPI pairs and C1 A4’s six
+visible lower pairs. These are literal physical-photo transcriptions; core
+comparisons apply the documented unrelated upper-PPI allowance separately.
+The [native A4 glyph correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md)
+resolves an earlier E/F reading error in the MiSTer image: the baseline had
+one photographed-field failure, corrected on493cdea. The physical reference
+values remain unchanged.
 
 The pilot, raw drafts and execution/source receipts are in
 `local/overnight-20261103/resumed-20261104/shaker-reference-text-pilot-20261106/`.

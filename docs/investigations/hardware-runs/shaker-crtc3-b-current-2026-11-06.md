@@ -64,3 +64,19 @@ same boundary or that one ASIC pin is precisely1µs early.
 
 Private qualified audit and parent byte receipts:
 `resumed-20261104/c3-br-judgment-20261106/`.
+
+## Current493 targeted confirmation
+
+A fresh direct BR menu entry on source493cdea reproduces both pages. Root
+views both native768×273images; each is pixel-identical to its olderfdf348c
+full-module counterpart.01F0 retains all fiveCC/C4 failures;01F1 retains
+0D03/0503 in all three instruction groups. This direct run executes the
+complete original BR table, including earlier rows; it does not repeat the
+complete Module-B menu history or establish physical ASIC correctness.
+
+RBF SHA256f370e07b6813b4a0b06fa055b1e316518a53bdbc5bb218ae9cfb0f23d8dcfc35
+and the same French cartridge/disk hashes match on the device before and after
+the run. All three SSM records report actual Full0. Normal WAIT is retained,
+no capture fails, and CFG restoration returns022f2aae30beb5237f42036bda82ed68370afff135558f210740dba865742abc.
+The native script/manifest, image hashes and parent acceptance are preserved in
+`c3-br-native-493-20261106/`. The page tally remains unchanged.

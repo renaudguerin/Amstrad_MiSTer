@@ -136,3 +136,9 @@ would rule out late acceptance as the sole explanation; a negative remains
 ambiguous. A C9-nonterminal companion can then separate row-carry dependence
 from line-wide terminal inhibition. The unsent French question records this
 boundary. Private report: `c0-b6-r7-strong-judgment-20261106/REPORT.md`.
+
+A one-shot offline photo oracle over the already-qualified complete B6 RAM
+confirms both original stores8D4A/8D4B fail1E expectations with actual1F/1F
+(exit1). The RAM digest is1751f52d9d404d3b09c4c29b08df10e0f1a9ceb06ca519bdfe93e1bf1da3d3ab.
+No new DUT run, phase assumption or production test was added. Receipt:
+`c0-b6-r7-photo-failure-20261106/`.
