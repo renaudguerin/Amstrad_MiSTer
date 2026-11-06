@@ -47,10 +47,10 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 4 | 1 | 372 | 110 | 487 |
+| 0 | 4 | 1 | 438 | 44 | 487 |
 | 1 | 363 | 3 | 109 | 5 | 480 |
 | 3 | 0 | 0 | 18 | 405 | 423 |
-| All | 367 | 4 | 499 | 520 | 1390 |
+| All | 367 | 4 | 565 | 454 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
@@ -96,7 +96,9 @@ correction. [ASIC candidate](investigations/hardware-runs/asic-r3-rendered-posit
 MiSTer is running the serial current-build SHAKER capture refresh under root's sole control.
 [V1 design and Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
 recommend a separate fourth CRT-response profile; the offline prototype is under
-validation and changes no FPGA behaviour.
+validation and changes no FPGA behaviour. Current original T/Y and first D3
+[source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)
+is qualified separately from monitor acceptance.
 
 Plus retains bounded BI/AE/AR and credit acceptance. A4 first/third rows are
 0/1 versus the older physical photo's 1/1, with program/history binding open;

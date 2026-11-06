@@ -14,11 +14,21 @@ requested and format-2 SSM records expose the actual mode per event.
 | CRTC0 A | 122 / 122 expected | 0 | Complete; hashes/dimensions and inventory checked |
 | CRTC0 B | 220 / 221 expected | 1 | Complete; 019A produces a native-capture timeout |
 | CRTC0 C | 22 / 22 expected | 0 | Complete on recovery attempt 002 |
-| CRTC0 D | 110 / 111 expected | 1 | Complete; identity/timeout review pending |
+| CRTC0 D | 110 / 111 expected | 1 | Complete; 02EA timeout and 44 D3 identities excluded |
+| CRTC0 E | 11 / 11 expected | 0 | Complete; inventory/contact-sheet inspection done |
+| CRTC1 A | 127 / 127 expected | 0 | Complete; inventory/contact-sheet inspection done |
 | Remaining cells | In progress | Pending | Serial batch, not a completed baseline |
 
+Canonical D3 names cannot be used as page identities on this asynchronous host
+path: CRTC0 `0314` and `0318` both visibly show `R2=#27/R3=#06`, rather than
+35/06 and 0B/06. Preserve the entire raw run but exclude canonical 0314–033F
+from archive selection. Count-corrected CRTC0/3 manual overlays are parser-
+qualified and await serial device access. This is the host's departure-marker
+retrieval limitation, not an author-package defect or a new CRTC finding.
+
 Fresh captures do not confer passing grades. CRTC0 A's 116 old stale entries
-now have current evidence and become unknown; its historical passing judgment
+now have current evidence and become unknown; a further 66 non-D3 module-D
+entries make the same transition after inventory and full contact-sheet review; its historical passing judgment
 remains qualified as such. The source/tally retains page-level status separately
 from archive acquisition. Five A7 images, 0081–0085, are identical and visibly
 cropped compared with the physical reference; their content/acquisition boundary

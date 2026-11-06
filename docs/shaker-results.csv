@@ -121,296 +121,296 @@ crtc,module,page,status,build,evidence,detail
 0,A,00C9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone capture; content/geometry unadjudicated. A7 cropped/duplicate patterns remain unknown; no automatic pass grade.
 0,A,00CA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone capture; content/geometry unadjudicated. A7 cropped/duplicate patterns remain unknown; no automatic pass grade.
 0,A,03AC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone capture; content/geometry unadjudicated. A7 cropped/duplicate patterns remain unknown; no automatic pass grade.
-0,B,00CB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,00CC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,00CD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,00CE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,00CF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,00FA,unknown,208bacf,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,B,00FB,unknown,208bacf,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,B,00FC,unknown,208bacf,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,B,00FD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0100,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0101,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0102,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0103,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0104,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0105,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0106,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0107,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0108,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0109,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,010A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,010B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,010C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,010D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,010E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,010F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0110,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0111,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0112,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0113,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0114,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0115,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0116,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0117,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0118,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0119,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,011A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,011B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,011C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,011D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,011E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,011F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0120,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0121,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0122,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0123,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0124,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0125,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0126,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0127,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0128,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0129,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,012A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,012B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,012C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,012D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,012E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,012F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0130,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0131,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0132,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0133,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0134,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0135,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0136,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0137,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0138,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0139,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,013A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,013B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,013C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,013D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,013E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,013F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,017F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0180,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0181,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0182,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0183,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0184,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0185,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0186,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0187,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0188,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0189,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,018A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,018B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,018C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,018D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,018E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0192,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0193,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0194,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0195,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0196,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0197,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0198,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0199,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
+0,B,00CB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00CC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00CD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00CE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00CF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00FA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00FB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00FC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,00FD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0100,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0101,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0102,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0103,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0104,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0105,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0106,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0107,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0108,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0109,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,010A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,010B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,010C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,010D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,010E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,010F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0110,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0111,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0112,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0113,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0114,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0115,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0116,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0117,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0118,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0119,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,011A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,011B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,011C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,011D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,011E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,011F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0120,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0121,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0122,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0123,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0124,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0125,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0126,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0127,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0128,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0129,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,012A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,012B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,012C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,012D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,012E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,012F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0130,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0131,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0132,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0133,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0134,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0135,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0136,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0137,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0138,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0139,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,013A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,013B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,013C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,013D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,013E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,013F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,017F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0180,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0181,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0182,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0183,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0184,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0185,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0186,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0187,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0188,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0189,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,018A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,018B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,018C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,018D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,018E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0192,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0193,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0194,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0195,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0196,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0197,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0198,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0199,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,B,019A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,019B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,019C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,019D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,019E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,019F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01A4,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01A5,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01A6,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01A7,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01AC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01AD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01AE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01AF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01B4,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01B5,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01B6,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01B7,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01BC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01BD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01BE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01BF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C0,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C1,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C2,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C3,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C4,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C5,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C6,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C7,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C8,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01C9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01CA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01CB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01CC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01CD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01CE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01CF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01D4,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01D5,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01D6,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01D7,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01D8,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01D9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01DD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01DE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01DF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E0,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E1,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E2,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E3,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E4,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E5,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E8,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01E9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01EA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01EB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01EC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01ED,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01EE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01EF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F0,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F1,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F2,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F3,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F4,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F5,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F6,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F7,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F8,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01F9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01FA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01FB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01FC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,01FD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0200,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0201,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0202,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0203,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0204,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0205,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0206,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0207,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0208,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0209,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,020A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,020B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,020C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,020D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,020E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,020F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0210,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0211,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0212,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0213,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0214,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0215,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0217,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0218,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0219,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,021A,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,021B,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,021C,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,021D,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,021E,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,021F,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0220,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0221,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0222,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0223,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0224,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0225,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0226,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0227,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0228,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,0229,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03E9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03EA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03EB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03EC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03ED,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03EE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03EF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,B,03F0,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
+0,B,019B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,019C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,019D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,019E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,019F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01A4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01A5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01A6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01A7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01AC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01AD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01AE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01AF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01B4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01B5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01B6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01B7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01BC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01BD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01BE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01BF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C0,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C1,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C2,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C3,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01C9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01CA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01CB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01CC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01CD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01CE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01CF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01D4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01D5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01D6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01D7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01D8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01D9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01DD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01DE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01DF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E0,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E1,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E2,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E3,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01E9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01EA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01EB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01EC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01ED,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01EE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01EF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F0,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F1,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F2,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F3,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01F9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01FA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01FB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01FC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,01FD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0200,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0201,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0202,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0203,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0204,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0205,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0206,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0207,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0208,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0209,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,020A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,020B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,020C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,020D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,020E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,020F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0210,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0211,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0212,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0213,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0214,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0215,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0217,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0218,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0219,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,021A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,021B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,021C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,021D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,021E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,021F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0220,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0221,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0222,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0223,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0224,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0225,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0226,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0227,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0228,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,0229,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03E9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03EA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03EB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03EC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03ED,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03EE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03EF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,B,03F0,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,C,029E,passing,208bacf,docs/investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md,All eighteen parity probes match 6E/6O/OEOEOE; stable Full/RawCRT
-0,C,02BF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02C9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02CA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02CB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02CD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02CE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02CF,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D0,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D1,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D2,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D3,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D6,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D7,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D8,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02D9,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02DA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02DB,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02DC,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02DD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,02DE,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,C,03AD,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,D,02E3,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02E4,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02E5,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02E6,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02E7,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02E8,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02E9,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
+0,C,02BF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02C9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02CA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02CB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02CD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02CE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02CF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D0,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D1,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D2,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D3,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02D9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02DA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02DB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02DC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02DD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,02DE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,C,03AD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E3,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02E9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,D,02EA,unknown,,docs/shaker-status.md,No accepted whole-page verdict; photo/script inventory
-0,D,02EB,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02EC,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02ED,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02EE,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02EF,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F0,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F1,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F2,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F3,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F4,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F5,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F6,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F7,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F8,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02F9,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02FA,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02FB,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02FC,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,02FD,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0300,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0301,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0302,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0303,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0304,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0305,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0306,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0307,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0308,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0309,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,030A,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,030B,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,030C,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,030D,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,030E,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,030F,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0310,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0311,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0312,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0313,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
+0,D,02EB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02EC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02ED,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02EE,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02EF,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F0,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F1,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F2,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F3,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F4,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F5,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F6,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F7,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F8,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02F9,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02FA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02FB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02FC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,02FD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0300,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0301,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0302,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0303,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0304,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0305,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0306,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0307,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0308,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0309,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,030A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,030B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,030C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,030D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,030E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,030F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0310,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0311,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0312,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0313,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,D,0314,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
 0,D,0315,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
 0,D,0316,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
@@ -455,37 +455,37 @@ crtc,module,page,status,build,evidence,detail
 0,D,033D,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
 0,D,033E,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
 0,D,033F,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,037F,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0380,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0381,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0382,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0383,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0384,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0385,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0386,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0387,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0388,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0389,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,038A,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,038B,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,038C,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,038D,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,038E,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,038F,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0390,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0391,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,D,0392,stale,cec641c,docs/investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md,Old capture without accepted current photo verdict; suite 26
-0,E,03FA,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,E,03FB,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,E,03FC,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,E,03FD,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,E,0403,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,E,0404,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
-0,E,0405,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
+0,D,037F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0380,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0381,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0382,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0383,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0384,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0385,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0386,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0387,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0388,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0389,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,038A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,038B,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,038C,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,038D,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,038E,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,038F,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0390,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0391,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,D,0392,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,03FA,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,03FB,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,03FC,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,03FD,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,0403,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,0404,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
+0,E,0405,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 0,E,0407,passing,208bacf,docs/investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md,All printed numeric cases on this page match; retained in 208 native controls
 0,E,0408,passing,208bacf,docs/investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md,All printed numeric cases on this page match; retained in 208 native controls
 0,E,0409,broken,208bacf,docs/investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md,E6 cases27/28 remain wrong; other26 unique cases pass across0407/0408/0409
-0,E,040A,unknown,7ac11a2,docs/shaker-status.md,Inspected targeted capture; only partial checks accepted or reference unavailable
+0,E,040A,unknown,fdf348c,docs/investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md,Current canonical milestone native capture; page content/geometry unadjudicated. Approximate SSM alignment; no automatic passing grade.
 1,A,0001,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0002,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0003,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"

@@ -2,8 +2,11 @@
 
 Maintained page tally, 6 November 2026. Page judgments carry forward the
 `c0939d8` milestone and qualified earlier builds; current trial `fdf348c`
-adds scoped ASIC preservation and 44 fresh aligned D3 captures. Passing/broken
-counts are unchanged; those 44 pages move from stale to unknown.
+adds scoped ASIC preservation, 44 fresh aligned CRTC1 D3 captures and the
+ongoing current-build archive refresh. CRTC0 A–E acquisition is complete except
+two missing PNGs; its 44 canonical D3 identities remain stale pending corrected
+manual capture. Fresh unadjudicated images become unknown, without new passing
+grades. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
@@ -35,9 +38,9 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 0 | A | 1 | 0 | 121 | 0 | 122 |
 | 0 | B | 0 | 0 | 221 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
-| 0 | D | 0 | 0 | 1 | 110 | 111 |
+| 0 | D | 0 | 0 | 67 | 44 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **4** | **1** | **372** | **110** | **487** |
+| **0** | **Total** | **4** | **1** | **438** | **44** | **487** |
 | 1 | A | 118 | 2 | 7 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 0 | 4 | 0 | 80 |
@@ -50,7 +53,7 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 3 | D | 0 | 0 | 0 | 150 | 150 |
 | 3 | E | 0 | 0 | 1 | 4 | 5 |
 | **3** | **Total** | **0** | **0** | **18** | **405** | **423** |
-| **All** | **Total** | **367** | **4** | **499** | **520** | **1390** |
+| **All** | **Total** | **367** | **4** | **565** | **454** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
