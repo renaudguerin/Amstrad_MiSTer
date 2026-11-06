@@ -55,8 +55,8 @@ samples outside those checks are explicitly counted separately.
 
 D3 independently matches all312rise-owned input windows. Its entire processed
 stream has zero cumulative raster-coordinate displacement and no invalidation;
-there are no target-bound windows. Engine SHA256 is
-`b01eb92f295beab672bd1f28f86b9f3f1e18a4be82ae29fd63d024f6329f6fe0`;
+there are no target-bound windows. The current coordinate-repaired engine SHA256 is
+`401e70ce750f3d736df66e60b78b263b5d14ae5e5a41aa3601aa7d3bdb55b989`;
 preset SHA256 remains
 `c343be8623db7bd154de9f6ca087996c97842240861277a101795cf88fd79ac0`.
 
@@ -69,12 +69,31 @@ nonzero tags and missing-source transitions are synthetic controls.
 
 ## Bounds before implementation
 
-Fresh Opus5.5 review accepts this frozen engine for the zero-coordinate
-holdout domain. At nonzero coordinate displacement, primary selection,
-early/late classification and rise ownership can still change under a common
-translation of an extra-tip waveform. That residual needs its independent
-counterexample and repair before a general dynamic monitor implementation.
-It is not exercised by these accepted real streams.
+Fresh Opus5.5 review supports the coordinate repair: each window freezes
+its physical centre and deadline when it opens; each rising tip keeps its
+owner through fall, cap or VS rejection. Primary selection and early/late
+classification use that frozen centre. The absolute response remains intact,
+and raster displacement is subtracted once. The two common-translation
+counterexamples fail before the repair and pass afterward: early-extra
+−48→−16 dots and late-extra −16→+8 dots, with unshifted neighbors preserved.
+
+Seven independent ownership controls pass. Review then identified an open
+tip present at priming that could be omitted from its window; the recommended
+owner stamp now has a separate failing-before/passing-after proof. An exact-
+deadline rise followed by a ruler step also kills a live-owner reassignment
+mutant. The earlier crossing controls alone did not prove that property.
+After the final edit, all focused controls and one continuous T/Y replay pass,
+followed by D3; every RGB12/offset plane remains identical to its prior
+response. The real streams explicitly retain zero coordinates, so synthetic
+controls establish the new translated-coordinate behavior.
+
+The transition-window limit concerns ownership, not output settling: a large
+ruler step still produces the filter's longer relaxation transient. Repeated
+steps retain the deliberate one-window prediction lag. Two receiver records
+require `L + coordinate_change > pulse_cap`; a conservative bound for the
+current ±192 tick coordinate range and 256 tick cap is `L>640` master ticks.
+Shorter-period admission or larger storage remains an RTL gate, not a
+hardware timing claim.
 
 Reset-assertion and committed mode-change paths, ordinary width4/5/6 model
 response and a CPCSE-rendering comparison remain owed. General short-period
@@ -88,4 +107,6 @@ Private manifests, frozen gates, images and parent receipts are under
 `v1-causal-sol-20261106/`, `v1-causal-pre-raster-review-20261106/`,
 `v1-causal-opus-review-20261106/`,
 `v1-raster-correction-opus-review-20261106/`, and
-`v1-d3-holdout-replay-20261106/`. No public RTL or filter mode is added.
+`v1-d3-holdout-replay-20261106/`,
+`v1-coordinate-followup-20261106/`, `v1-coordinate-opus-review-20261106/`,
+and the final `v1-coordinate-repair-20261106/` packet. No public RTL or filter mode is added.

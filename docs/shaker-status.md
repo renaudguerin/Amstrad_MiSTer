@@ -8,6 +8,8 @@ is complete: 1,384 images and six explicit gaps; DT0305 on all three remains sta
 because its exit grab contains the menu. Fresh unadjudicated images become
 unknown. A separate full-resolution C0 A4/AI check adds one passing and one
 broken judgment to previously unknown coverage. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
+The targeted9c11daf CRTC3 DU check repairs status1 bit5;03BF passes its
+complete program checks while03C0 remains broken on status2 bits0/4.
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
@@ -51,14 +53,14 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 3 | A | 0 | 0 | 124 | 0 | 124 |
 | 3 | B | 1 | 2 | 118 | 0 | 121 |
 | 3 | C | 0 | 0 | 23 | 0 | 23 |
-| 3 | D | 0 | 1 | 148 | 1 | 150 |
+| 3 | D | 1 | 1 | 147 | 1 | 150 |
 | 3 | E | 0 | 1 | 4 | 0 | 5 |
-| **3** | **Total** | **1** | **4** | **417** | **1** | **423** |
-| **All** | **Total** | **369** | **11** | **1007** | **3** | **1390** |
+| **3** | **Total** | **2** | **4** | **416** | **1** | **423** |
+| **All** | **Total** | **370** | **11** | **1006** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
-CRTC3 now has a current B6 program-self-check pass. Scoped BI/AE/AR
+CRTC3 now has current B6 and DU03BF program-self-check passes. Scoped BI/AE/AR
 checks retain15 unknown whole-page judgments. All modules have current acquisition evidence; only the three invalid DT0305
 menu captures remain stale.
 [Current CRTC3 numeric checks](investigations/hardware-runs/shaker-crtc3-b-current-2026-11-06.md).

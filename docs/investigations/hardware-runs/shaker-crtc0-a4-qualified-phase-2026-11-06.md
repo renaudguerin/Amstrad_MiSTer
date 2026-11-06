@@ -42,21 +42,56 @@ The pre-run analyzer passes33qualification checks and returns intentional
 hashes,36unchanged production/build source pairs and20unchanged frozen
 execution items. No production RTL is changed by this diagnostic.
 
-## Boundary before a repair
+## Private repair evidence and limits
 
-French §4.4.3 p26 explicitly distinguishes write positions within the same
-microsecond. The same §13.6.1 figure requires ordinary OUT(C)3D→40 and3E→0,
-as well as OUTI3B→40 and3C→0. Those ordinary-OUT neighbors must constrain
-any candidate; a broad rule retaining an old terminal equality could fix the
-OUTI symptom while breaking ordinary OUT.
+The asset-free production-T80 adaptation now qualifies all four independent
+French §13.6.1 bins: ordinary OUT(C)3D→40 and3E→0, OUTI3B→40 and3C→0.
+Current RTL misses only OUTI3C. All88 timing guards pass. OUT(C)3D and OUTI3C
+have the same raw C0 at valid onset and the same write-end time relative to
+the decision, so a broad old-terminal hold or write-end rule cannot separate
+them. Actual motherboard nCLKEN falls between their valid onsets; it differs
+from a synthetic half-character phase.
 
-The existing asset-free ASIC R0 terminal bench already provides a CPU-run
-IN calibration and OUT/OUTI guests through the B18/PPI/T80 composition.
-A private Type0 adaptation is the next bounded proof, with independently
-qualified instruction anchors. Its existing Plus oracle is not reused as a
-classic oracle. Neither a global E-fall register change nor a guessed delay
-is authorized by the current result. The real motherboard nCLKEN phase is
-also distinct from a synthetic half-character testbench phase.
+The narrowed candidate retains a true Type0 terminal predicate sampled at
+that existing nCLKEN, ORed with the live comparator. Register storage remains
+system-clocked, with same-edge data bypass and reset/SNA/live-type invalidation.
+Sampled total1 stays on its existing path as a coverage boundary; matches that
+arise after the sample also keep their live behavior. This does not assert
+that every late lowering is unchanged, or that R0=1 ignores the timing rule. This is
+an implementation inference: the four bins admit a range of sample positions,
+not a uniquely identified silicon edge. No opcode, guest PC or fitted delay
+selects the behavior.
+
+The unchanged four-bin analyzer now passes, as does the independent R0=0
+OUTI control; ordinary OUT and both Type1 controls remain compatible. The
+unchanged original cold A4 caller then passes33/33 guards with continuations
+00/40 and scalar01/00, matching the physical C0 result. It runs once for
+443670136clocks in372.218seconds. An every-master-clock census finds only
+one effective/raw difference interval during the original caller: seven
+clocks following the critical late write. There are70 actual R0 write
+onsets in that run.
+
+A separately preregistered R0=1 late-OUTI case retains its baseline2/3/4
+counts and C4=1 byte for byte. Its unchanged no-increment oracle remains
+RED and unproved: review identifies a possible confusion between the chart
+cell, model I/O onset and the preceding line's inherited counter decision.
+The narrowed model preserves this domain rather than changing its scripted
+phase0 compatibility assertion. French §13.7.2.2 p128 has no OUTI chronogram
+for that phase; this is distinct from the directly diagrammed p124 repair.
+
+All246 classic,45 scripted-phase and focused genuine-T80/historical/Plus
+checks pass. Four asset-free additions to the existing T80 harness fail
+before the fix where expected (late OUTI and zero-total departure), while
+ordinary OUT and early OUTI controls pass. They separately check immediate
+register publication, counter outcome and the following line's new total.
+The public46-bench gate passes once; unchanged fixed-seed soak stimulus and
+projection produce intended new hash31f3de4cf3288d9c. Fresh Opus review approves an experimental RBF. Its test-gap finding is
+closed: the zero-total OUTI case now checks unchanged C4/C9 as well as C0.
+A one-shot mutant retaining the old frozen-counter consumer fails that
+assertion while the corrected RTL passes. After the last test edit the
+selected gate again passes all46 benches. Source `8ba384e` is pushed and
+full synthesis is running. Native A4 remains broken in the tally until the
+new bitstream is tested; wider C0 R0 pages are a hardware acceptance gate.
 
 Type1's §13.6.2 expects40 at both3C and3B, and the earlier Type1 caller gives
 that compatible continuation. This Type0 defect therefore does not explain
@@ -67,3 +102,19 @@ Private evidence:
 (report, original bytes, pin/counter/fetch ledgers, frozen analyzer and parent
 acceptance). The artifact manifest SHA256 is
 `b7392a8fc8fe4531762b6d74328388d7c486794180730f3e5975000dd61c12ba`.
+
+Additional private evidence is in
+`c0-a4-r0-boundary-readiness-20261106/`,
+`c0-r0-degenerate-proof-20261106/`, and
+`c0-r0-nclken-candidate-20261106/` under the same parent directory.
+The [new author-question draft](../../classic/accc-author-questions-2026-11-06-fr.md)
+keeps the p128 interpretation separate from the proved p124 repair.
+
+The final narrowed packet is `c0-r0-kept-equality-candidate-20261106/`;
+root verifies all784 artifacts. Public gate/soak receipts and stable final
+diff are in `c0-r0-public-integration-20261106/`.
+
+Final review is retained in `c0-r0-public-integration-20261106/final-review-provider-run/`;
+the frozen-counter mutant and final gate receipt are in
+`c0-r0-postreview-counter-proof-20261106/` and
+`c0-r0-public-integration-20261106/FINAL-GATE-RECEIPT.json`.
