@@ -4,8 +4,10 @@ Source `fdf348c` removes Before the Storm's sampled reversing wobble on
 CRTC3. The production fixture fails before the correction and passes after it;
 full synthesis, static native LEFT8, the original BTF run and scoped
 BI/AE/AR/DSC4/Amazing preservation now pass. The branch remains experimental.
-DeepSeek independently permits the trial; Opus assurance and the documented
-promotion coverage remain open. No full-demo or physical HDMI/CRT claim follows.
+DeepSeek permits the trial and fresh Opus 5.5 review now gives GO. A private
+mixed-colour sprite proof passes; live-owner RGB isolation is accepted by
+inspection. [Review, sprite results and retained limits](asic-r3-sprite-coverage-2026-11-06.md)
+do not establish full-demo or physical HDMI/CRT fidelity.
 
 ## Native defect and independent reference
 
@@ -173,13 +175,16 @@ the test-only qualification follow-up below:
 - **Closed:** return-pass `complete` and `readyLow` guards now require fresh
   per-body deltas. This strengthens acquisition qualification; no observed
   RTL failure or hardware timing policy is changed.
-- The fixture uses sprites disabled. The history structurally follows the
-  final palette/sprite compositor, but narrow-sync output with enabled sprites
-  has no end-to-end proof.
+- **Closed within scope:** the retained public fixture uses sprites disabled,
+  while a qualified private single-sprite proof now checks mixed 12-bit colours,
+  transparent holes and actual compositor contribution. See the linked assurance
+  note for commands and limits.
 - Live classic/Plus switching is supported by bypass/clear inspection only;
   neither static-owner fixture toggles the owner at runtime.
 
-These limits and the pending Opus review are tracked in [review debt](../../review-debt.md).
+The fresh Opus review accepts these remaining limits; source-review debt is
+[archived](../../archive/review-debt-cleared.md). The assurance note retains
+physical-display and wider-corpus bounds.
 The FPGA RTL remains frozen at `fdf348c`. The test-only follow-up has its own
 focused result, selected gate and independent review.
 
@@ -210,7 +215,8 @@ without rerunning the gate. Only the C++ qualification changed.
 Gemini 3.8 Flash high independently reviews the frozen diff and gives GO,
 run `20261106T011845Z-68309-6dd2`, exit 0. It finds no blocking issue and makes
 no edits or test runs. Its assurance is limited to this small test change;
-the pending Opus, enabled-sprite, live-owner and physical-display gates remain.
+the later Opus/single-sprite follow-up closes its named assurance gaps;
+physical-display and wider sprite/corpus coverage remain unproved.
 Private commands, hashes, review and parent receipt are in sibling
 `asic-return-qualification-20261106/`. Exact-code [CI42143649213](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42143649213)
 also passes simulation, production-T80 and the required gate on `dbeea61`.

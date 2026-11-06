@@ -75,6 +75,9 @@ before using it as an implementation reference. No external code was copied.
 - `rtl/crt_filter.v` suppresses closely spaced HS pulses, learns a line
   period after VSYNC, regenerates pulses and derives fixed acquisition blanking.
   Its `SHIFT`/`hs4` compensation is not a general scan-position response model.
+  The current paired-R2 servo also moves output HS/HBL phase; its raster is
+  not an inert physical ruler. The [reviewed V1 design](v1-qualitative-monitor-design-2026-11-06.md)
+  handles that coordinate change explicitly.
 - `rtl/amstrad_video_output.sv` carries the selected stream through colour,
   mixer and crop. Raw CRT disables core post-processing. `sys/sys_top.v`
   derives both native analog and scaler input from the shared core stream;

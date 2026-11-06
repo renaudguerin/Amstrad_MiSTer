@@ -397,8 +397,13 @@ curves in D3 therefore do not establish a CRTC/GA defect or prevent functional
 acceptance once digital content/blanking is verified. D3 now has 44 correctly
 bound current captures after a private input-count correction; its digital
 content remains to be fully adjudicated. Monitor response remains a separate
-V1 gate: original T/Y waveform export and offline causal candidates exist,
-but no validated dynamic response model is installed in production. Ordinary
+V1 gate: original T/Y waveform export and offline candidates exist, but no
+validated dynamic response model is installed in production. The
+[Astra design revised after Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
+recommends a fourth CRT-response profile while retaining Full as default. Current
+coherent T/Y source transport is qualified; the first prototype's geometry is
+promising, but its causal collector, buffering and synthetic checks require
+correction before acceptance. Ordinary
 R3 width-position compensation is narrower than that model. Keep the current
 functional SHAKER work moving independently. [D3 boundary](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 

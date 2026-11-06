@@ -466,18 +466,40 @@ are RGB-identical. Opposite black acquisition-phase images are preserved and
 not classified as execution failures. This excludes a simple available-26/27
 version explanation, without binding the older photograph or changing timing.
 
-## Remaining order
+## Current continuation — 6 November, 04:30 UTC
 
-Return to the known CRTC1 B6 comparison-visibility question after the R3
-checkpoint; keep its physical aperture unselected unless a source-founded
-failing proof identifies a concrete defect. The rejected common next-CLKEN
-consumer and OUTI CPU-phase audit are already preserved, not work to repeat.
-VSCLK native matches the model and still needs an original-CRTC1 result.
-0090 remains unknown after focused reading; A4 version/physical deadline,
-C0 E6 cases27/28, C1 C5 count/RFD lifetime and D7 physical settling remain
-bounded open questions. DI's Type1 warning remains an exclusion; D3's input alignment is repaired,
-with digital-content/blanking comparison pending and monitor response tracked separately. Do not launch a broad milestone baseline before the known
-fixes are complete, and do not add a speculative AI zero guard.
+The user authorizes a milestone draft and current-build archive refresh alongside
+Astra-medium V1 design and Opus 5.5 review. Known functional discrepancies still
+need original hardware/author evidence; do not choose speculative apertures or
+phase fits. A serial A–E × CRTC0/1/3 capture refresh is running on exact fdf348c.
+CRTC0 A122, B220/221, C22 and D110/111 complete; timeouts and D3 identities are
+being reconciled. Capture freshness does not confer passing grades. The draft
+v2026.11.06 targets exact fdf348c and remains unpublished.
+
+Fresh Opus review gives GO for the existing ASIC rendered-RGB candidate, with
+no P0–P2 finding. The mixed-colour enabled-sprite one-shot proof is accepted;
+live-owner RGB-history isolation is accepted by inspection, with wider
+configurations and physical display explicitly unproved. Review debt is archived.
+No RTL, simulation or bitstream change follows from this checkpoint.
+
+Opus requires four V1 design corrections: rise-owned late-tip completion,
+asymmetric secondary pulls, moving-raster coordinate correction and a fixed
+width reference. Astra revises the design; root accepts it for offline work.
+The first Gemini implementation shows qualitative geometry but is not accepted:
+its synthetic checks mostly mirror formulas and it does not exercise the causal
+history/collector it claims. Attempt001 and its provider logs are preserved;
+a bounded correction keeps every gain frozen. Y is exposed and henceforth a
+regression check. Independently collected current T/Y transport is accepted after
+root checks 165 hashes and 36 source bindings. Nonzero servo and missing-HS
+inputs remain synthetic obligations; final T/F and Y/B field boundaries straddle
+marker completion. One new original D3 holdout is being prepared without model
+access. Do not reuse T/Y's Space-after-marker schedule:0314 emits on departure.
+
+The vanished Codex-forwarded SSH socket is recovered using the user's normal
+GUI login-agent socket discovered via launchd, only in the task process env.
+No keys or global SSH settings change. Initial failed C attempt is retained;
+C002 completes. See the public driver recovery procedure and private receipt.
 
 Private paths are relative to `local/overnight-20261103/resumed-20261104/`.
-`ACTIVE-JOBS.json` holds current process identities; update it before handing off.
+`ACTIVE-JOBS.json` holds live process identities. No release publication,
+master integration or author message is authorized by this checkpoint.

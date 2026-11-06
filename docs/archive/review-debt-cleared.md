@@ -1175,3 +1175,27 @@ success or a weak review alone does not clear it.
 
 
 Cleared for bounded experimental source/RBF use by Claude Opus5.5 high, runs `20261105T054304Z-77737-502a` and `20261105T062119Z-89082-5616`. G1 was reproduced by eight failing-first public DE cases and corrected by selecting the existing outgoing display tag. All80 lifecycle/DE and64 production-T80 controls pass; final selection PASS46. Root verified actual final source hashes. Fresh synthesis, timing and native acceptance remain open; source clearance does not close those gates. [Correction and bounds](../investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md).
+
+## ASIC rendered-RGB debt cleared — 6 November 2026
+
+Fresh Opus 5.5/high run `20261106T034350Z-22195-5069` gives GO with no P0–P2 findings. The enabled-sprite private RED→GREEN proof is accepted; live-owner RGB isolation is accepted by inspection with its limits retained. The current investigation records commands, parent hash checks and remaining physical/coverage bounds. [Clearance evidence](../investigations/hardware-runs/asic-r3-sprite-coverage-2026-11-06.md). The former open entry follows unchanged as the historical record.
+
+**Experimental ASIC rendered-RGB correction, 2026-11-05 — DeepSeek GO for
+experimental synthesis; Opus assurance and promotion coverage pending:**
+Sol authored the 12-bit history extension in `rtl/Amstrad_motherboard.v` and
+`sim/asic_r3_position_{top.sv,test.cpp}`. DeepSeek V4.1 Flash free max run
+`20261105T232421Z-32325-af93` independently verified the frozen source,
+RED/GREEN proof and selected gate, finding no blocking RTL defect. AGY Opus
+failed with resource exhaustion and Claude Pro Opus with expired OAuth; neither
+produced findings. Before promotion, obtain Opus review and address or explicitly
+accept: enabled-sprite narrow-sync pixels lack end-to-end coverage; live classic/Plus
+owner switching has inspection-only assurance. Look hardest at CE alignment,
+12-bit post-compositor history and context cancellation across owner/reset/SNA
+changes. This remains an experimental branch, not merged. Static LEFT8, sampled native
+BTF, BI/AE/AR and DSC4/Amazing preservation now pass; those results do not
+close these promotion or physical-display gates. The cumulative-counter P2 is
+closed separately: per-body acquisition/READY deltas pass the focused fixture
+and 46 selected benches; Gemini 3.8 high independently gives GO
+(`20261106T011845Z-68309-6dd2`). This does not supply the pending Opus review
+or the sprite/live-owner coverage.
+[Evidence and bounds](../investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).

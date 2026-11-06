@@ -55,6 +55,19 @@ interrupted case. Preserve failed manifests and use a new output directory;
 do not replay a stateful capture blindly. The existing host-key and credential
 configuration remains authoritative.
 
+**Codex-forwarded agent recovery on macOS:** a vanished
+`SSH_AUTH_SOCK` can make this task fail while the user's normal terminal still
+works. Check whether the named socket exists before blaming the MiSTer. If it
+is a missing Codex-forwarded socket, inspect only the `SSH_AUTH_SOCK` entry in
+`launchctl print gui/<current-uid>` for the normal GUI login agent. A non-GUI
+`launchctl getenv SSH_AUTH_SOCK` can be empty, and the real socket may live in
+`/var/run`, not `/tmp`. Validate that agent with `ssh-add -l` without printing
+identity comments, then a clean bounded SSH check. If it works, set
+`SSH_AUTH_SOCK` only in the capture process's environment; preserve the failed
+manifest and retry in a fresh directory. Do not change global SSH configuration,
+extract keys, or unlock unrelated credentials. The 6 November milestone run
+recovered this way; [evidence](shaker-milestone-archive-2026-11-06.md).
+
 ## Local use
 
 Requires Python 3.10+, SSH and SCP. Live capture and tests also need Pillow.

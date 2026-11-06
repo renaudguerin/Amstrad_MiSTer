@@ -29,26 +29,6 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
-**Experimental ASIC rendered-RGB correction, 2026-11-05 — DeepSeek GO for
-experimental synthesis; Opus assurance and promotion coverage pending:**
-Sol authored the 12-bit history extension in `rtl/Amstrad_motherboard.v` and
-`sim/asic_r3_position_{top.sv,test.cpp}`. DeepSeek V4.1 Flash free max run
-`20261105T232421Z-32325-af93` independently verified the frozen source,
-RED/GREEN proof and selected gate, finding no blocking RTL defect. AGY Opus
-failed with resource exhaustion and Claude Pro Opus with expired OAuth; neither
-produced findings. Before promotion, obtain Opus review and address or explicitly
-accept: enabled-sprite narrow-sync pixels lack end-to-end coverage; live classic/Plus
-owner switching has inspection-only assurance. Look hardest at CE alignment,
-12-bit post-compositor history and context cancellation across owner/reset/SNA
-changes. This remains an experimental branch, not merged. Static LEFT8, sampled native
-BTF, BI/AE/AR and DSC4/Amazing preservation now pass; those results do not
-close these promotion or physical-display gates. The cumulative-counter P2 is
-closed separately: per-body acquisition/READY deltas pass the focused fixture
-and 46 selected benches; Gemini 3.8 high independently gives GO
-(`20261106T011845Z-68309-6dd2`). This does not supply the pending Opus review
-or the sprite/live-owner coverage.
-[Evidence and bounds](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
-
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
 CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)

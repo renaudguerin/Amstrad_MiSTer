@@ -8,16 +8,20 @@ retains the source milestones and remaining context.
 
 The [active unattended session](investigations/session-logs/overnight-resume-2026-11-04.md)
 may continue to weekly quota exhaustion; the user applies resets manually and
-provides further instructions. Finish known SHAKER and DSC4/Amazing defects
-before a broad baseline. Original-CPC hardware and photographs are the oracle;
-AmSpirit and CPCSyntaxError are useful peers, not substitutes for hardware.
+provides further instructions. Prioritize justified fixes for known SHAKER and
+DSC4/Amazing defects. With the remaining defects needing hardware/author evidence,
+the user now authorizes V1 monitor-response design and review in parallel with a
+milestone release draft and current-build SHAKER archive refresh. Original-CPC
+hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peers.
 
 ## Current branch and artifact
 
 - Experimental branch `codex/classic-ga-boundary-native-20261105`, trial source
   `fdf348c`; prior native milestone `c0939d8`, comparison baseline `e24cb50`.
-  This is not integrated into `master` and is not a release. Completed DT
-  evidence remains on `codex/overnight-validation-20261103` (`18b58ce`).
+  This is not integrated into `master`. The [milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-c15fe46775a05244113b)
+  targets exact `fdf348c` and remains unpublished; its current-build SHAKER archive
+  is being refreshed. Completed DT evidence remains on
+  `codex/overnight-validation-20261103` (`18b58ce`).
 - Installed `Amstrad_20261106_fdf348c.rbf`, 3,138,276 bytes; SHA256
   `17466675860ee115418e712c55250a866c1b2f45bc9a796fd7f314a86d1cbf0d`,
   matching the device. Exact-SHA selected simulation/lint, production-T80
@@ -25,7 +29,8 @@ AmSpirit and CPCSyntaxError are useful peers, not substitutes for hardware.
   [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902)
   pass; `Amstrad-build-401-1-full`. Setup/hold minimum is 0.507/0.201 ns
   across seven clocks, zero TNS; warning counts match c0939d8.
-  DeepSeek permits an experimental trial; Opus/promotion review debt remains.
+  Fresh Opus 5.5 review gives GO; the qualified private mixed-colour sprite
+  proof passes. Physical-display and wider-corpus limits remain explicit.
   [ASIC proof and current acceptance](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
   A later test-only change requires fresh Full-return acquisition/READY
   receipts; focused/46-bench gates and Gemini review pass. FPGA RTL is unchanged.
@@ -42,10 +47,10 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 4 | 1 | 256 | 226 | 487 |
+| 0 | 4 | 1 | 372 | 110 | 487 |
 | 1 | 363 | 3 | 109 | 5 | 480 |
 | 3 | 0 | 0 | 18 | 405 | 423 |
-| All | 367 | 4 | 383 | 636 | 1390 |
+| All | 367 | 4 | 499 | 520 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
@@ -84,10 +89,14 @@ are viewed; acquisition limits are unchanged. [BTF evidence](investigations/hard
 
 ASIC static LEFT8, eight exact BI controls and scoped DSC4/Amazing/AE/AR
 preservation pass. AR colour variants reproduce the original INK10 cycle.
-Opus, live-owner/enabled-sprite coverage and physical HDMI/CRT remain open.
+A single mixed-colour sprite passes; live-owner RGB isolation is accepted by
+inspection. Other sprite configurations and physical HDMI/CRT remain unproved.
 The classic correction is shared by CRTC0/1; ASIC uses its separate tested
 correction. [ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
-MiSTer is left in French Plus BASIC with BTF mounted and the new trial active.
+MiSTer is running the serial current-build SHAKER capture refresh under root's sole control.
+[V1 design and Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
+recommend a separate fourth CRT-response profile; the offline prototype is under
+validation and changes no FPGA behaviour.
 
 Plus retains bounded BI/AE/AR and credit acceptance. A4 first/third rows are
 0/1 versus the older physical photo's 1/1, with program/history binding open;
