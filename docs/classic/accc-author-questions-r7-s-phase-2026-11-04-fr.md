@@ -72,7 +72,9 @@ deux4E40 ; cela n'identifie pas le binaire exact de la photographie.
 
 Le build c16e7ec après correction IVM avait donné4E40 sur les deux parcours,
 avec C5 inactif dès l'acquisition. Des captures ultérieures sur fdf348c montrent
-pourtant0840 et0440 après préfixe, contre4E40 en entrée directe. AmSpirit1.17.1
+pourtant0840 et0440 après préfixe. Le build actuelcb3a1a6 donne0640 après
+le préfixe et4E40 en entrée directe, avec les deux chaînes de caractères
+vérifiées par correspondance exacte avec la police du programme. AmSpirit1.17.1
 passe maintenant le préfixe complet et fournit le compte brut4E40 avant
 formatage. L'ancien état caché ae9 ne doit pas être transposé au cœur actuel.
 Le mécanisme natif de cette réapparition reste à qualifier ; aucune tolérance

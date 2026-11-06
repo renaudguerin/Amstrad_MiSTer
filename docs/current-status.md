@@ -117,8 +117,10 @@ now has an isolated receiver/renderer on `codex/general/v1-crt-response-20261106
 (`b291826`, READY). Eighteen frozen streams match over5,432,672 output clocks;
 47 selected benches, unchanged CRTC soak, fresh Opus review and
 [exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273531215)
-pass. It is not instantiated in production. Motherboard/compositor/field wiring,
-private mode lifecycle, Quartus resources/timing and native acceptance remain.
+pass. It is not instantiated in production. A private integration proof now covers motherboard/compositor/lifecycle wiring,
+but fresh Opus review found a one-dot RGB/metadata alignment defect. Its
+combined consumer RED/fix is in preparation; strict lint, enabled-profile
+Quartus and native acceptance remain. [Integration state](investigations/video-boundary/v1-production-integration-2026-11-06.md).
 Full and both Raw profiles retain their behaviour. Original T/Y and first D3
 [source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)
 is qualified separately from monitor acceptance.
@@ -142,7 +144,9 @@ The main [model-confidence inventory](investigations/rtl-model-confidence-2026-1
 records bounded inferred policies. The separate B26 audit is READY on
 `codex/accuracy/b26-terminal-sampling-20261106` (`425be96`):32 classified policies
 and one C0 pending-step consolidation, with65,536 four-state equivalence cases,
-253 CRTC passes, unchanged soak, Opus review and exact-SHA CI. Both parallel
+253 CRTC passes, unchanged soak, Opus review and exact-SHA CI. A further focused C1 audit has two private algebraic reductions with bounded
+full-wrapper preservation proof; a possible state-bit reduction still needs
+the production bus contract. Both parallel
 branches retain frozen base1e95fa0. Neither is integrated; reconcile the shared
 inventory and preserve current Plus evidence during integration.
 

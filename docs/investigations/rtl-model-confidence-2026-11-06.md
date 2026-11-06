@@ -220,6 +220,19 @@ and AmSpirit results remain distinct from original-CPC evidence.
 
 Private report `b26-c1-terminal-astra-20261106/AUDIT.md` under the session root
 contains algebra, counterexample histories and a single-write RA discriminator
-for three versus four adjustment lines. A private full-wrapper equivalence
-prototype is in preparation; no production edit, machine-equivalence result,
-Opus acceptance or new hardware rule is claimed yet.
+for three versus four adjustment lines. A private full-wrapper differential proof passes633,696ticks and1,901,088
+observations; both deliberate veto/admission mutants fail at the intended
+boundaries. This is bounded preservation, not exhaustive formal equivalence.
+No production edit, Opus acceptance or new hardware rule is claimed.
+
+A focused follow-up derives a stronger conditional reduction:
+`Type1 && frame_adj && row==0 && R4==0 && !exact_edge_positive_R4`.
+Stored R4 could replace the transient positive-history bit if the production
+bus guarantees stable effective payload classification through the consuming
+character. Unrestricted synthetic double writes disprove that equivalence but
+do not establish a physical-chip requirement. Normal/Fast Z80 transaction
+spacing supports the restriction; held-payload, aliased-read and lifecycle
+producer properties still need independent proof. Keep the old-match event,
+exact-edge veto and committed origin. The private audit ADDENDUM separates
+these contracts; do not turn unsupported testbench freedom into hardware
+authority or adopt the one-bit reduction before closing its producer contract.

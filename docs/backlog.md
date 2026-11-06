@@ -42,8 +42,11 @@ Keep the sampledR0=1 exclusion and explicit admission/zero/adjustment limits unt
 R4/R7 landing behavior remains unresolved. Continue known SHAKER fixes one
 bounded area at a time; this audit does not authorize a broad RTL rewrite.
 A focused Astra-high CRTC1 terminal-write audit now proposes two algebraic
-reductions while retaining the two necessary local history bits. A private
-full-wrapper equivalence proof is in preparation; production RTL is unchanged.
+reductions while retaining the two necessary local history bits. Its private full-wrapper proof passes633,696ticks/1,901,088observations; both
+intentional mutants fail. Production RTL is unchanged. A stronger one-bit
+reduction is conditional on a separately proved production-bus payload and
+lifecycle contract; unrestricted synthetic writes alone do not decide the
+physical model.
 See the inventory for constraints, packet corrections and the physical RA
 discriminator.
 

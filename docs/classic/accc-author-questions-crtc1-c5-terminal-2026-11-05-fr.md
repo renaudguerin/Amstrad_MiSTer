@@ -1,6 +1,6 @@
 # CRTC1 : comptage de C5 après modification terminale de R9
 
-Brouillon du 5 novembre 2026, non envoyé. Références : ACCC v1.11 française,
+Brouillon actualisé le 6 novembre 2026, non envoyé. Références : ACCC v1.11 française,
 §11.2.4 p.85 et §11.3.2 p.87. Ce cas réduit n'a pas encore de mesure sur CPC réel.
 
 Bonjour,
@@ -23,5 +23,14 @@ de la remise à zéro physique de C5.
 Le passage préalable par R5=0 distingue-t-il ce cas de l'exemple ci-dessus,
 dans lequel R5 reste constamment égal à3 ? Y a-t-il une séquence SHAKER
 existante qui permette de vérifier cette différence sur un CRTC1 ?
+
+Pour une mesure réduite, sans accéder directement à C5, nous proposons
+d'observer RA à un caractère fixe des lignes suivantes. Si les trois lignes
+sont comptées en continu, leurs couples(C4,C9) sont(0,2),(1,0),(1,1), puis
+la trame redémarre à(0,0). Avec notre redémarrage de C5, une ligne(1,2)
+s'intercale avant ce retour. À la troisième frontière suivant l'entrée,
+RA=0 ouRA=2 distingue donc les deux modèles. Un contrôle sans écriture et
+un contrôle avec l'écriture un caractère plus tôt vérifieraient la position
+de l'entrée. Cette proposition ne constitue pas une observation matérielle.
 
 Merci !
