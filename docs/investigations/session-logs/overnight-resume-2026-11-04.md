@@ -395,6 +395,52 @@ T80 replay. It must qualify architecturalrestore, ROM/MMUinput, originalPPI
 origin/C0vs andbothwrites before judging the diagram countercontinuation.
 No publiccode, RTL, physicalrule, globalgate or numericdelay change follows.
 
+## User clarification: CRT curves and V1 — 6 November
+
+The user correctly identifies D3’s bent scanlines as downstream CRT response,
+which current Full acquisition/native framebuffer capture does not reproduce.
+Full/Raw pixels share regularized geometry; Raw CRT may drive a physical CRT,
+subject to framework/output qualification. A behavioural phase/width/settling
+model could reproduce the digital presentation without component-level SPICE.
+V1 previously supplied original T/Y/productionT80 traces, offline candidates
+and circuit constraints, but no validated production dynamic response model.
+Recent ordinary R3 compensation is a narrower static positioning correction.
+
+Tally documentation now separates these boundaries. D3’s44 unknown entries
+mean incomplete digital-content/blanking adjudication, not failure to match CRT
+curvature. Missing curves alone must not block CRTC/GA acceptance. No count,
+RTL or output-mode change follows this clarification. The functional A4 replay
+continues; the user has not requested replacing it with a V1 implementation.
+
+## Current B6 native refresh — 6 November
+
+OriginaldirectB6onfdf348c completes10commands/1SSM/1capture, everyrowread:
+13/14/26/26/1F/1F. FifthR7row alone saysWRONG; physicalexpects1E. The knownbroken
+ledgerrow nowbindsfdf instead ofanoldbuild. Countsunchanged. The retainedolder
+native manifest actuallypins7ac11a2/hash4dc1e762…501ec, not the e24 attribution
+in the priorreport; currentevidence nowremoves thatsourceage ambiguity. Normal
+FrenchPlusBASIC/BTFrestore completes7commands/1capture. Rootviewsreadyimage.
+No newRTL, phaseaperture or broadbaseline follows.
+
+## A4 original resident observations — 6 November
+
+CurrentcoherentproductionB18/T80 replay executes fulloriginal71AA andprelims,
+then bothoriginalOUTI/restoration/PPI sequences once. All29archfields/128KB
+restoreguardpass, originalfirstM171AA, noROMreenable/read orkeyboarddependency.
+Results00/00; R0newstorageprecedes3F→40 by6/70sampledclocks. Thus ordinarysame-edge
+R0gap is not exercised. FractionalPPIorigin→M1/T2 convention remainsunqualified;
+no rounding/intaperture or RTLrepair selected. Originalphase/historyledgersretained.
+RootreadsCPP/passiveSV/report andverifies36sourcebindings/48artifacthashes;
+no parentDUT/gatererun. Failedpre-guestguard attempt preserved, oneactualguest.
+
+The V1 status check also locates an existingcoldoriginal-moduleT80/HID harness
+in the retainedOctober29archive. Sol's staticreadiness finds allB6/fontassets,
+butModuleBload3900/fontA13A/metadata0632/menu6+8B09/SSMA10C must be adapted.
+A freshcoldB6 ledger adds an originalcaller/CPU/write/carry/PPI boundary absent
+from existingoptical/synthetic traces. Sol is authorizedonly a boundedprivate
+coherentcoldB6 diagnostic, no publicchanges or selectedaperture. Astra-medium
+separately readsphysicalE,/CS,R/W wiring/primarybuscontract; noDUT changes.
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3
@@ -405,7 +451,7 @@ VSCLK native matches the model and still needs an original-CRTC1 result.
 0090 remains unknown after focused reading; A4 version/physical deadline,
 C0 E6 cases27/28, C1 C5 count/RFD lifetime and D7 physical settling remain
 bounded open questions. DI's Type1 warning remains an exclusion; D3's input alignment is repaired,
-with full physical geometry/temporal comparison still open. Do not launch a broad milestone baseline before the known
+with digital-content/blanking comparison pending and monitor response tracked separately. Do not launch a broad milestone baseline before the known
 fixes are complete, and do not add a speculative AI zero guard.
 
 Private paths are relative to `local/overnight-20261103/resumed-20261104/`.

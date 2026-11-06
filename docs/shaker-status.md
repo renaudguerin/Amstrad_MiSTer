@@ -14,6 +14,10 @@ page. This is an approximation of known status, not a fresh milestone baseline.
 A unit is one unique SSM page, not one screenshot or individual assertion.
 A page with any confirmed failing check is broken. A page with only partial
 validation remains unknown, even when a specific defect on it is repaired.
+CRTC/GA content and monitor response have separate acceptance boundaries: Full
+and Raw pixels regularize acquisition and do not promise the photographed CRT
+deflection. Missing curvature alone is neither a broken page nor a reason to
+withhold functional acceptance. Unvalidated source content remains unknown.
 
 - **Passing:** accepted original-CPC comparison or validated program self-checks.
   Documented chip variants and unrelated PPI upper-input differences are allowed.
@@ -68,7 +72,8 @@ most stale entries. This table does not classify those pages as failures.
   epoch mismatch; its early native trace contains both bands.
 - **D3 acquisition repaired:** all 44 current headers match after correcting
   one extra Space in our private manual overlay. These pages are unknown
-  pending full physical geometry/temporal comparison; five further D captures
+  pending full digital-content/blanking comparison; CRT deflection belongs to
+  V1 separately. Five further D captures
   remain stale. [Count correction](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 - **Current AI recheck:** 008E and 0091 pass the photographed VS fields;
   008F remains unknown because its physical V2 exception glyph is unresolved,

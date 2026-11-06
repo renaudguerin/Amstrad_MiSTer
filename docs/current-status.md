@@ -52,16 +52,18 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | C0 E6/0409 | Cases 27/28 remain wrong; 26/28 pass. Resolve R4 rematch against physical behaviour; AmSpirit passes 28/28. [Forced-entry evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md), [stimulus](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md). |
 | C1 A/0037 and AI/008D | OUTI bit 0 is native/AmSpirit/CPCSE 0 against photo 1; exact program/history binding is a question. 008D direct 208 gives 1001 and canonical c093 gives 1000 versus photo 1111. Do not infer a repair from peer agreement. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md), [008D](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | Fresh captures remain unknown: 008F physical V2 glyph is unresolved; 0090 needs complete cell adjudication. 008E, 0091 and direct/full-history 009A pass the bounded comparison. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
-| C1 B6/019D and DI/02E3 | B6 fifth/fourth deadlines are 1F/1F versus photo 1E/1F; DI is 58 versus 59 but the original test labels CRTC1 unreliable. Physical aperture and coherent R7.JIT remain open. [B6 evidence](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
+| C1 B6/019D and DI/02E3 | Fresh fdf B6 fifth/fourth deadlines are 1F/1F versus photo 1E/1F; DI is 58 versus 59 but the original test labels CRTC1 unreliable. Physical aperture and coherent R7.JIT remain open. [B6 evidence](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
 | C1 S/02D3 and B9 MID | Current direct/history S is 4E40 versus photo 4E30; program revision binding remains open. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |
-| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All 44 D3 captures now have correct parameters after a private Space-count fix; full physical geometry remains unknown. Five other D captures remain stale. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
+| D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All 44 D3 captures now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. Five other D captures remain stale. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
 | Broader classic gates | Type1 inactive rearming; F13/F20 hardware gates; IA-5 simultaneous sync/interrupt; Q17 and D1 entry; wider phase/lifetime closure remain open. [Audit](classic/audit-findings.md), [discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md). |
 
 DT's missing band was an acquisition-epoch mismatch; full phase-matched photo
 acceptance remains open. B1's structured RGB is restored but analogue geometry,
 display ownership, applied-mode observability and physical HDMI/CRT response
-remain open. See [DT](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md)
+remain open. Full/Raw pixels do not model the photographed CRT deflection;
+its absence is not a CRTC/GA failure. V1 has offline response candidates,
+with no validated dynamic monitor model in production. See [DT](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md)
 and [display evidence](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md).
 
 ## Demos and Plus

@@ -3,8 +3,8 @@
 All 44 CRTC1 D3 captures now have the expected R2/R3 parameters on trial
 `fdf348c`. A single extra Space in our private manual overlay caused the
 remaining offset. The author’s canonical scripts and the original guest binary
-are unchanged. This closes capture alignment, not the whole-page physical CRT
-geometry verdict.
+are unchanged. This closes capture alignment. Digital-content adjudication and
+the separate monitor-response project remain open.
 
 ## Defect and independent count proof
 
@@ -56,12 +56,23 @@ capture path and needs no corresponding edit.
 ## Tally and remaining display scope
 
 The 44 pages move from stale to unknown in the maintained ledger. They now
-have fresh correctly bound captures; no whole-page passing or broken verdict
-is added. The physical photographs show CRT deflection/shear, whereas these
-native scaler captures retain straight raster geometry. Header agreement
-alone cannot establish their full geometry or temporal match, or identify a
-CRTC/GA versus filter/monitor defect. Use these current inputs for that later
-comparison instead of repeating a blind input-timing sweep.
+have fresh correctly bound captures; the complete digital-content/blanking
+comparison has not been adjudicated. Parameters alone do not establish all
+surviving digits, raw blanking or content outside the captured viewport.
+
+The CRT deflection/shear is a separate display response. Full and Raw pixels
+use regularized acquisition; native framebuffer pictures do not photograph a
+physical CRT’s beam trajectory. **Missing curvature alone is not a CRTC/GA
+failure and must not block functional page acceptance.** A digital behavioural
+monitor model could reproduce the response; it does not require a component-
+level circuit simulation. Raw CRT may deliver the waveform to an actual CRT,
+subject to the output/framework contract, but its native PNG is still a buffer
+capture. See [V1/B1](../../backlog.md#b1-crt_filter-owns-the-sync-and-blanking-geometry-and-discards-the-crtcs)
+and the [response candidate](../video-boundary/v1-shaker-caller-response-2026-10-29.md).
+
+Use these current inputs for source-content comparison and V1 response work;
+keep those verdicts separate instead of repeating an input-timing sweep or
+forcing CRT curves into CRTC rules.
 
 A subsequent Gemini 3.8 high diagnosis inspects ten representative physical/
 current pairs and identifies no concrete missing-content discrepancy. Root

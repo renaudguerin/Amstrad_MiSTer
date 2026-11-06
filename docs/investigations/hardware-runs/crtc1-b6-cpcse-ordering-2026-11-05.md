@@ -2,10 +2,20 @@
 
 Original SHAKER B6 page `019D` on CPCSyntaxError v0.12.0, source commit
 `22de765ef44da46c55217e4dd7caa385d69a6045`, returns all six values
-`13/14/26/26/1E/1F`, matching the physical photograph. Native MiSTer production
-`e24cb50` returns `13/14/26/26/1F/1F`: the fifth row remains the discrepancy.
+`13/14/26/26/1E/1F`, matching the physical photograph. Fresh native MiSTer trial
+`fdf348c` returns `13/14/26/26/1F/1F`: the fifth row remains the discrepancy.
 This is a peer behavioural success and character-ordering clue, not a physical
 measurement of the CRTC's internal comparison aperture.
+
+The current native recheck completes 10 commands, one SSM record and one
+capture from the original direct B6 script, normal 6128/CRTC1/French boot and
+Full requested. Root reads all six rows: 13/14/26/26/1F/1F, with only the fifth
+R7 row explicitly labelled WRONG. Input/RBF hashes and parent receipt remain
+under `c1-b6-native-fdf-20261106/`. This refreshes the current failure; it is
+not a new module baseline or physical-aperture measurement. The earlier
+retained native manifest identifies `7ac11a2`, hash `4dc1e762…501ec`, rather than the
+e24 label previously used in this report. Do not treat that older capture as
+fresh e24 evidence.
 
 In the matching CPCSyntaxError source, the block-OUT scheduler advances hardware
 to instruction effect offset 16 T-states before `writePort`; the advance is

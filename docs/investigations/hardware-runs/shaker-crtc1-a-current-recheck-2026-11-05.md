@@ -138,6 +138,34 @@ is not transferred by this classic snapshot. Preserve and observe both R0
 writes and the control case before interpreting the later PPI scalar. No new
 failing-first proof or RTL repair is established by the snapshot alone.
 
+### Current production resident replay
+
+The private replay now executes the untouched 71AA body and every preliminary
+measurement before the original pair. The production loader restores all 29
+architectural fields and 131,072 RAM bytes; the first M1 fetch is 71AA. Both
+OUTIs execute once with helpers A4D7/A4D8 and return 00/00. No ROM or keyboard
+input dependency is observed on the executed path.
+
+First R0=7F storage is visible six sampled master clocks before the 3F→40
+counter decision; the second has 70 clocks of margin. Both counters continue
+past 3F. The conditional same-edge storage/carry gap therefore is not exercised
+by this original pair and supplies no repair for its scalar discrepancy.
+
+The original synchronizer and nominal 64-clock counter history are retained.
+Exact source-relative instruction-start convention remains unresolved: first
+M1 onset is 59+59/64 µs from the relevant published-PPI origin, whereas T80’s
+T2 INSN_START is 60+3/64 µs; the second is one µs earlier. These are kept as
+fractional observations, without rounding into a captioned C0vs bin or selecting
+a comparator aperture. This is not a strict French-diagram pass/fail claim.
+
+The parent reads the C++/passive-top changes and report, verifies 36 current
+source bindings, 48 artifact hashes and the immutable input, without rerunning
+DUT or gates. A pre-guest ownership-guard failure is retained separately;
+the corrected attempt executes the guest once. Evidence is
+`c1-a4-r0-contract-20261106/resident-replay/`, including parent acceptance.
+The entry gap is closed; physical-photo agreement and source-relative phase
+remain open. No public RTL or test change follows.
+
 ## AI/008D: entry-path provenance remains relevant
 
 The current original canonical sequence gives1000 in both R0=0 blocks,
