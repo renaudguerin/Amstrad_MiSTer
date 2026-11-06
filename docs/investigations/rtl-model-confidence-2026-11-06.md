@@ -6,6 +6,8 @@ local timing repairs preserve an accidental model rather than expose a simpler
 hardware rule. The initial inventory binds experimental8ba384e and its documentation
 checkpoint. The later reviewed Plus R4 branch candidate is identified below.
 
+The [expanded audit at 1e95fa0](b26-policy-inventory-2026-11-06.md) separates 32 policy decisions. Its [type 0 R0 proof](b26-type0-r0-contract-2026-11-06.md) reduces two vertical widening flags to one pending step. The horizontal old-one deadline remains open. A matched OUT/OUTI guest pair predicts either equal raw HS timing or a two-character difference on an original CPC.
+
 ## Cases needing explicit judgment
 
 | Area | Current model / restriction | Evidence and remaining risk |
