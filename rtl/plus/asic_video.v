@@ -30,9 +30,10 @@
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) and
 //     seedable from an SNA header (B8-5), but nothing at runtime ever writes
 //     them (named assumption at the readback section).
-//   - The R4=0-at-C0=0-with-Rom-select I/O race (ACCC §12.5 p.102) is a Z80
-//     bus-level ASIC race owned by the register-interface layer, not the
-//     counter engine.
+//   - R4 deadline outcomes use board-shaped ENABLE timing (French §12.5
+//     p.103). There is no explicit ROM-select decode here; READY/A13
+//     qualification remains upstream. The selected-write outcome model
+//     and its generalization beyond R4->0 are implementation inferences.
 //
 //  P5 scope landed here: the mod-8 read map with stored R14/R15, the
 //  R10/R11 status group, and the full readback contract (section at the
@@ -355,11 +356,9 @@ end
 // Vertical counters: C9 (raster line within the character row) and C4
 // (character row within the frame), plus the vertical-adjustment state.
 //
-// All decisions sample the live register values at the line-end edge
-// (C0==R0); a bus write landing mid-line is therefore considered at that
-// line's end, and a write landing exactly on the decision edge itself is
-// seen by the *next* decision (the documented same-edge hazard window;
-// vectors stay inside the documented mid-line windows).
+// Vertical decisions use live registers at the line-end edge, except for
+// the retained R4 match described by MODEL LIMIT (B26) below. A write on
+// the decision edge itself is seen by the next decision in this model.
 //
 // C9/R9 completion uses ">=" not equality: on types 3/4 an R9 lowered
 // below the current C9 forces next-C9=0 with normal row accounting,
@@ -389,7 +388,18 @@ reg        parity_c9;
 wire       ivm_active    = (R8_interlace == 2'b11);
 wire       sync_interlace_active = (R8_interlace == 2'b01);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
-wire       last_charline = (charline == R4_v_total);
+// MODEL LIMIT (B26): FR §12.5 p103 and original E's 3C/3D, 38/39 and
+// ROM-shaped windows require different deadline outcomes. Retaining an
+// entered match only during a selected R4 write at consuming CLKEN is an
+// active-write inference, not a proven silicon latch. Board-shaped ENABLE
+// supplies the timing distinction; no explicit ROM decode is added here.
+// Late false-to-true matches remain live as an unverified compatibility
+// choice; generalization beyond R4->0 remains unresolved. See B26 and
+// docs/investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md.
+reg        entered_r4_match;
+wire       r4_write_active = ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd4);
+wire       last_charline = (charline == R4_v_total) |
+                           (hcc_last & entered_r4_match & r4_write_active);
 // The additional line follows the completed R5 block and exits directly at
 // the real frame origin (§19.6.4 p.218).  Its forced C9=0 must not re-enter
 // adjustment when R9 is also zero.
@@ -455,6 +465,12 @@ wire [6:0] charline_n    = interlace_line ? 7'd0 :
 wire       adj_n         = in_adj ? !adj_end_n : enter_adj;
 wire       interlace_line_n = interlace_line ? 1'b0 :
                               enter_interlace_line;
+
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD) entered_r4_match <= 1'b0;
+    else if (CLKEN) entered_r4_match <=
+        ((hcc_last ? charline_n : charline) == R4_v_total);
+end
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
@@ -576,6 +592,9 @@ wire split_adj_end = in_adj && adj_end_n &&
 wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
                     !in_adj && (R5_v_total_adj == 5'd0)) ||
                    split_adj_end;
+// last_charline retains R4 only in the terminal character; split_at_r0
+// can also be consumed outside that character. This shared use of the
+// inferred R4 deadline is not independently evidenced for screen split.
 // This capture still uses live R0. Its overlap with a late R0 rewrite
 // that ends the line through a retained terminal opportunity is unverified.
 // Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1

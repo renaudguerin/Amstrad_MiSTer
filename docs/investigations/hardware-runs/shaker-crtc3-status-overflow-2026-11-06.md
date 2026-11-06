@@ -1,6 +1,6 @@
 # CRTC3 status and C4-overflow failures
 
-Current `fdf348c` fails the original program checks on DU/03C0 and E/0406.
+Native baseline `fdf348c` fails the original program checks on DU/03C0 and E/0406.
 Fresh AmSpirit Lite 1.17.1 completes both pages with every check clear. These
 are confirmed failures against the current program, separate from a matched
 physical-Plus photograph or a selected RTL mechanism.
@@ -51,7 +51,9 @@ assumption, not a newly tested effect. No whole03C0 page pass is claimed.
 
 E0406 reads PPIportB bit0 after its register sequence as an overflow witness;
 it does not read C4 directly. French§12.5 p103's final simultaneous ROM-select/
-R4 race is explicitly excluded by the current `asic_video` implementation.
+R4 race was excluded by the baseline `asic_video` implementation; the reviewed
+branch candidate below now handles the source-program cases through existing
+board-shaped ENABLE timing.
 The interface has no explicit B5 flag, but the motherboard already shapes
 `board_iorq_n` using READY and A13 before generating ASIC ENABLE
 (`rtl/Amstrad_motherboard.v`, board decode and `asic_vid` wiring). The
@@ -129,7 +131,7 @@ the later effect and Amazing samples remain visible at different animation
 phases. All five images are viewed and hashes/CFG restoration verified.
 This is bounded preservation, not complete-demo or physical-display acceptance.
 
-## Private E candidate and ROM write windows
+## First private E candidate and ROM write windows (superseded)
 
 One CLKEN-sampled retained R4 match, qualified at the terminal character and
 ORed with the live comparator, changes the focused failure to77/77 passing
@@ -155,6 +157,48 @@ The immutable candidate packet is `c3-e-retention-candidate-20261106/`:
 737 artifacts, manifest SHA256
 `84ec05c1824de2d3194f1a51f90c4e35fb78780b67f81cbdbbeb0b48f31ce3d0`.
 The report includes raw CPU/ENABLE/READY/clock intervals and source wiring.
-A focused independent review of the next contract is pending; no E change
-is in public RTL, no public gate or RBF is claimed for it, and the tally
-stays unchanged.
+That first candidate remained private and its qualification failures stay
+frozen. The second candidate below supersedes it. The page tally remains
+broken until native acceptance.
+
+## Reviewed selected-write candidate on the task branch
+
+The branch now retains the sampled C4=R4 match only while the selected R4
+write is active at the consuming CLKEN. Live equality, immediate register
+storage, R9/R5 and literal status2 bit0 remain unchanged. Existing motherboard
+READY/A13 shaping supplies the ordinary/ROM distinction; there is no added
+ROM input or decode. `MODEL LIMIT (B26):` names the inferred active-write
+rule, late false-to-true compatibility and unproved extension beyond R4→0.
+A write-end-commit model fits the same original cases; their divergent late
+false-to-true prediction remains an unsent author/hardware question.
+
+Before this edit, a source-shaped64-clock-character discriminator records
+two independent failures: baseline misses both late ordinary wraps at totals
+63/59; the first retained-match candidate misses both fragmented-ROM overflows.
+The final candidate passes all25 frozen controls and78 preservation checks.
+All17 unchanged original production-CPU callers then match their programmed
+witnesses: twelve ordinary rows form six1/0 pairs and the five ROM rows give
+1/1/0/0/0. Original first-pair guards pass42/42, and startup timing/read logs
+are unchanged. The two old single-onset guards remain25/26 UNQUALIFIED;
+a separate source-bound operational qualifier passes238/238 checks across
+all17, without changing original expectations or analyzers. Census525points/
+nine CLKEN decisions and the seven-case ASIC R0 owner pass.
+
+The asset-free public bench keeps six independent source-window cases,
+including total59 controls; all75 existing entries are unchanged. The selected
+command `python3 sim/select_tests.py --run` passes46 benches, ASIC81/81.
+After the last functional/test edit, only an Opus-requested overview comment
+changes; root records identical non-comment tokens. Exact-SHA CI follows the
+push. No classic soak is re-minted for this ASIC-only behaviour change.
+
+Fresh Opus5.5 review finds no RTL or test bug and approves experimental
+synthesis. Full-effort zero-TNS timing is mandatory: the selected bus/READY
+path now reaches vertical next-state logic. Native0406, DU, Plus demos and
+owner checks remain required; a title with a qualifying late nonzero R4
+rewrite should also be bound if available. This is a reviewed source candidate,
+not a native whole-page pass, master integration or public release.
+
+Evidence under the session root: `c3-e-rom-window-candidate-20261106/`
+(753 artifact hashes verified; manifest707b28400595f25afd39a6a4f4ecf73b5f7b5525227d79c09a8077adb2f2b599),
+`c3-e-public-integration-20261106/` (gate/source/hash receipts), and
+`c3-e-final-opus-review-20261106/` (review, root acceptance and provider limits).
