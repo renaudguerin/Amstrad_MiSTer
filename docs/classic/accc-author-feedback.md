@@ -194,6 +194,17 @@ visible result pages are pixel-identical, and both include the additional
 C9 row. The available 2.6 disk therefore does not resolve the photograph's
 program identity. [Version-pair evidence](../investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md).
 
+**Additional CRTC0 discriminator, 6 November:** the fresh fdf348c CRTC0
+milestone image also reads00/00 against its physical photo01/00. Fresh
+CPCSyntaxError0.12 CRTC0 normal-boot runs on both available26/27 disks instead
+match01/00; their readable pages are identical and include the extra C9 row.
+French§13.6.1/§13.6.2 p124 distinguishes the conditional OUTI-start3C
+continuations: type0 wraps0, type1 continues40. Keep the question about the
+CRTC1 photo/program/clock identity; the CRTC0 peer now provides a useful matching
+source discriminator, without proving a physical E-to-register aperture or the
+original FPGA caller's exact counter phase.
+[Current CRTC0 evidence](../investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md).
+
 ## 5. Correspondence 2026-09-11: re-issued v1.11 and the four classic CRTC types
 
 Longshot re-issued both v1.11 PDFs with the feedback applied and the version number

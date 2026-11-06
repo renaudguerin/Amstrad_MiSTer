@@ -47,15 +47,16 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 4 | 1 | 438 | 44 | 487 |
+| 0 | 5 | 2 | 436 | 44 | 487 |
 | 1 | 363 | 3 | 109 | 5 | 480 |
 | 3 | 0 | 0 | 18 | 405 | 423 |
-| All | 367 | 4 | 565 | 454 | 1390 |
+| All | 368 | 5 | 563 | 454 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
 | C0 E6/0409 | Cases 27/28 remain wrong; 26/28 pass. Resolve R4 rematch against physical behaviour; AmSpirit passes 28/28. [Forced-entry evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md), [stimulus](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md). |
-| C1 A/0037 and AI/008D | OUTI bit 0 is native/AmSpirit/CPCSE 0 against photo 1; exact program/history binding is a question. 008D direct 208 gives 1001 and canonical c093 gives 1000 versus photo 1111. Do not infer a repair from peer agreement. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md), [008D](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
+| A4/0037, CRTC0/1 | Native first OUTI bit0=0 versus physical1 on both. Current CPCSE matches the CRTC0 photo01/00 on available26/27, but gives00/00 on CRTC1. Bind the original C0 caller's successful IN/M1 phase before selecting a rule; photo-version identity remains open. [Current C0 discriminator](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md). |
+| C1 AI/008D | Direct208 gives1001 and canonicalc093 gives1000 versus physical1111. C0 AI now passes all16 photographed VS bits under the upper-PPI allowance. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | Fresh captures remain unknown: 008F physical V2 glyph is unresolved; 0090 needs complete cell adjudication. 008E, 0091 and direct/full-history 009A pass the bounded comparison. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | C1 B6/019D and DI/02E3 | Fresh fdf B6 fifth/fourth deadlines are 1F/1F versus photo 1E/1F; DI is 58 versus 59 but the original test labels CRTC1 unreliable. The original cold caller reproduces the failure; physical aperture and the optical R7.JIT mismatch remain open. [B6 evidence](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
 | C1 S/02D3 and B9 MID | Current direct/history S is 4E40 versus photo 4E30; program revision binding remains open. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |

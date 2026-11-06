@@ -201,3 +201,11 @@ ignored and are not distributed with this report.
 
 Technical information sourced from the Amstrad CPC CRTC Compendium by
 Longshot (CC BY-NC-ND).
+
+A subsequent read-only phase calibration resolves the integer-bin convention
+for these retained calls without rounding the published-VS fractions. The
+successful drifting IN and corresponding post-prefix opcode M1 points give
+3C/3B under French§7.2p39 and§4.4.4pp27–28; both continuations agree with the
+type1 diagram. This supplies no physical aperture or scalar-photo resolution.
+The newly matching CPCSE type0 result motivates a separate original type0
+ledger. [Current C0/C1 discriminator and exact calibration](shaker-crtc0-a4-ai-photo-check-2026-11-06.md).

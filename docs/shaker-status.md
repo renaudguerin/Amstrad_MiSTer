@@ -6,7 +6,8 @@ adds scoped ASIC preservation, 44 fresh aligned CRTC1 D3 captures and the
 ongoing current-build archive refresh. CRTC0 A–E acquisition is complete except
 two missing PNGs; its 44 canonical D3 identities remain stale pending corrected
 manual capture. Fresh unadjudicated images become unknown, without new passing
-grades. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
+grades. A separate full-resolution C0 A4/AI check adds one passing and one
+broken judgment to previously unknown coverage. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
@@ -35,12 +36,12 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 
 | CRTC | Module | Passing | Broken | Unknown | Stale | Total |
 |---:|:---|---:|---:|---:|---:|---:|
-| 0 | A | 1 | 0 | 121 | 0 | 122 |
+| 0 | A | 2 | 1 | 119 | 0 | 122 |
 | 0 | B | 0 | 0 | 221 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
 | 0 | D | 0 | 0 | 67 | 44 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **4** | **1** | **438** | **44** | **487** |
+| **0** | **Total** | **5** | **2** | **436** | **44** | **487** |
 | 1 | A | 118 | 2 | 7 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 0 | 4 | 0 | 80 |
@@ -53,7 +54,7 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 3 | D | 0 | 0 | 0 | 150 | 150 |
 | 3 | E | 0 | 0 | 1 | 4 | 5 |
 | **3** | **Total** | **0** | **0** | **18** | **405** | **423** |
-| **All** | **Total** | **367** | **4** | **565** | **454** | **1390** |
+| **All** | **Total** | **368** | **5** | **563** | **454** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -63,7 +64,12 @@ most stale entries. This table does not classify those pages as failures.
 
 ## What the remaining counts contain
 
-- **Confirmed broken:** C0 E6/page0409, cases27/28; C1 A/0037 and AI/008D;
+The focused current [CRTC0 A4/AI comparison](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md)
+adds an AI passing judgment and the A4 OUTI mismatch to previously unknown
+coverage; this does not establish a regression. Current CPCSE26/27 match the
+physical CRTC0 A4 result, unlike its CRTC1 result.
+
+- **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C1 AI/008D;
   C1 B6/019D. E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
