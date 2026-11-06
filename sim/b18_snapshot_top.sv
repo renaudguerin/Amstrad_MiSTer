@@ -299,6 +299,7 @@ sna_cpu_header sna_cpu_header
         .field(),
         .frame_field(),
         .raw_crt(),
+        .native_cadence(),
         .pixel_vblank(),
         .vram_din(VIDEO_RAM ? video_word : 16'd0),
         .vram_addr(video_addr),
