@@ -373,6 +373,28 @@ only. Exactgeometry, exposure20–50ms, fixedviewport and rawcounterexecution
 claims are not accepted fromstillphotos. Parentassessment preserved. All44
 D3pages stayunknown; no further tallychange or filterrepair follows.
 
+## A4 clean original input — 6 November
+
+Sol's focused primaryFrench115/124/126 audit finds no independentlypredicted
+R0 failure yet. It identifies the ordinarysame-clock storage/carry gap as a
+condition toobserve, not a boundphysicalaperture. Original7190OUTI7F is
+immediatelyrestored3F by7192OUT(C),C; actualhelpers areD7/D8 because715E increments
+HL. LaterA4RAM has alreadymutated waits/helpers and is not a cleaninitializer.
+
+Root normalboots originalSHAKE27A in AmSpirit and reaches FIRST71AA through
+realkey4. Acceptedrun002 verifies PC/SP/return71AA/BFFE/40D1, BF03=1,RMR8E,
+original715A..71B5 andB000/BC00residentbytes. All128KBretained; rootviewsentrymenu
+and uninterrupted0037continuation00/00. Classicv2 includesSPRT2696822bytes;
+run001stoppedat overstrictlengthguard withotherwisevalidcleanentry. It is
+preserved. Rawrun002SHA3aa4663d…bba1c andloaderprefix94798d1e…6ba6c retainidentical
+header/RAM; onlyunsupportedtrailingmetadata is excludedfromthe latter.
+
+AmSpiritcleanup pausesclassic0037, scripts/BPs empty. Sol now owns onlyprivate
+c1-a4-r0-contract-20261106/resident-replay/ toprepare coherentproductionB18SNA/
+T80 replay. It must qualify architecturalrestore, ROM/MMUinput, originalPPI
+origin/C0vs andbothwrites before judging the diagram countercontinuation.
+No publiccode, RTL, physicalrule, globalgate or numericdelay change follows.
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3

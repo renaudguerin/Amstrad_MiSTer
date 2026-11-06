@@ -49,7 +49,7 @@ Root compares the original-CPC `AO_009A_I.webp` photograph: its white-bar
 and RAM-pattern family agree. Exact RAM pixels depend on preceding tests;
 analogue geometry and temporal behavior cannot be proved by a still photo.
 
-Fresh AmSpirit1.17.1/core2491682 direct O entry also gives the full changing
+Fresh AmSpirit 1.17.1/core 2491682 direct O entry also gives the full changing
 pattern. Isolated CPCSyntaxError0.12.0 gives it on direct entry and after
 the original canonical prefix. Its canonical run takes155.572 emulated
 seconds and10.725 host seconds; the two target captures differ in235,710
@@ -97,6 +97,46 @@ French pages115/124/126; §13.6.2's diagram also distinguishes the OUTI and
 OUT(C) deadline positions.
 No failing-first production-T80 proof or new physical timing rule is yet
 selected for this observation.
+
+## A4 R0 contract and clean resident input — 6 November
+
+A focused primary-source audit reads French §13.3 p115, the rendered §13.6.2
+chronogram p124 and §13.7.1.1 p126. Its Type1 OUTI start 3C extends old 3F
+through 40 under new 7F; the start 3D control wraps 0. Current R0 storage before
+the counter edge already makes that edge compare the new value. Simultaneous
+first storage/carry instead uses old R0 outside the separate last-frame RFD
+exception. The original caller has not yet been bound to that internal edge;
+no numeric aperture or inferred correction follows.
+
+The original critical sequence includes OUTI 7F at 7190 and immediate OUT(C),C
+restoration of 3F at 7192. Its first/second helper targets are A4D7/A4D8:
+715E increments HL before installing the call operand. Omitting restoration,
+using the untouched literal A4D6, or restarting the later result dump would
+change the stimulus. The retained later RAM already has modified wait/helper
+operands and cannot establish first-entry timing.
+
+Root captures a fresh normal-boot AmSpirit 1.17.1/core 2491682 input through real
+key 4 dispatch, breaking before the first original A4 instruction at 71AA.
+PC71AA/SPBFFE/return40D1, BF03=1 and RMR8E are verified. Critical 715A–71B5,
+resident BC00 support and B000 metadata bytes match the untouched original
+module; all 128 KiB RAM is retained. AmSpirit’s uninterrupted continuation reaches
+0037 and still prints 00/00; both entry-menu and result images are inspected.
+Scripts/breakpoints are cleared and the instance is left paused there.
+
+The original v2 SNA includes a trailing `SPRT` chunk. A separately hashed
+loader-compatible copy drops only that metadata, leaving the standard 256-byte
+header and 128 KiB RAM byte-identical. The first attempt stopped at an overly
+strict container-length guard; its original capture remains preserved. The
+accepted input is `c1-a4-preinit-amspirit-20261106/run-002/`, with parent guards
+and both hashes. This is a clean resident-caller input, not a firmware boot
+or physical timing proof on FPGA.
+
+A production replay must still qualify consumed loader state, original PPI
+synchronization and instruction-start C0vs. C0vs is software-relative to the
+original PPI origin, not automatically rawhcc. Hidden CRTC/GA/CPU-divider phase
+is not transferred by this classic snapshot. Preserve and observe both R0
+writes and the control case before interpreting the later PPI scalar. No new
+failing-first proof or RTL repair is established by the snapshot alone.
 
 ## AI/008D: entry-path provenance remains relevant
 

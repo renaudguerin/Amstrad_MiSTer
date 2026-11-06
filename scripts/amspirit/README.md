@@ -124,7 +124,10 @@ automatically. Case `config` can pass the new settings through to `/api/config`.
   the loaded core. The SNA remains the fallback for unavailable ASIC state.
 - **Inspect each SNA version and chunk list.** Observed Plus saves are v3 with `CPC+`
   and `SPRT`; classic 6128/CRTC1 on Lite1.17.1 can stream v2, whose v3 CRTC-counter
-  offsets contain zeros rather than measurements. The core does not restore `SPRT`.
+  offsets contain zeros rather than measurements. Classic v2 can also append an
+  opaque `SPRT` chunk after the declared RAM payload; inspect the chunk list
+  rather than requiring an exact header-plus-RAM file size. MiSTer does not
+  restore `SPRT`. Keep the original when deriving a loader-compatible RAM prefix.
   Record these limits in a replay/hardware handoff; do not assume the snapshot carries
   every hidden phase. Upstream `snapshot_version` is an accepted no-op in Lite1.17,
   so that scripting command cannot force a complete classic v3 checkpoint.

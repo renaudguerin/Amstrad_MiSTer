@@ -155,7 +155,7 @@ apply-time refusal or of every upstream endpoint being exercised is made.
 
 ### Breakpoint replacement resumes execution on 1.17.1
 
-On core2491682, `PUT /api/breakpoints` resumes a paused machine for both
+On core 2491682, `PUT /api/breakpoints` resumes a paused machine for both
 empty and nonempty replacement sets. The empty-set control read
 `paused=true` before the call and `paused=false` after application. The
 nonempty control installed `B00:1891` at paused PC2084/tick29204307,
@@ -182,6 +182,17 @@ The core's streamed classic SNA defaults to version2 with zeros at the
 v3 CRTC-counter offsets; those zero bytes are **not counter measurements**.
 Plus snapshots observed in the same build are version3. Check the version
 before interpreting offsets A9–B0 or claiming an instruction-start C0.
+
+A classic v2 stream can also contain a trailing `SPRT` chunk. A fresh
+6128/CRTC1 A4 capture on core 2491682 contains the complete 128 KiB payload
+followed by 2,696,822 bytes of `SPRT` data. File length greater than
+`256 + dump_kb*1024` therefore does not establish a corrupt RAM dump.
+Inspect the declared RAM length and chunk list, retaining the whole original.
+For a diagnostic loader that consumes only the standard header/RAM, an explicitly
+labelled derived prefix may omit unsupported trailing metadata while preserving
+every header and RAM byte. Record both hashes; this does not transfer hidden
+phase into MiSTer or make the opaque chunk a counter oracle.
+[Clean A4 input](shaker-crtc1-a-current-recheck-2026-11-05.md).
 
 The pinned upstream [scripting guide](https://raw.githubusercontent.com/AMSpiriT-Emulator/amspirit-releases/94c101bfab15039c89187a54d99fa8fb5322aba3/docs/lite/scripting.md)
 explicitly lists `snapshot_version` as accepted and ignored. It cannot force a
