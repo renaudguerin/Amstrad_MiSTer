@@ -4,18 +4,16 @@
 // and pinned cycle-exact to the synthesised classic contract here).
 //
 // d01-d04 drive BOTH modules inside sim/plus/asic_ga_diff_top.v with identical
-// randomised bus/sync/reset traffic (fixed seed schedule) and require every
-// shared output to agree on every clock edge, EXCEPT delivered INT_N: the
-// Plus ASIC holds compatible delivery ~1 character after the raw latch (PA7
-// V5 hardware, docs/plus/pa7-interrupt-phase-followup.md), so as_INT_N
-// intentionally lags ga_INT_N. Lockstep compares ga_INT_N against the
-// simulation-only as_RAW_N tap (the pre-delivery aggregate, exactly the old
-// INT_N); all other shared pins still compare directly.
-// ACK stimulus is restricted to delivered raster requests in both models:
-// original-Plus DMA overlap photographs reject raw GA equivalence for an ACK
-// before compatible delivery. pa7-dma-overlap and b20-ack-diag cover that class.
+// randomised bus/sync/reset traffic (fixed seed schedule). All common timing,
+// memory/bus, monitor sync, mode and ROM outputs agree on every clock edge.
+// Compatible IRQ accounting on the Plus has independent hardware constraints;
+// neither delivered INT_N nor a private pending latch is a classic phase oracle.
+// The 64-master-tick synthetic HS period here also aliases to the character
+// sampler. asic_pri pr01/pr14 own IRQ cadence, VS rephase, ACK and MRER through
+// a legal active-high post-CCLK producer and delivered INT_N. V5/MRER/H1 program
+// owners retain tight software phase and source-retention constraints.
 // Register payload decoding (BORDER/INKR/mode/ROM map/INT semantics) cannot be compared against
-// ga40010, which does not export those registers, so r01-r03 pin them
+// ga40010, which does not export those registers, so r01/r03/r04 pin them
 // directly on the replica with expectations derived from the published Gate
 // Array port description cited in the RTL header.
 
@@ -180,24 +178,6 @@ public:
 		CMP(READY); CMP(CPU_N); CMP(MWE_N); CMP(E244_N);
 		CMP(ROMEN_N); CMP(RAMRD_N); CMP(ROM);
 		CMP(HSYNC_O); CMP(VSYNC_O); CMP(SYNC_N);
-		// Delivered as_INT_N lags by ~1 char by design (PA7), so it cannot
-		// lockstep ga_INT_N. Compare the RAW pre-delivery tap instead; the
-		// delivered delay itself is bounded by asic_pri pr14, not here.
-		if (dut.ga_INT_N != dut.as_RAW_N) {
-			char buf[256];
-			snprintf(buf, sizeof buf,
-			         "cycle %llu (%s): RAW INT mismatch ga40010=%d asic_raw=%d (delivered as_INT_N=%d)"
-			         " [cen=%u fast=%d rstN=%d mreq=%d m1=%d rd=%d iorq=%d"
-			         " HS_I=%d VS_I=%d HS_O=%d/%d VS_O=%d/%d]",
-			         (unsigned long long)cyc, phase,
-			         (int)dut.ga_INT_N, (int)dut.as_RAW_N, (int)dut.as_INT_N,
-			         cen_phase, (int)fast, (int)reset_n, (int)mreq_n,
-			         (int)m1_n, (int)rd_n, (int)iorq_n,
-			         (int)hsync_i, (int)vsync_i,
-			         (int)dut.ga_HSYNC_O, (int)dut.as_HSYNC_O,
-			         (int)dut.ga_VSYNC_O, (int)dut.as_VSYNC_O);
-			fail(std::string(buf));
-		}
 		CMP(VBLANK); CMP(MODE);
 	}
 #undef CMP
@@ -290,11 +270,9 @@ public:
 			iorq_n = true;
 			break;
 		case Cyc::IntAck:
-			// Shared-domain comparison only: an empty/undelivered ACK is a
-			// DMA/expansion ACK on Plus and has different retention semantics
-			// from ga40010 (original-Plus overlap record, 2026-09-28).
-			// Keep every comparator active; replace ineligible ACK with idle.
-			if (dut.ga_INT_N || dut.as_INT_N) { run(2); break; }
+			// Exercise actual ACK traffic even when IRQ sources differ. Every
+			// non-IRQ comparator stays active; Plus source-retention semantics
+			// belong to the legal producer and program owners.
 			m1_n = iorq_n = false; mreq_n = rd_n = true;
 			run(2);
 			m1_n = iorq_n = true;
@@ -324,8 +302,8 @@ void d01_lockstep_mixed(DiffBench& b) {
 
 //----------------------------------------------------------------------
 // d02: reset pulses and interrupt-acknowledge storms interleaved with
-// GA-port writes, exercising U204 restarts, READY/CAS masking and the
-// interrupt acknowledge latch.
+// GA-port writes, exercising U204 restarts and READY/CAS masking during
+// actual ACK traffic. Plus IRQ provenance/retention belongs to asic_pri.
 //----------------------------------------------------------------------
 void d02_lockstep_reset_ack_storm(DiffBench& b) {
 	b.power_on_reset();
@@ -411,43 +389,6 @@ void ga_write(DiffBench& b, uint8_t value) {
 	b.run(4);
 }
 
-// Raise INT_N through an acknowledge cycle held right at the current
-// assertion; returns once INT_N is observed high again.
-void ack_interrupt(DiffBench& b) {
-	b.m1_n = false;
-	b.iorq_n = false;
-	b.mreq_n = true;
-	b.rd_n = true;
-	unsigned guard = 0;
-	while (b.dut.as_INT_N != 1) {
-		b.tick();
-		if (++guard > 8) fail("ack: INT_N did not rise on acknowledge");
-	}
-	b.m1_n = b.iorq_n = true;
-	b.run(2);
-}
-
-uint64_t extract_int_period(DiffBench& b) {
-	// The interrupt counter self-clears on the 52nd shaped line and INT_N
-	// stays asserted until acknowledged. Both falling edges below are
-	// genuine fires of the same strictly periodic event, so their
-	// cycle-stamp distance must be exactly 52 synthetic lines regardless
-	// of when the acknowledges land.
-	b.run(kLineClks * 60); // settle past any pending state
-	if (b.dut.as_INT_N == 0) ack_interrupt(b); // clear power-on-low level
-	while (b.dut.as_INT_N != 0) {
-		b.tick();
-		if (b.cyc > 1u << 21) fail("r02: INT_N never asserted");
-	}
-	uint64_t first_fall = b.cyc;
-	ack_interrupt(b);
-	while (b.dut.as_INT_N != 0) {
-		b.tick();
-		if (b.cyc - first_fall > (1u << 21)) fail("r02: second INT never arrived");
-	}
-	return b.cyc - first_fall;
-}
-
 //----------------------------------------------------------------------
 // r01: legacy register payloads — ink select, INKR packing, border gate,
 // screen mode, ROM mapping.
@@ -514,57 +455,8 @@ void r01_register_payloads(DiffBench& b) {
 	if (got != 0x0A) fail("r01: INKR[5] should be 0x0A");
 }
 
-//----------------------------------------------------------------------
-// r02: the shaped-line interrupt fires every 52 synthetic lines and an
-// interrupt-acknowledge-style cycle raises INT_N.
-//----------------------------------------------------------------------
-void r02_interrupt_cadence_and_ack(DiffBench& b) {
-	b.power_on_reset();
-	b.frame_lines = 52;
-
-	// Phase A — pure counter cadence. With VSYNC suppressed, no shaped
-	// VSYNC edge (intcntclr_4) intervenes: the 6-bit counter self-clears
-	// when its next value hits %110100 (=52), so successive assertions are
-	// exactly 52 synthetic lines apart. This is the documented GA interrupt
-	// contract (40010-simplified syncgen section; see RTL header).
-	b.vsync_suppressed = true;
-	uint64_t period = extract_int_period(b);
-	if (period != 52u * kLineClks)
-		fail("r02: expected INT period 52 lines (" + std::to_string(52u * kLineClks) +
-		     " clks), measured " + std::to_string(period));
-
-	// Phase B — VSYNC re-alignment. Re-enabling frames whose burst begins
-	// on the wrap line re-phases the counter through intcntclr_4: the
-	// shaped VSYNC_O rises three lines later (hcnt walk 01->06->07->04
-	// after the res1 zeroing), clearing the counter there, so the locked
-	// regime asserts every frame_lines+3 lines for this generator. The
-	// first fire after re-enabling still belongs to the old phase, so skip
-	// one fire before measuring.
-	b.vsync_suppressed = false;
-	while (b.dut.as_INT_N != 0) b.tick();
-	ack_interrupt(b);
-	while (b.dut.as_INT_N != 0) b.tick(); // old-phase fire
-	ack_interrupt(b);
-	while (b.dut.as_INT_N != 0) b.tick();
-	uint64_t t1 = b.cyc;
-	ack_interrupt(b);
-	while (b.dut.as_INT_N != 0) b.tick();
-	if (b.cyc - t1 != 55u * kLineClks)
-		fail("r02: expected VSYNC-realigned period 55 lines (" +
-		     std::to_string(55u * kLineClks) + " clks), measured " +
-		     std::to_string(b.cyc - t1));
-
-	// An interrupt-acknowledge-style cycle raises INT_N.
-	while (b.dut.as_INT_N != 0) b.tick();
-	ack_interrupt(b);
-	if (b.dut.as_INT_N != 1)
-		fail("r02: INT_N should be high after the acknowledge");
-
-	// RMR bit 4 also clears a live interrupt.
-	while (b.dut.as_INT_N != 0) b.tick();
-	ga_write(b, 0x90); // RMR with bit4 set, mode/romens unchanged
-	if (b.dut.as_INT_N != 1) fail("r02: RMR bit4 should clear INT_N");
-}
+// r02 IRQ obligations are owned by asic_pri pr01/pr14: this fixture's
+// sub-character synthetic HS is not a physical compatible-IRQ phase source.
 
 //----------------------------------------------------------------------
 // r03: defined power-up state (border 16, mode 0, inks cleared) survives
@@ -646,13 +538,12 @@ struct TestCase {
 	void (*fn)(DiffBench&);
 };
 
-const std::array<TestCase, 8> kTests = {{
+const std::array<TestCase, 7> kTests = {{
 	{"d01 lockstep mixed traffic",            true,  d01_lockstep_mixed},
 	{"d02 lockstep reset/ack storm",          true,  d02_lockstep_reset_ack_storm},
 	{"d03 lockstep lost-sync park",           true,  d03_lockstep_lost_sync},
 	{"d04 lockstep directed U204 restart",    true,  d04_lockstep_u204_restart},
 	{"r01 legacy register payloads",          false, r01_register_payloads},
-	{"r02 interrupt cadence and ack",         false, r02_interrupt_cadence_and_ack},
 	{"r03 defined power-up state",            false, r03_powerup_state},
 	{"r04 unlocked RMR2 does not update legacy GA", false, r04_unlocked_rmr2_is_not_legacy_rmr},
 }};

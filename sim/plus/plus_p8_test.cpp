@@ -2051,61 +2051,80 @@ void test_b8_ga_vsync_delay(Vplus_p8_test_top& dut) {
 
 // --- Test 11: GA interrupt counter (B3) and pending flag (B4).
 void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
-	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
+    auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
+    B8Header h;
+    b8_set_short_frame_crtc(h);
+    h.crtc[7] = 60; // suppress VS rephase for the entire 52-end window
+    h.b0 = 0;      // settled inactive-HS origin outside VS
+    h.vsdelay = 0;
+    B8ChunkParams p;
+    p.dcsr = 0;
+    B8Header hi = h;
+    hi.intreq = 1;
+    unsigned failures = 0;
+    auto run = [&](const char* name, auto fn) {
+        try { fn(); std::printf("PASS b8_5_b3 %s\n", name); }
+        catch (const std::exception& e) {
+            ++failures;
+            std::printf("FAIL b8_5_b3 %s: %s\n", name, e.what());
+        }
+    };
 
-	// B3 = 51: the very next shaped line completes the 52-line count and the
-	// raw classic request fires. PA7 delays CPU delivery separately; preserve
-	// the original eight-tick counter deadline at the raw observation.
-	b8_global_reset(dut, tick);
-	B8Header h;
-	b8_set_short_frame_crtc(h);
-	h.crtc[7] = 60;   // keep VSYNC (and its counter re-sync) out of the window
-	h.intcnt = 51;
-	B8ChunkParams p;
-	p.dcsr = 0x00;
-	B8ApplySample s51;
-	b8_stream_chunk_apply(dut, tick, p, h, &s51);
-	if (!s51.ga_int_n)
-		fail("B8-5 GA int: restoring B3=51 with B4=0 asserted an interrupt at the apply");
-	b8_wait_hsync_falls(dut, tick, 1, "GA int");
-	bool fired = false;
-	for (int i = 0; i < 8 && !fired; ++i) {
-		if (!dut.ga_raw_int_n_out) { fired = true; break; }
-		tick();
-	}
-	if (!fired)
-		fail("B8-5 GA int: B3=51 did not complete the raw 52-line count on the next line");
-	// Conditional V5 bound with the retained raw phase: compatible delivery
-	// occurs roughly 56..71 production master ticks later. This fixture ties
-	// cen_16 high (16 MHz steps), unlike production at one enable per four
-	// 64 MHz master ticks. Round the 55/72 bounds outward to 13/18 steps.
-	// Check both sides after restore too,
-	// rather than broadening the old counter assertion to accept lateness.
-	for (int i = 0; i < 13; ++i) {
-		tick();
-		if (!dut.ga_int_n_out)
-			fail("B8-5 GA int: compatible delivery too early after restored counter fired");
-	}
-	bool delivered = false;
-	for (int i = 13; i < 18; ++i) {
-		tick();
-		if (!dut.ga_int_n_out) { delivered = true; break; }
-	}
-	if (!delivered)
-		fail("B8-5 GA int: restored counter request did not reach compatible delivery");
-
-	// B3 = 0: the counter is at the start of its cycle, so no interrupt for
-	// several lines.
-	b8_global_reset(dut, tick);
-	B8Header h0 = h;
-	h0.intcnt = 0;
-	b8_stream_chunk_apply(dut, tick, p, h0);
-	for (int i = 0; i < 4; ++i) {
-		b8_wait_hsync_falls(dut, tick, 1, "GA int early");
-		if (!dut.ga_int_n_out)
-			fail("B8-5 GA int: B3=0 fired within four lines of the apply");
-	}
-
+    // SNA has no subcharacter line history. This settled-origin convention
+    // is import compatibility policy. Use delivered /INT and actual video
+    // HS ends: B3=51 wraps on end1, B3=0 on end52. ACCC FR §§27.1–27.2
+    // p.283 supplies the counter rule, not a private raw-latch deadline.
+    auto counter = [&](unsigned seed, unsigned eligible_end) {
+        b8_global_reset(dut, tick);
+        B8Header hc = h;
+        hc.intcnt = seed;
+        B8ApplySample sample;
+        b8_stream_chunk_apply(dut, tick, p, hc, &sample);
+        if (!sample.ga_int_n || !dut.ga_int_n_out)
+            fail("B8-5 GA int: counter-only restore asserted IRQ at apply");
+        unsigned ends = 0, transitions = 0;
+        bool hs = dut.video_hs;
+        bool irq_n = dut.ga_int_n_out;
+        bool delivered = false;
+        for (unsigned guard = 0; guard < (eligible_end + 2) * 2048; ++guard) {
+            tick();
+            const bool end = hs && !dut.video_hs;
+            if (end) ++ends;
+            hs = dut.video_hs;
+            if (irq_n && !dut.ga_int_n_out) {
+                ++transitions;
+                if (end || ends != eligible_end)
+                    fail("B8-5 GA int: B3=" + std::to_string(seed) +
+                         " delivered after " + std::to_string(ends) +
+                         " HS ends, expected " + std::to_string(eligible_end));
+                delivered = true;
+            }
+            if (delivered && dut.ga_int_n_out)
+                fail("B8-5 GA int: counter request did not hold until ACK");
+            irq_n = dut.ga_int_n_out;
+            if (ends > eligible_end) break;
+        }
+        if (!delivered || transitions != 1 || ends != eligible_end + 1)
+            fail("B8-5 GA int: B3=" + std::to_string(seed) +
+                 " did not deliver once between eligible/next HS ends");
+        dut.ga_m1_n = 0;
+        dut.ga_iorq_n = 0;
+        for (int i = 0; i < 8; ++i) tick();
+        if (!dut.ga_int_n_out)
+            fail("B8-5 GA int: counter request did not retire on first ACK");
+        dut.ga_iorq_n = 1;
+        dut.ga_m1_n = 1;
+        // More than a full history refill; fewer than 52 fresh line ends.
+        for (int i = 0; i < 1024; ++i) {
+            tick();
+            if (!dut.ga_int_n_out)
+                fail("B8-5 GA int: counter import/ACK left a refill ghost");
+        }
+        std::printf("B8 counter seed=%u delivered transitions=%u eligible_end=%u\n",
+                    seed, transitions, eligible_end);
+    };
+    run("B3=51", [&] { counter(51, 1); });
+    run("B3=0", [&] { counter(0, 52); });
 	auto aregs_read = [&](uint16_t addr) -> uint8_t {
 		dut.aregs_cs = 1;
 		dut.aregs_mem_rd = 1;
@@ -2119,12 +2138,10 @@ void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
 		return d;
 	};
 
+    run("B4 raster", [&] {
 	// B4 = 1 with no DMA flag pending: the GA holds the level, the first
 	// acknowledge retires it, and it does not come back on its own.
 	b8_global_reset(dut, tick);
-	B8Header hi = h;
-	hi.intcnt = 0;
-	hi.intreq = 1;
 	B8ApplySample si;
 	b8_stream_chunk_apply(dut, tick, p, hi, &si);
 	if (si.ga_int_n)
@@ -2146,13 +2163,16 @@ void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
 	for (int i = 0; i < 4; ++i) tick();
 	if (dut.int_n_merged != 1)
 		fail("B8-5 GA int: aggregate INT_n not retired after raster acknowledge");
-	bool raster_stat_ok = ((aregs_read(0x2C0F) & 0x80) != 0);
+	if (!(aregs_read(0x2C0F) & 0x80))
+		fail("B8-5 GA int: first raster acknowledge did not set DCSR bit 7");
 	for (int i = 0; i < 200; ++i) {
 		tick();
 		if (!dut.ga_int_n_out)
 			fail("B8-5 GA int: the restored interrupt was duplicated after its acknowledge");
 	}
 
+    });
+    run("B4 DMA", [&] {
 	// B4 = 1 that the restored DCSR already explains: attributed to the DMA
 	// path, so the GA line stays clear while the aggregate level is preserved.
 	// DCSR bit 7 (last-ack-was-raster) survives the apply untouched.
@@ -2185,16 +2205,18 @@ void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
 	for (int i = 0; i < 4; ++i) tick();
 	if (dut.int_n_merged != 1)
 		fail("B8-5 GA int: aggregate INT_n not retired after DMA acknowledge");
-	bool dma_stat_ok = ((aregs_read(0x2C0F) & 0x80) == 0);
-
-	if (!raster_stat_ok && !dma_stat_ok)
-		fail("B8-5 GA int: both first-ack provenances failed: raster did not set bit 7 and DMA left bit 7 sticky");
-	else if (!raster_stat_ok)
-		fail("B8-5 GA int: first raster acknowledge did not set DCSR bit 7");
-	else if (!dma_stat_ok)
+	if (aregs_read(0x2C0F) & 0x80)
 		fail("B8-5 GA int: first DMA acknowledge left restored DCSR bit 7 sticky");
+	for (int i = 0; i < 1024; ++i) {
+		tick();
+		if (!dut.int_n_merged || !dut.ga_int_n_out)
+			fail("B8-5 GA int: DMA-restored pending duplicated after first ACK");
+	}
 
-	std::printf("PASS b8_5_b3: GA interrupt counter B3 and pending-flag B4 attribution\n");
+    });
+    if (failures)
+        fail("B8-5 GA int: " + std::to_string(failures) + " independent subcases failed");
+    std::printf("PASS b8_5_b3: settled B3 cadence, B4 source/vector/DCSR/first-ACK/no duplicate\n");
 }
 
 // --- Test 12: palette provenance, no phantom legacy event, first CPU write.

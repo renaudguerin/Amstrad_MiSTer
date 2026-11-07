@@ -6,8 +6,8 @@
 //
 //   pr01  PRI=0 baseline: interrupt period stays exactly 52 lines; the
 //         last-ack-was-raster level latches on each raster acknowledge,
-//         never on the fire itself (lockstep already pins the full
-//         output set; this pins the new export).
+//         never on the fire itself. GA lockstep owns common non-IRQ pins;
+//         this owner checks delivered IRQ and raster-ACK provenance.
 //   pr02  PRI=k: counter fires are suppressed; INT_N falls at the ordinary
 //         request of the matching line (phase pinned by pr10), at the
 //         same intra-line offset every time (self-calibrated on the first
@@ -30,11 +30,10 @@
 //   pr11  PRI write window, one character past raw HSYNC (probe 04).
 //   pr12  HSYNC crossing into the PRI line at R2=49..63 (probes 05-09, 19-20).
 //   pr10-pr12 use the plus_hw_probes geometry (R0=63).
-//   pr14  classic (compatible) delivery one character after raw assertion:
-//         V5 conditional bounds (not delivered by 55, delivered by 72),
-//         MRER cancellation / DMA ACK retention in the
-//         pending window, PRI mask/unmask maturation and SNA immediate
-//         delivery controls.
+//   pr14  compatible delivery at real HS ends: VS second-end bit5 gating,
+//         52 following ends, MRER clear, DMA-selected ACK retention,
+//         established-request masking, settled SNA immediate pending and
+//         late raster-ACK bit5 clear with low5-bit count retention.
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
 // inline — never read back out of the simulator.
@@ -77,6 +76,7 @@ public:
 	uint8_t pri = 0;
 	uint16_t crtc_line = 0;
 	bool adj = false;
+	bool vsync_i = true; // changed only after producer character boundaries in pr14
 	// persistent bus stimulus (tick() applies these verbatim)
 	bool iorq_n = true, mreq_n = true, m1_n = true, rd_n = true;
 	uint16_t bus_a = 0;
@@ -116,7 +116,7 @@ public:
 		dut.RD_N = rd_n ? 1 : 0;
 		dut.IORQ_N = iorq_n ? 1 : 0;
 		dut.HSYNC_I = hs_i;
-		dut.VSYNC_I = 1;
+		dut.VSYNC_I = vsync_i;
 		dut.pri = pri;
 		dut.intack = (!iorq_n && !m1_n) ? 1 : 0;
 		// The real input comes from asic_video's VC/RC taps which wrap at
@@ -159,7 +159,6 @@ public:
 		run(64);
 	}
 
-	// MRER bit 4 write through the fast GA-port path clears any interrupt.
 	// Z80-style acknowledge: raises a stuck INT and latches the
 	// last-ack-was-raster level from the raster request pending at
 	// acknowledge start (clears it when nothing is pending).
@@ -203,8 +202,7 @@ void pr01_baseline(PriBench& b) {
 	b.power_on();
 	// INT_N has no reset term and starts stuck low in simulation; the
 	// first acknowledge raises it and the second establishes the
-	// asserted idle baseline, so both measured fires are genuine
-	// events (same discipline as r02).
+	// asserted idle baseline, so both measured fires are genuine events.
 	b.empty_ack(); // clears the simulator zero-init INT level
 	b.empty_ack(); // genuinely idle acknowledge
 	if (b.dut.int_last_raster != 0)
@@ -898,196 +896,234 @@ void pr13_fire_clears_counter_bit5() {
     std::printf("PASS pr13: PRI fire clears 40 to 8 before ACK; CPC resumes after 44 falls\n");
 }
 
-// pr14: classic (compatible) delivery one character after raw assertion.
-//
-// Source: docs/plus/pa7-interrupt-phase-followup.md V5 original-6128-Plus
-// results. With the shared-CPU sampling correction applied in T80, compatible delivery needs approximately one additional
-// microsecond: disposable counterfactual C16 (common 16 ticks) + K64
-// (compatible-only 64 ticks) matches all six V5 screens, while K64 alone
-// leaves the two pass-A RET edges 32 dots early. The surviving hardware
-// window with CPU correction is roughly 56..71 master ticks of compatible
-// delay. Under the retained raw-counter phase, this vector asserts loose
-// bounds on the chosen delivery model:
-//
-//   - INT_N must still be high 55 ticks after the raw classic latch falls
-//     (current RTL delivers immediately, so this fails before the fix);
-//   - INT_N must be low by 72 ticks after raw.
-//
-// These bounds are inferred from V5 with the retained raw-counter phase;
-// they are not measurements of the physical INT pin. The chosen next
-// CCLK_EN_N sampling edge (about one character / ~63 master ticks after raw) is a separately labeled MODEL
-// POLICY: these screens do not distinguish delays within the same CPU
-// sampling interval, and the follow-up
-// records that a fractional delay, a shared-HSYNC shift or a different
-// sub-character phase could give the same pictures. The conditional 55/72
-// window checks this model; an exact next-CCLK assertion would merely
-// mirror the implementation and is deliberately omitted.
-//
-// MRER cancellation must prevent a delivered pulse. Original-Plus overlap
-// photographs supersede the former ACK-cancels-undelivered assumption:
-// DMA ACK retains compatible pending. Hidden classic pending keeps
-// maturing while PRI masks delivery, and an SNA-restored pending request
-// is seeded already delivered (SNA_LOAD sets delivery exactly as raw).
-static uint64_t pr14_wait_raw(PriBench& b, const char* who) {
-    uint64_t guard = 0;
-    while (b.dut.rootp->asic_ga_timing__DOT__classic_int_n != 1) {
+// pr14 owns the compatible IRQ contract at delivered INT_N and actual
+// producer HS ends. ACCC FR §§27.1–27.2 p.283, §27.3.2 p.284: one update
+// per end, unconditional second-end VS rephase, bit-5 qualification, 52
+// subsequent ends to normal wrap. V5 owns tight software phase; private raw
+// latch +55/+72 bounds depended on a counter phase the hardware rejected.
+// Snapshot import below is a settled-history compatibility policy, not a
+// claim that the SNA format records the silicon's subcharacter history.
+void pr14_setup(PriBench& b) {
+    b.line_chars = 64;
+    b.hs_start = 16;
+    b.hs_width = 8 * kCharClks;
+    b.vsync_i = false; // park the monitor walk before a controlled restart
+    b.power_on();
+    b.empty_ack();
+    b.empty_ack();
+    // Cold hcnt is not yet the parked lost-sync origin: its initial walk
+    // can rephase the counter even without a VS edge. Let the complete
+    // monitor walk expire before defining the MRER/count epoch.
+    b.run(34u * b.line_clks());
+    while (b.chr != 32) b.tick(); // inactive HS, ample bus-write margin
+    b.ga_mrer_clear();
+    if (!b.dut.INT_N) fail("pr14 setup: MRER did not establish idle INT");
+}
+
+void pr14_ends(PriBench& b, unsigned ends, const char* who,
+              bool require_idle = true) {
+    unsigned seen = 0;
+    for (uint64_t guard = 0; seen < ends; ++guard) {
+        if (guard > uint64_t(ends + 2) * b.line_clks())
+            fail(std::string(who) + ": producer HS timeout");
+        const bool hs = b.in_hs;
         b.tick();
-        if (++guard > 120u * kLineClks)
-            fail(std::string(who) + ": never reached idle classic before raw");
-    }
-    guard = 0;
-    while (true) {
-        b.tick();
-        if (++guard > 120u * kLineClks)
-            fail(std::string(who) + ": no classic raw event within budget");
-        if (b.dut.rootp->asic_ga_timing__DOT__classic_int_n == 0)
-            return b.cyc;
+        if (require_idle && !b.dut.INT_N)
+            fail(std::string(who) + ": early delivered IRQ after " +
+                 std::to_string(seen) + " complete HS ends");
+        if (hs && !b.in_hs) ++seen;
     }
 }
 
-void pr14_classic_delivery() {
-    // A1: hardware bounds — not delivered by 55, delivered by 72.
-    {
-        PriBench b;
-        b.power_on();
-        b.empty_ack();
-        b.empty_ack();
-        b.pri = 0;
-        b.run(2);
-        pr14_wait_raw(b, "pr14 delay");
-        for (unsigned i = 0; i < 55; ++i) {
-            b.tick();
-            if (b.dut.INT_N == 0)
-                fail("pr14 delay: classic INT delivered " + std::to_string(i + 1) +
-                     " ticks after raw, must stay high for 55 (V5 needs ~64)");
-        }
-        bool delivered = false;
-        for (unsigned i = 55; i < 72; ++i) {
-            b.tick();
-            if (b.dut.INT_N == 0) { delivered = true; break; }
-        }
-        if (!delivered)
-            fail("pr14 delay: classic INT not delivered by 72 ticks after raw (V5 needs ~64)");
-        b.empty_ack();
+void pr14_delivery_before_next_end(PriBench& b, const char* who,
+                                   bool ordinary_wrap = false,
+                                   uint64_t eligible_tick = 0) {
+    // Strictly after the eligible producer end, before the next end.
+    // Ordinary wraps additionally retain a coarse <=2-character regression
+    // envelope: V5's original-Plus markers constrain the ordinary software
+    // acceptance phase after the CPU sampling fix (pa7-interrupt-phase-
+    // followup.md), and the MRER program constrains the HS-end anchor.
+    // A whole extra character would cross a NOP acceptance slot. This is
+    // a conservative model policy, NOT an ACCC electrical INT-delay bound;
+    // VS rephase keeps only its independently sourced line window.
+    if (!eligible_tick) eligible_tick = b.cyc;
+    if (!b.dut.INT_N) fail(std::string(who) + ": IRQ preceded eligible HS end");
+    for (unsigned guard = 0; guard < b.line_clks() + kCharClks; ++guard) {
+        if (ordinary_wrap && b.cyc - eligible_tick >= 2u * kCharClks)
+            fail(std::string(who) + ": ordinary delivery exceeded two-character regression envelope");
+        const bool hs = b.in_hs;
+        b.tick();
+        if (hs && !b.in_hs)
+            fail(std::string(who) + ": IRQ missing before next HS end");
+        if (!b.dut.INT_N) return;
     }
-    // B: MRER bit 4 inside the pending window cancels with no ghost pulse.
-    {
-        PriBench b;
-        b.power_on();
-        b.empty_ack();
-        b.empty_ack();
-        b.pri = 0;
-        b.run(2);
-        pr14_wait_raw(b, "pr14 MRER");
-        if (b.dut.INT_N == 0)
-            fail("pr14 MRER: INT already low at raw, must stay high until delivery (too early)");
-        b.fast = true;
-        b.iorq_n = false;
-        b.bus_a = 0x4000 >> 14;
-        b.bus_d = 0x90;
-        bool cleared = false;
-        for (unsigned i = 0; i < 60; ++i) {
-            b.tick();
-            if (b.dut.INT_N == 0)
-                fail("pr14 MRER: ghost INT asserted before MRER cleared raw (old delivers too early)");
-            if (b.dut.rootp->asic_ga_timing__DOT__classic_int_n == 1) { cleared = true; break; }
-        }
-        if (!cleared) fail("pr14 MRER: MRER did not clear raw within 60 ticks");
-        b.iorq_n = true;
-        b.fast = false;
-        b.run(2);
-        for (unsigned i = 0; i < 100; ++i) {
-            b.tick();
-            if (b.dut.INT_N == 0)
-                fail("pr14 MRER: ghost INT after window-cancelled raw");
-        }
-    }
-    // C: Original-Plus overlap (2026-09-28) retains both sources. Exercise
-    // release before delivery and delivery inside the same held DMA ACK.
-    // Internal timing is model preservation; source survival is hardware.
-    for (unsigned ack_ticks : {4u, 100u}) {
-        PriBench b;
-        b.power_on();
-        b.empty_ack();
-        b.empty_ack();
-        b.pri = 0;
-        b.run(2);
-        pr14_wait_raw(b, "pr14 ACK");
-        if (b.dut.INT_N == 0)
-            fail("pr14 ACK: INT already low at raw, must stay high until delivery (too early)");
-        b.iorq_n = false;
-        b.m1_n = false;
-        for (unsigned i = 0; i < ack_ticks; ++i) {
-            b.tick();
-            if (i < 55 && b.dut.INT_N == 0)
-                fail("pr14 ACK: delivery moved earlier during DMA ACK");
-            if (b.dut.int_last_raster)
-                fail("pr14 ACK: compatible maturation changed DMA provenance");
-            if (b.dut.rootp->asic_ga_timing__DOT__irqack_rst)
-                fail("pr14 ACK: DMA ACK armed held raster counter clear");
-        }
-        b.iorq_n = true;
-        b.m1_n = true;
-        b.run(2);
-        b.run(100);
-        if (b.dut.INT_N || b.dut.rootp->asic_ga_timing__DOT__classic_int_n)
-            fail("pr14 ACK: DMA ACK lost compatible request");
+    fail(std::string(who) + ": delivery timeout");
+}
+
+void pr14_rephase(unsigned preceding_ends) {
+    PriBench b;
+    pr14_setup(b);
+    pr14_ends(b, preceding_ends, "pr14 A pre-VS");
+    while (b.chr != 0) b.tick();
+    // Producer advances VS on a character boundary, after DUT sampling,
+    // as asic_video does. No new port or private latch observation.
+    b.vsync_i = true;
+    pr14_ends(b, 2, "pr14 A second-end rephase");
+    // First VS-interval end increments p to p+1; the second samples that
+    // old count before clearing. p30 ->31/silent, p31 ->32/request. This
+    // matches physical frame N32/N33 counts0/64 (p=N-2), not p>=32.
+    if (preceding_ends >= 31) {
+        pr14_delivery_before_next_end(b, "pr14 A bit5 rephase");
         b.empty_ack();
         if (!b.dut.INT_N || !b.dut.int_last_raster)
-            fail("pr14 ACK: subsequent raster ACK must retire retained request");
+            fail("pr14 A: rephase IRQ did not acknowledge as raster");
     }
-    // D: MODEL POLICY: hidden classic pending matures under PRI mask.
-    // This pins the selected delayed-delivery mechanism, not later raw timing.
-    // Classic only fires with PRI==0, so the pending must exist before the
-    // mask (pr08 pattern): raw with PRI=0, mask inside the undelivered
-    // window, let delivery mature hidden, then unmask for immediate INT.
-    {
-        PriBench b;
-        b.power_on();
-        b.empty_ack();
-        b.empty_ack();
-        b.pri = 0;
-        b.run(2);
-        pr14_wait_raw(b, "pr14 PRI mask");
-        b.pri = 200;
-        b.run(2);
-        for (unsigned i = 0; i < 100; ++i) {
-            b.tick();
-            if (b.dut.INT_N != 1)
-                fail("pr14 PRI: INT must stay high while PRI nonzero masks hidden pending");
-        }
-        b.pri = 0;
-        b.run(2);
-        if (b.dut.INT_N != 0)
-            fail("pr14 PRI: unmasking to PRI=0 must expose matured classic immediately");
-        b.empty_ack();
-        if (b.dut.INT_N != 1 || b.dut.int_last_raster != 1)
-            fail("pr14 PRI: unmasked classic must acknowledge as raster");
-    }
-    // E: SNA restore seeds delivery as raw, so restored pending is immediate.
-    {
-        PriBench b;
-        b.power_on();
-        b.empty_ack();
-        b.empty_ack();
-        b.pri = 0;
-        b.run(2);
-        b.dut.SNA_LOAD = 1;
-        b.dut.SNA_INTCNT = 0;
-        b.dut.SNA_VSDELAY = 0;
-        b.dut.SNA_VS = 1;
-        b.dut.SNA_HS = 0;
-        b.dut.SNA_INT = 1;
+    pr14_ends(b, 52, "pr14 A following wrap");
+    pr14_delivery_before_next_end(b, "pr14 A following wrap", true);
+    b.empty_ack();
+    if (!b.dut.INT_N || !b.dut.int_last_raster)
+        fail("pr14 A: normal wrap IRQ did not acknowledge as raster");
+    pr14_ends(b, 2, "pr14 A no duplicate");
+    std::printf("PASS pr14 A%u: second-end VS bit5 qualification, next wrap after 52 ends, ACK/no duplicate\n",
+                preceding_ends);
+}
+
+void pr14_mrer() {
+    PriBench b;
+    pr14_setup(b);
+    wait_fire(b, "pr14 B request", 54u * b.line_clks());
+    b.ga_mrer_clear();
+    if (!b.dut.INT_N) fail("pr14 B: MRER did not clear delivered request");
+    pr14_ends(b, 2, "pr14 B MRER no refill ghost");
+    std::printf("PASS pr14 B: MRER clears delivered compatible request, no refill ghost\n");
+}
+
+void pr14_dma_ack(unsigned hold_after_end) {
+    PriBench b;
+    pr14_setup(b);
+    pr14_ends(b, 51, "pr14 C before wrap");
+    while (b.chr != 8) b.tick(); // next line, before its eligible HS end
+    b.iorq_n = false;
+    b.m1_n = false; // no raster delivered at ACK start: DMA/expansion source
+    pr14_ends(b, 1, "pr14 C eligible producer end");
+    const uint64_t wrap_end_tick = b.cyc;
+    // At this producer edge the DUT still saw the old HS level. The zero
+    // hold releases ACK BEFORE the DUT samples raw fall; the long hold
+    // crosses creation and delivery under the same DMA-selected ACK.
+    for (unsigned i = 0; i < hold_after_end; ++i) {
         b.tick();
-        b.dut.SNA_LOAD = 0;
-        b.run(2);
-        if (b.dut.INT_N != 0)
-            fail("pr14 SNA: restored classic pending must be immediately delivered");
-        b.empty_ack();
-        if (b.dut.INT_N != 1)
-            fail("pr14 SNA: restored pending must acknowledge");
+        if (b.dut.int_last_raster)
+            fail("pr14 C: compatible creation changed held DMA provenance");
+        if (b.dut.INT_N && b.cyc - wrap_end_tick >= 2u * kCharClks)
+            fail("pr14 C: ordinary delivery exceeded two-character regression envelope");
     }
-    std::printf("PASS pr14: compatible delivery bounds, MRER cancel, DMA ACK retention, PRI/SNA controls\n");
+    b.iorq_n = true;
+    b.m1_n = true;
+    b.run(8); // observable bus release separates this ACK from the next
+    // For the short ACK delivery is still due; for the long ACK it may
+    // already be low. In either case the request must survive the release.
+    if (b.dut.INT_N)
+        pr14_delivery_before_next_end(b, "pr14 C retained request", true, wrap_end_tick);
+    if (b.dut.int_last_raster)
+        fail("pr14 C: DMA ACK was reclassified as raster");
+    b.empty_ack();
+    if (!b.dut.INT_N || !b.dut.int_last_raster)
+        fail("pr14 C: subsequent raster ACK did not retire retained request");
+    pr14_ends(b, 2, "pr14 C no duplicate");
+    std::printf("PASS pr14 C %s: compatible request survives, next raster ACK retires once\n",
+                hold_after_end ? "held through creation/delivery" : "released before DUT raw-fall sampling");
+}
+
+void pr14_mask() {
+    PriBench b;
+    pr14_setup(b);
+    wait_fire(b, "pr14 D request", 54u * b.line_clks());
+    // The physical coverage is retention/masking of an established request.
+    // Hidden undelivered maturation remains model policy without a raw-latch
+    // timing assertion. Adjustment prevents an unrelated programmed match.
+    b.pri = 255;
+    b.adj = true;
+    b.run(2);
+    if (!b.dut.INT_N) fail("pr14 D: PRI mask did not hide compatible request");
+    pr14_ends(b, 2, "pr14 D masked request");
+    b.pri = 0;
+    b.run(2);
+    if (b.dut.INT_N) fail("pr14 D: unmask lost established compatible request");
+    b.empty_ack();
+    if (!b.dut.INT_N || !b.dut.int_last_raster)
+        fail("pr14 D: unmasked request did not acknowledge as raster");
+    pr14_ends(b, 2, "pr14 D no duplicate");
+    std::printf("PASS pr14 D: established compatible request masks, survives, unmasks and clears\n");
+}
+
+void pr14_snapshot() {
+    PriBench b;
+    pr14_setup(b);
+    b.dut.SNA_LOAD = 1;
+    b.dut.SNA_INTCNT = 0;
+    b.dut.SNA_VSDELAY = 0;
+    b.dut.SNA_VS = 0;
+    b.dut.SNA_HS = 0;
+    b.dut.SNA_INT = 1;
+    b.tick();
+    b.dut.SNA_LOAD = 0;
+    if (b.dut.INT_N) fail("pr14 E: restored pending was not immediate");
+    b.empty_ack();
+    if (!b.dut.INT_N || !b.dut.int_last_raster)
+        fail("pr14 E: restored pending did not acknowledge as raster");
+    pr14_ends(b, 2, "pr14 E no refill ghost");
+    std::printf("PASS pr14 E: settled pending import immediate, first ACK retires, no refill ghost\n");
+}
+
+// ACCC FR §27.3.1 p.284 and §27.7.1 p.288: a delayed raster ACK
+// clears only bit5. The producer ends below are counted independently of
+// private counter state; ACK is settled well outside the HS end aperture.
+void pr14_late_raster_ack() {
+    PriBench b;
+    pr14_setup(b);
+    pr14_ends(b, 52, "pr14 F first wrap");
+    pr14_delivery_before_next_end(b, "pr14 F first wrap", true);
+    pr14_ends(b, 40, "pr14 F pending accumulation", false);
+    while (b.chr != 32) b.tick(); // let end40 commit before bus ACK
+    if (b.dut.INT_N)
+        fail("pr14 F: compatible request did not remain pending through 40 ends");
+    b.empty_ack();
+    if (!b.dut.INT_N || !b.dut.int_last_raster)
+        fail("pr14 F: late compatible ACK did not retire as raster");
+    // 40 &31 =8; 52-8=44. Retaining40 would fire after12 ends;
+    // clearing the whole count would incorrectly postpone it to52.
+    pr14_ends(b, 43, "pr14 F low5 retained/no refill ghost");
+    pr14_ends(b, 1, "pr14 F end44");
+    pr14_delivery_before_next_end(b, "pr14 F end44", true);
+    b.empty_ack();
+    if (!b.dut.INT_N || !b.dut.int_last_raster)
+        fail("pr14 F: following wrap did not retire as raster");
+    pr14_ends(b, 2, "pr14 F no duplicate");
+    std::printf("PASS pr14 F: late raster ACK clears40 to8; idle43 ends, delivery after44, no ghost\n");
+}
+
+void pr14_classic_delivery() {
+    unsigned failures = 0;
+    auto run = [&](const char* name, auto fn) {
+        try { fn(); }
+        catch (const TestFailure& e) {
+            ++failures;
+            std::printf("FAIL %s: %s\n", name, e.what());
+        }
+    };
+    // Independent instances/catches ensure a failed phase guard cannot
+    // suppress MRER, overlap, masking or import evidence.
+    run("pr14 A8", [] { pr14_rephase(8); });
+    run("pr14 A30", [] { pr14_rephase(30); });
+    run("pr14 A31", [] { pr14_rephase(31); });
+    run("pr14 A32", [] { pr14_rephase(32); });
+    run("pr14 B", pr14_mrer);
+    run("pr14 C pre-sample release", [] { pr14_dma_ack(0); });
+    run("pr14 C held through creation", [] { pr14_dma_ack(2 * kCharClks); });
+    run("pr14 D", pr14_mask);
+    run("pr14 E", pr14_snapshot);
+    run("pr14 F", pr14_late_raster_ack);
+    if (failures) fail("pr14: " + std::to_string(failures) + " independent subcases failed");
 }
 
 int main(int argc, char** argv) {
