@@ -3,9 +3,10 @@
 The corrected CRTC3 source is now tested privately on MiSTer as `ae8bc6c`.
 It matches the new real-6128-Plus photographs: all48 BR01F0 opcode/results,
 all18 BR01F1 timing records and128/128 MRER phases. The VS31/32/33 probe
-preserves0/0/64 accepted interrupts. Full Quartus timing and production-T80
-pass; broader source gates still fail on old raw-IRQ assumptions. This is
-hardware-backed experimental evidence, not READY or an integrated fix.
+preserves0/0/64 accepted interrupts. The ae8 full fit and production-T80 pass. Successor10e905c replaces the
+old raw-IRQ assumptions with independently reviewed producer-end, late-ACK,
+VS-threshold and snapshot coverage; all47 selected benches pass. Final release
+synthesis/native preservation is separate. This is not a master integration.
 [Exact physical/native comparison and limits](real-plus-irq-comparison-2026-11-07.md).
 
 The causal evidence below explains the bounded model and the earlier rejected
@@ -73,8 +74,9 @@ The review also finds the old differential stimulus has a64-master-tick period
 sampled every64ticks, so it can alias to a constant. Its failure is not evidence
 of a mere character-phase shift, and its aborted tails need a legal producer
 stimulus. PRI writes between raw/delayed falls and restored VS-delay state remain
-explicit review concerns. Current-tip final gates and justified IRQ/snapshot replacement coverage remain
-before adoption. The private full fit and native BR/MRER/threshold comparison
+explicit review concerns. The justified IRQ/snapshot replacement coverage now passes47 selected benches
+on10e905c after complete cross-provider review. Final release acceptance remains
+before publication. The private full fit and native BR/MRER/threshold comparison
 have completed; broader exact-build preservation remains scoped. The
 original-Plus MRER-between-edges discriminator and counter-clock alternatives
 remain in the [ACK investigation](shaker-crtc3-br-ack-boundary-2026-11-06.md).

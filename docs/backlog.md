@@ -465,8 +465,10 @@ with vertical scrolling during Copter 271 gameplay remain (may have been present
 investigation). Sonic GX test was inconclusive: visual behavior may have improved, but the display
 remains too severely corrupted by remaining video/split timing defects (Hazard 2) to assess in isolation.
 Reviewed by Claude Opus 5 (CLEAR). Deterministic vector `pr07` in `sim/plus/asic_pri_test.cpp` covers
-dynamic calibration, DMA ack, prior raster ack, and negative control. Classic `pri == 0` lockstep
-with `ga40010` is preserved (when `intack = 0`).
+dynamic calibration, DMA ack, prior raster ack, and negative control. Current successor coverage retains common non-IRQ `ga40010` lockstep under
+ACK/reset storms. Plus IRQ phase uses independent producer-end, physical
+program and late-ACK constraints; classic raw-IRQ equivalence is superseded
+by the real-Plus evidence. [Current comparison](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md).
 
 The active queue is [roadmap section 8](implementation-roadmap.md#8-immediate-execution-queue).
 B2 capture and B6 rendering are integrated; retain their hardware/evidence residuals.

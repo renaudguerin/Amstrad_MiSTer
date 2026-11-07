@@ -13,13 +13,13 @@ unknown because extraC9sweep lacks hardware reference. CRTC0/1 AI008F numeric
 comparisons pass after reviewed reference readings. CRTC3 E0406 passes on5c1ab57;
 DU03BF and03C0 pass on cb3a1a6 after the status corrections. See the
 [A4 correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
-The private CRTC3 candidate `ae8bc6c` now matches the user's real 6128 Plus
+The release candidate `354388d` now matches the user's real 6128 Plus
 captures for BR01F0/01F1: all48 opcode/results and all18 complete timing records.
 Both MRER pages also match128/128 phases; the preceding model misses two phase
 boundaries. VS31/32/33 preserves0/0/64 interrupts in all three repetitions.
-These two page judgments move to passing on that experimental build. Its global
-gate remains red pending justified replacement of old raw-IRQ assumptions;
-this is not READY, integration or a full baseline.
+These two page judgments are now passing on the final release bitstream. The reviewed IRQ test contract passes47 selected benches. Exact354 full CI,
+Quartus timing and six targeted native checks now pass, including fresh BR
+comparisons on the final bitstream. This is not a full baseline.
 [Physical comparison](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md).
 Both CRTC3 STATUS2 corrections pass original CPU RED/GREEN, 46 selected benches,
 fresh Opus review, full fit and native acceptance on cb3a1a6. DU03C0 now shows
@@ -121,10 +121,10 @@ allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
   capture. Same-RBF direct gives4E40, but exact source-font checking corrects
   the fdf prefix-repeat reading to0440. That repeat is not a passing control.
   [Current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
-- **C3 BR page matches on private candidate:** all66 measured records match
-  the new physical Plus captures on `ae8bc6c`; accepted `cb3a1a6` still has the
-  five incorrect bytes and three thresholds. Source/gate readiness is separate
-  from these passing page comparisons. The bounded normal-count/VS split and
+- **C3 BR page matches on release candidate:** all 66 measured records match
+  the real Plus captures on `354388d`; accepted `cb3a1a6` still has the
+  five incorrect bytes and three thresholds. Exact354 full CI, timing and targeted native acceptance now pass; a full
+  corpus refresh remains separate. The bounded normal-count/VS split and
   unresolved dynamic PRI aperture remain documented model limits.
   [Hardware comparison](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md).
 - **Closed CRTC3 status/overflow:** DU03C0 and all E0406 ordinary/ROM checks

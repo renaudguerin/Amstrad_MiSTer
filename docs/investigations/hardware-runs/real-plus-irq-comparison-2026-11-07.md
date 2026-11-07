@@ -54,8 +54,10 @@ It is on `codex/c3-br-private-hardware-20261107`, without V1. Its full Quartus
 17.0.2 fit closes all seven setup/hold domains, minimum slack 0.215/0.242 ns.
 The production-T80 CI job passes. The overall workflow remains red because
 existing fast tests assume the preceding raw IRQ phase. Those failures are
-preserved and need justified replacement coverage before READY; hardware
-matches do not waive them.
+preserved. Successor `10e905c` supplies independently reviewed producer-end,
+VS-threshold, late-ACK and snapshot replacement coverage and passes all47
+selected benches, without changing the functional ASIC source. Hardware
+matches did not waive those gates; the final release build remains separate.
 
 The before RBF is the passive `0c9f6c8` observer over the accepted functional
 `cb3a1a6` model, SHA256
