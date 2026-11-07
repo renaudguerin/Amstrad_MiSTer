@@ -1,6 +1,6 @@
 # Current status
 
-Fresh-session handover, 6 November 2026. The [roadmap](implementation-roadmap.md)
+Fresh-session handover, 7 November 2026. The [roadmap](implementation-roadmap.md)
 sets work order and acceptance gates; the [backlog](backlog.md) and
 [review debt](review-debt.md) track cross-cutting work. Dated investigations hold
 proof and limits. The [detailed prior handover](archive/current-status-detail-2026-11-05.md)
@@ -16,9 +16,10 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 ## Current branch and artifact
 
 - Active V1 integration branch `codex/v1-production-integration-20261106`
-  starts at the preserved investigation branch tip `ef0c109`; its receiver
-  profile is explicitly enabled for an experimental full build; native
-  acceptance remains pending.
+  checkpoint `30876b4` follows the preserved investigation tip `ef0c109`.
+  The explicitly enabled fit at `df761df` succeeds in resources but fails setup
+  timing by39.346ns; only an unused test-fixture pin differs at30876b4.
+  Receiver timing restructuring is private; no V1 bitstream is device-accepted.
   Latest device-verified functional source is still `cb3a1a6`, not integrated
   into `master`.
   [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273216780),
@@ -76,9 +77,9 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | C1 AI/008D | S2/S3 remain low versus physical1111 on both direct/canonical paths. Fresh normal-boot AmSpirit has raw1111 at64ED before cleanup, excluding its formatter/restoration as the cause. The width-clock rule still needs physical/author evidence. C0 retains its16 photographed VS-bit passes. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | 008F now passes30/30 numeric fields after independent vision/source adjudication, also on C0. 0090 has310/328 C0 and316/328 C1 matrix samples plus7 actual footer comparisons matched per CRTC;18/12 glyphs remain unresolved. 008E, 0091 and direct/full-history 009A retain acceptance. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | B6/019D, CRTC0/1 | C0 now matches all four R0 rows on8ba384e; both R7 rows remain1F versus1E. Current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Astra finds the lateR7 ordering underdetermined; a physical R7=32/33 paired discriminator is prepared. No aperture or RTL fix selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
-| C3 B6 and BR | B6 passes all six current checks; BR01F0/01F1 remain broken on accepted cb3. A private delayed-count candidate passes all13 original rows and transport on current composition, including CPI C4 and its predicted20-line next interrupt. All six V5 screens and68 DMA H1 records also match physical references. Earlier one-line phase shift and broader raw-phase/restore failures remain explicit; fresh semantic review and native acceptance are pending. [Candidate](investigations/hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md). |
+| C3 B6 and BR | B6 passes all six current checks; BR01F0/01F1 remain broken on accepted cb3. A private delayed-count candidate passes all13 original rows and transport on current composition, including CPI C4 and its predicted20-line next interrupt. All six V5 screens and68 DMA H1 records also match physical references. The original candidate recounted the VS-reset line. Corrected privateb1a8c264 passes118 focused/26 lifecycle assertions and all48+18 complete-cart fields; fresh Opus finds no HIGH/token blocker. V5/DMA recheck, neighbouring-event coverage, physical discriminators and broader gates remain open. [Candidate](investigations/hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md). |
 | C1 DI/02E3 | Native58 versus photo59; original program labels CRTC1 unreliable, so this remains excluded from confirmed broken counts. |
-| C1 S/02D3 and B9 MID | Current cb3 history gives0640 versus direct/physical/AmSpirit4E40. Passive0c9 captures both passing4E40 and failing0440 histories with valid seven-cut rings: good arrives inactive, bad with C5=15/adjustmenton. Original P cleanup and a short E/P/S subset are next; no clear-C5 fix is selected. B9 repaired3Frows pass; MID binding remains open. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
+| C1 S/02D3 and B9 MID | Current cb3 history gives0640 versus direct/physical/AmSpirit4E40. Passive0c9 captures both passing4E40 and failing0440 histories with valid seven-cut rings: good arrives inactive, bad with C5=15/adjustmenton. Short E→S gives0640/C5=23 active, P→S4E40/inactive, and E/P/S5060; all three fresh AmSpirit controls give4E40. Investigate E's outgoing adjustment state before S; no clear-C5 fix is selected. B9 repaired3Frows pass; MID binding remains open. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |
 | D6/D7 and D3 | Physical phase, oscillation and settling remain unproved; All132 D3 captures across CRTC0/1/3 now have correct parameters after a private Space-count fix; digital-content comparison remains pending; CRT deflection is separate V1 monitor-response work. DT0305 remains stale on CRTC0/1/3 because the exit grab contains the menu. [D7](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md), [D3](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md). |
 | Broader classic gates | Type1 inactive rearming; F13/F20 hardware gates; IA-5 simultaneous sync/interrupt; Q17 and D1 entry; wider phase/lifetime closure remain open. [Audit](classic/audit-findings.md), [discriminators](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md). |
@@ -121,14 +122,14 @@ now has an isolated receiver/renderer on `codex/general/v1-crt-response-20261106
 (`b291826`, READY). Eighteen frozen streams match over5,432,672 output clocks;
 47 selected benches, unchanged CRTC soak, fresh Opus review and
 [exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273531215)
-pass. The active integration explicitly enables it for the experimental full build. Its
-production-boundary proof covers motherboard/compositor/lifecycle wiring,
-but fresh Opus review found a one-dot RGB/metadata alignment defect. Its
-combined consumer repair and fresh Opus supplement now pass. Owned import passes
-48 selected benches and strict disabled/enabled motherboard lint. Fresh test
-review is reconciled: RGB/metadata/FIELD share the output consumer, while
-FRAME_FIELD is checked separately at the motherboard export. Enabled-profile
-Quartus, full-top/ASCAL and native acceptance remain. [Integration state](investigations/video-boundary/v1-production-integration-2026-11-06.md).
+pass. The active production integration has reviewed RGB/metadata alignment,
+48 selected passes and strict disabled/enabled motherboard lint. Its retained
+consumer checks RGB/metadata/FIELD together and FRAME_FIELD separately at the
+motherboard export. The enabled full fit atdf761df uses68%ALMs/104RAM blocks,
+but fails setup by39.346ns (54.277ns receiver path against15.624ns). No V1
+hardware run is accepted. A private behavior-preserving timing prototype targets
+six serial window-finalization recurrences; full-top/ASCAL/native gates remain.
+[Integration state](investigations/video-boundary/v1-production-integration-2026-11-06.md).
 Full and both Raw profiles retain their behaviour. Original T/Y and first D3
 [source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)
 is qualified separately from monitor acceptance.

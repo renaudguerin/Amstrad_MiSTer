@@ -95,3 +95,25 @@ explicit lint parameter. Final `python3 sim/select_tests.py --run` passes48
 benches; receipt and source hashes are in the private owned-integration packet,
 review-triage-20261106/FINAL-RECEIPT.json. Enabled fullfit, RAM inference,
 physical timing, full-top/ASCAL and native original-caller acceptance remain.
+
+
+## Enabled full fit: timing blocker
+
+Hosted full Quartus17.0.2 run42311949060 ondf761df fits the enabled receiver:
+28,304/41,910ALMs (68%),33,144 registers,703,161 memory bits,104 RAM blocks
+and39 DSP blocks. It fails the setup gate at−39.346ns with−54,375.932ns TNS;
+hold minimum is+0.244ns. The worst path is rise_tick[1] to offset_delay[0],
+54.277ns data delay against15.624ns. No failed-timing bitstream is installed.
+
+Source checkpoint30876b4 differs only by explicitly binding an unused cadence
+output in the production-T80 test fixture; it does not change Quartus inputs.
+Exact-SHA CI42312560023 at30876b4 passes selected simulation, lint and
+production-T80. This does not override the failed enabled timing gate.
+
+The receiver's procedural calls expand six serial window-finalization phase
+updates. A private exact-preserving sharing prototype is being investigated;
+it must prove its event-exclusivity invariant and preserve strict-prior window
+eligibility, lifecycle behavior and all frozen streams before source adoption.
+No timing exception or weaker clock constraint is authorized by this failure.
+Reports are preserved under v1-owned-integration-20261106/
+failed-enabled-fit-42311949060/ in the private session root.

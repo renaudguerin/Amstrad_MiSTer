@@ -23,7 +23,11 @@ DSC4/Amazing samples remain intact. This moves one page from broken to passing.
 
 Current cb3 S canonical prefix prints0640 WRONG versus4E40, with134commands,
 65captures and121actualFull0SSM records. Exact-font decoding and CFG restore
-pass; no new hidden-state mechanism is inferred. The page remains broken.
+pass. On the same passive observer fit, E→S gives0640 with C5=23/adjustment
+active before S, while P→S gives4E40/inactive. E/P/S gives5060; fresh AmSpirit
+controls give4E40 for all three sequences. These diagnostic subsets narrow the
+next investigation to E's outgoing state without proving all key phases or an
+original-chip rule. The page remains broken. See the [current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
 
 AI0090 matches310/328 C0 and316/328 C1 matrix samples plus seven actual
 footer comparisons per CRTC. Eighteen/twelve photo glyphs remain unresolved,

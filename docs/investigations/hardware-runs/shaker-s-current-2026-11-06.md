@@ -153,7 +153,43 @@ The default0640 cohort remains separate; the observed diagnostic0440 mechanism
 is not automatically its complete explanation.
 
 E02C9/E02CA/P02CB PNGs equal across good/bad histories, including P's26 result.
-That does not prove identical outgoing hidden state. Original P's final R5=1,
-R9=6 attempt and its final R5=0 cleanup are the sharper upstream boundary.
-A short originalE→P→S subset is now being tested; it is not canonical-history
-equivalence. No C5 clear or management-retirement fix is selected.
+That does not prove identical outgoing hidden state. The shorter original-caller
+controls below now give a more useful upstream boundary than P alone. No C5
+clear or management-retirement fix is selected.
+
+## Short original-history controls
+
+One fresh execution of each subset on the same0c9 observer fit gives:
+
+| Original sequence | Native S result | Initial A4CF adjustment state | AmSpirit S result |
+|---|---|---|---|
+| E → P → S | 5060 WRONG | C5=7, active | 4E40 |
+| E → S | 0640 WRONG | C5=23, active | 4E40 |
+| P → S | 4E40 | C5=0, inactive | 4E40 |
+
+All native panels round-trip exactly against the original bitmap font, with
+2000 known cells. Each observer has seven ordered physical-M1 samples, stable
+consecutive reads, count7/error0/drops0 and matching CFG restoration. The
+original guest program and its measurement loops are unchanged; only which
+original menu tests precede S changes. One offline decoder invocation rejected
+mutually exclusive origin/anchor arguments; correcting that invocation reused
+the preserved E/S image and did not repeat the device execution.
+
+Fresh normal-boot AmSpirit1.17.1/core2491682 runs each identical subset on
+6128/CRTC1/FR. Source-guarded original S code and read-only debugger cuts show
+HL=04E4 before scaling and4E40 afterward; each5B0A→5B17 interval is19012us.
+These peer observations do not establish an original-silicon phase rule.
+
+E/S reproduces the same displayed0640 as the earlier default build with a much
+shorter prelude. It does not prove identical hidden-state history, nor that all
+possible key phases must fail. P is not required for this measured discrepancy.
+Source review identifies E's second page02CA, not just its first-page6F79
+cleanup: twelve timed R5=8→0 trials end with the final zero at625D, followed by
+the redundant cleanup zero at6E46. The final group's second iteration uses the
+self-modified delay13E4; a first hit on625D selects the wrong trial. Neither
+the printed C0/C9 labels nor its one PB0 sample observes the actual register
+publication/completion edge. The next observation is that guarded final trial's
+accepted write and adjacent effective line end, before the first S retry probe. Preserve the documented R5=0 management behavior
+while locating that upstream transition; do not manufacture a clear-C5 fix.
+Private comparison receipts are PARENT-EPS-COMPARISON.json and
+PARENT-ES-PS-COMPARISON.json in c1-s-current-passive-build-20261106/.
