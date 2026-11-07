@@ -74,6 +74,7 @@ Mac, including the Verilator build.
 | `sim/plus run/p1_mobo_bench_tests` | fast | `rtl/Amstrad_motherboard.v` `rtl/Amstrad_MMU.v` `rtl/plus/asic_video.v` `rtl/plus/asic_ga_timing.v` | Plus-mode motherboard: register writes reach asic_video, interrupt reaches the CPU and clears |
 | `sim/plus run/asic_regs_tests` | fast | `rtl/plus/asic_regs.v` | ASIC page decode, read, write, mirrors and masks |
 | `sim/plus run/plus_sprite_ram_tests` | fast | `rtl/plus/plus_sprite_ram.v` | Sprite RAM storage contract used for M10K inference |
+| `sim/plus asic-vs-rephase` | fast | `rtl/plus/asic_ga_timing.v` `sim/plus/asic_vs_rephase_test.cpp` `sim/plus/asic_vs_rephase_lifecycle_test.cpp` | French §§27.1–27.2/27.3.2: character-aligned second-HSYNC VS reset absorbs its line, 52 subsequent ends to IRQ; independent reset/SNA B2/B3 epoch and stale-clear controls |
 | `sim/plus run/asic_pri_tests` | fast | `rtl/plus/asic_ga_timing.v` | Programmable raster interrupt: delayed-comparator request timing (width, write window, line entry), line compare, acknowledge and pending CPC request masking across PRI changes |
 | `sim/plus run/asic_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | Sprite engine: attributes, priority, row fetch |
 | `sim/plus run/d3_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | First visible sprite row at production cadence |

@@ -237,6 +237,13 @@ PRI_OBJ_DIR  := obj_dir/asic_pri
 PRI_TEST_SRC := $(abspath asic_pri_test.cpp)
 PRI_TEST_BIN := $(PRI_OBJ_DIR)/asic_pri_tests
 
+# B26: character-aligned VS reset-line ownership and reset/SNA epochs.
+VSREPHASE_RTL := $(abspath ../../rtl/plus/asic_ga_timing.v)
+VSREPHASE_SRC := $(abspath asic_vs_rephase_test.cpp)
+VSREPHASE_LIFE_SRC := $(abspath asic_vs_rephase_lifecycle_test.cpp)
+VSREPHASE_BIN := obj_dir/asic_vs_rephase/asic_vs_rephase_tests
+VSREPHASE_LIFE_BIN := obj_dir/asic_vs_rephase_lifecycle/asic_vs_rephase_lifecycle_tests
+
 # P4 sprite engine directed vectors (compare/mag/priority/blanking).
 SPRITES_TOP      := asic_sprites
 SPRITES_RTL      := $(abspath ../../rtl/plus/asic_sprites.v)
@@ -393,7 +400,7 @@ CXXFLAGS ?= -std=c++17 -O2
 
 all: test
 
-build: $(TEST_BINS)
+build: $(TEST_BINS) $(VSREPHASE_BIN) $(VSREPHASE_LIFE_BIN)
 
 b6-menu-mask: $(B6_MENU_TEST_BIN)
 	./$(B6_MENU_TEST_BIN)
@@ -493,7 +500,7 @@ SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silic
 pa7-dma-overlap:
 	python3 pa7_dma_overlap_test.py --cxx "$(CXX)"
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
-FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
+FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS))) asic-vs-rephase
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 
@@ -652,6 +659,23 @@ $(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_
 		--Mdir $(GADIFF_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(GADIFF_TEST_BIN)) $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) \
 		$(GADIFF_REF) $(GADIFF_TEST_SRC)
+
+# One logical fast contract, with independent natural and lifecycle leaves.
+asic-vs-rephase: $(VSREPHASE_BIN) $(VSREPHASE_LIFE_BIN)
+	./$(VSREPHASE_BIN)
+	./$(VSREPHASE_LIFE_BIN)
+
+$(VSREPHASE_BIN): $(VSREPHASE_RTL) $(VSREPHASE_SRC) Makefile | $(OBJ_DIR)
+	@mkdir -p $(@D)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module asic_ga_timing \
+		--Mdir $(@D) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(@F) $(VSREPHASE_RTL) $(VSREPHASE_SRC)
+
+$(VSREPHASE_LIFE_BIN): $(VSREPHASE_RTL) $(VSREPHASE_SRC) $(VSREPHASE_LIFE_SRC) Makefile | $(OBJ_DIR)
+	@mkdir -p $(@D)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module asic_ga_timing \
+		--Mdir $(@D) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(@F) $(VSREPHASE_RTL) $(VSREPHASE_LIFE_SRC)
 
 $(PRI_TEST_BIN): $(PRI_RTL) $(PRI_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(PRI_TOP) \
