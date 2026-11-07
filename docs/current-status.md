@@ -15,8 +15,11 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 
 ## Current branch and artifact
 
-- Experimental branch `codex/classic-ga-boundary-native-20261105`; latest
-  device-verified source `cb3a1a6`, not integrated into `master`.
+- Private experiment branch `codex/c3-br-private-hardware-20261107` starts
+  fromef0c109, with only the reviewed CRTC3 IRQ hypothesis changing functional
+  RTL. The focused144 assertions pass; the broad raw-GA gate remains red.
+  This is not READY, integrated or released. See the [private build boundary](investigations/hardware-runs/shaker-crtc3-private-hardware-build-2026-11-07.md).
+  Latest device-verified functional source remainscb3a1a6.
   [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273216780),
   including production-T80, passes. Quartus 17.0.2 full fit closes seven
   setup/hold domains, minima 0.645/0.197 ns and zero TNS. Device-verified RBF

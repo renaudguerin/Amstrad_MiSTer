@@ -16,24 +16,25 @@
 //  The state machines follow the published Gate Array timing description in
 //  "40010 simplified" V03 by Gerald (as does rtl/GA40010/ga40010.sv); this
 //  is an independent synchronous expression written for the Plus stream,
-//  licensed like its source. Cycle-exact equivalence with the synthesised
-//  ga40010 path (ga40010.sv + casgen_sync + syncgen_sync + rslatch) is
-//  pinned by the lockstep differential bench
-//  sim/plus/asic_ga_timing_diff_test.cpp, which drives both modules with
-//  identical randomised bus/sync traffic in the common raster-ACK domain.
-//  Compatible delivery and DMA-ACK retention differ from ga40010 and are
-//  checked against Plus hardware separately. Register payload decoding
-//  (border/INKR/mode/ROM
-//  mapping) is additionally covered by directed vectors, because ga40010
-//  does not export those registers for comparison.
+//  licensed like its source. The differential bench
+//  sim/plus/asic_ga_timing_diff_test.cpp compares the common bus/sync path
+//  against ga40010. Its raw-counter equivalence assumptions do not hold
+//  for the delayed-count model below and remain an explicit failing gate.
+//  Plus compatible delivery and DMA-ACK retention are checked against
+//  Plus hardware separately. Register payload decoding (border/INKR/mode/
+//  ROM mapping) also has directed vectors because ga40010 does not export
+//  those registers for comparison.
 //
 //  Technical information sourced from the "Amstrad CPC CRTC Compendium"
 //  by Longshot (CC BY-NC-ND 4.0).
 //
 //  Deliberate differences from ga40010:
-//   - Compatible delivery follows at the next character edge; DMA ACK does
-//     not consume a compatible request. PA7 V5/overlap photographs establish
-//     the software outcomes, not the literal internal ASIC implementation.
+//   - MODEL LIMIT (B26): compatible normal counting uses delayed HSYNC,
+//     with prompt normal-wrap delivery; non-normal causes retain the
+//     existing next-character delivery. DMA ACK retains compatible requests.
+//     PA7 V5/overlap photographs constrain outcomes, not this internal split.
+//     See docs/investigations/hardware-runs/
+//     shaker-crtc3-br-delayed-count-2026-11-06.md and B26.
 //   - Snapshot (SNA) preload covers more than ga40010's: besides the register
 //     file it seeds the sync/interrupt phase from the v3 header (B8-5).
 //     Power-up values are defined constants rather than uninitialised
@@ -350,9 +351,10 @@ module asic_ga_timing
 // (monitor C-VSYNC) is emitted while hcnt sits in 4..7; VBLANK
 // (HCNTLT28) while it is NOT in 28..31 — the ASIC's vertical-blank
 // window. hdelay reshapes HSYNC into the monitor HSYNC_O with its own
-// microsequence. intcnt counts raw HSYNC falls and fires on the 52nd;
-// RMR bit 4 or a raster acknowledge clears the request. The
-// VSYNC-edge term (intcntclr_4) re-arms it at frame start.
+// microsequence. intcnt uses delayed normal HSYNC falls and fires on the
+// 52nd; RMR bit 4 or a source-qualified raster acknowledge clears the
+// request. The shaped VSYNC-edge term and pending token absorb the reset
+// line through delayed count admission; their topology remains a B26 model.
 //
 // All of this free-runs on clk; only the vsync edge detectors are
 // sampled once per character (CCLK_EN_N).
@@ -564,15 +566,29 @@ module asic_ga_timing
 		end
 	end
 
-	// Interrupt counter: cleared at 52 raw HSYNC falls, on the shaped VSYNC
+	// MODEL LIMIT (B26): private delayed-normal-count hypothesis only.
+	// Reuse the PRI one-character HSYNC history for compatible normal line
+	// counting; no new numeric delay or change to raw monitor/VS ownership.
+	// Falling-edge history refills from raw while PRI history is invalid,
+	// preventing an import/reset refill from manufacturing a count event.
+	// See docs/investigations/hardware-runs/
+	// shaker-crtc3-br-delayed-count-2026-11-06.md and B26.
+	reg intcnt_hs_q;
+	always @(posedge clk) begin
+		if (!pri_valid) intcnt_hs_q <= HSYNC_I;
+		else            intcnt_hs_q <= pri_hs_d;
+	end
+	wire intcnt_cnt = pri_valid & intcnt_hs_q & ~pri_hs_d;
+
+	// Interrupt counter: cleared at 52 delayed normal HSYNC falls, on the shaped VSYNC
 	// edge, by RMR bit 4, or (bit5 only) by a raster acknowledge.
-	wire intcnt52 = hcnt_cnt & intcnt_next[2] & intcnt_next[4] & intcnt_next[5];
+	wire intcnt52 = intcnt_cnt & intcnt_next[2] & intcnt_next[4] & intcnt_next[5];
 	wire intcntclr_52_s = intcnt52;
-	wire intcntclr_52_r = ~hsync_n;
+	wire intcntclr_52_r = pri_hs_d;
 	reg  intcntclr_52_hold;
 	reg  intcntclr_52;
-	// Reset-dominant latch: while the CRTC HSYNC is asserted the clear
-	// flag is forced low; a 52nd-line event between HSYNC pulses sets it.
+	// Reset-dominant latch: while delayed HSYNC is asserted the clear
+	// flag is forced low by that same delayed HSYNC; its trailing count sets it.
 	always @(*) begin
 		if (intcntclr_52_r)      intcntclr_52 = 1'b0;
 		else if (intcntclr_52_s) intcntclr_52 = 1'b1;
@@ -581,17 +597,34 @@ module asic_ga_timing
 	always @(posedge clk) intcntclr_52_hold <= SNA_LOAD ? 1'b0 : intcntclr_52;
 
 	wire intcntclr_4 = VSYNC_O_int & ~vsync_o_d; // u817
+	// MODEL LIMIT (B26): this private delayed-normal-count model keeps the
+	// VS reset line absorbed through its delayed count admission. ACCC FR
+	// §§27.1-27.2 p.283 and §27.3.2 p.284 require unconditional rephase at
+	// the second HSYNC end; they do not establish this internal topology.
+	// Raw/delayed event unification remains unresolved; see
+	// docs/investigations/hardware-runs/
+	// shaker-crtc3-br-delayed-count-2026-11-06.md and B26. Reset/import
+	// abandon a pre-existing token; restored B2 owns subsequent VS rephase.
+	// Re-arm only with valid current-epoch character history. During the
+	// U204 reset restart, CCLK sampling can stop and leave an old clear
+	// high until the first refill strobe; it must not re-arm a stale token.
+	reg vs_rephase_pending;
+	always @(posedge clk) begin
+		if (reset || SNA_LOAD) vs_rephase_pending <= 1'b0;
+		else if (intcntclr_4 && pri_valid) vs_rephase_pending <= 1'b1;
+		else if (intcnt_cnt) vs_rephase_pending <= 1'b0;
+	end
 	// A PRI raster fire clears counter bit 5 as an acknowledge would, so a
 	// re-enabled CPC-compatible interrupt cannot occur within 32 lines
 	// (reference §7, [KT]). The counter itself keeps counting.
-	wire intcnt_res0 = intcntclr_52 | intcntclr_4 | irq_reset; // u831
+	wire intcnt_res0 = intcntclr_52 | intcntclr_4 | vs_rephase_pending | irq_reset; // u831
 	wire intcnt_res1 = intcnt_res0 | irqack_rst | raster_fire; // u833 + P3
 
 	reg [5:0] intcnt_comb;
 	always @(*) begin
 		intcnt_comb = intcnt_reg;
 		if (intcnt_res0) intcnt_comb[4:0] = 5'd0;
-		else if (hcnt_cnt) intcnt_comb = intcnt_next;
+		else if (intcnt_cnt) intcnt_comb = intcnt_next;
 		if (intcnt_res1) intcnt_comb[5] = 1'b0;
 	end
 
@@ -630,8 +663,8 @@ module asic_ga_timing
 	//------------------------------------------------------------------
 	// P3 programmable raster interrupt (reference §7, [ARNOLD-REV §2.4]).
 	//
-	// PRI == 0: the 52-line counter follows the classic Gate Array, with
-	// source-qualified ACK clearing and separate compatible delivery.
+	// PRI == 0: the 52-line sequence keeps source-qualified ACK clearing;
+	// this private candidate delays normal count admission using PRI HSYNC.
 	//
 	// PRI != 0: the counter KEEPS RUNNING but its interrupt assertion is
 	// suppressed; the programmed request is the RISING EDGE of
@@ -733,8 +766,8 @@ module asic_ga_timing
 	wire int_ack_active = int_reset | intack;
 	wire classic_ack_active = int_reset | (intack & ack_raster_selected);
 
-	// Classic overflow event, kept in the original single-block form so
-	// the assert edge stays exactly where the lockstep bench pinned it.
+	// Compatible overflow retains the original counter-bit falling-edge
+	// detector; only its normal count admission moves in this candidate.
 	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
 	wire classic_fire = (pri == 8'd0) && ~intcnt_comb[5] & cnt5;
 
@@ -750,19 +783,20 @@ module asic_ga_timing
 	// including when it is still undelivered or masked by PRI.
 	reg  classic_int_n;
 	reg  programmed_int_n;
-	// PA7 compatible delivery (docs/plus/pa7-interrupt-phase-followup.md V5):
-	// the raw classic latch above keeps its exact counter-sequenced assert
-	// edge; classic_delivery_n samples it only at CCLK_EN_N, so the ordinary
-	// raw assertion reaches the CPU on the next character edge (~63
-	// master ticks later). Delivered INT_N needs BOTH raw and delivery low,
-	// so MRER cancels immediately without a ghost. A DMA ACK preserves and
-	// allows delivery to mature; hidden raw also matures while PRI masks it.
-	// The next-CCLK exact phase is an explicit model-policy assumption:
-	// V5 hardware with the separate CPU correction only bounds the delay to
-	// roughly 56..71 ticks, and sub-microsecond phase is software-invisible.
-	// classic_raw_n below is the pre-delivery aggregate the lockstep bench
-	// compares against ga40010; delivered INT_N intentionally diverges there.
+	// Keep compatible pending storage and the existing next-CCLK delivery
+	// stage for non-normal causes (including VS rephase). The private
+	// normal52 prompt below transfers only the independently prepared
+	// ordinary character delay to count admission. This candidate no longer
+	// claims classic_raw_n matches ga40010's raw counter-edge phase.
 	reg  classic_delivery_n;
+	// MODEL LIMIT (B26): transfer the ordinary normal52 character delay to
+	// count admission, with prompt delivery only for that source. Keep the
+	// existing VS-rephase delivery and MRER/ACK priority; a shared physical
+	// phase law is unresolved. This bounded split is not independently
+	// established silicon topology; see docs/investigations/hardware-runs/
+	// shaker-crtc3-br-delayed-count-2026-11-06.md and B26. The existing
+	// normal-wrap guard is retained; DMA-selected ACK retains this fire.
+	wire normal_wrap_prompt = classic_fire & intcnt_cnt & intcnt52 & ~intcntclr_4;
 	assign classic_raw_n = programmed_int_n & (classic_int_n | (pri != 8'd0));
 	assign INT_N = programmed_int_n & (classic_int_n | classic_delivery_n | (pri != 8'd0));
 
@@ -842,11 +876,14 @@ module asic_ga_timing
 			else if (classic_fire) begin
 				classic_int_n <= 1'b0;
 			end
-			// Delivery has intentionally no reset branch, matching the raw
-			// classic latch above (which also has none). Raster ACK/MRER clears
-			// it immediately; otherwise it follows raw only at CCLK_EN_N.
+			// Delivery retains the existing reset behavior and raster ACK/MRER
+			// clear priority. Only a normal52 wrap is prompt; all other causes
+			// retain the existing next-CCLK sampling below.
 			if (classic_ack_active) begin
 				classic_delivery_n <= 1'b1;
+			end
+			else if (normal_wrap_prompt) begin
+				classic_delivery_n <= 1'b0;
 			end
 			else if (CCLK_EN_N) begin
 				classic_delivery_n <= classic_int_n;

@@ -17,6 +17,17 @@ checkpoint. The later reviewed Plus R4 branch candidate is identified below.
 | Plus compatible IRQ delivery | Raw request reaches CPU at next CCLK_EN_N. | Original Plus observations bound delivery, but do not identify that exact edge. Existing counter/provenance tests protect interactions; they cannot establish silicon topology. Source: `rtl/plus/asic_ga_timing.v`, `classic_delivery_n`. |
 | Plus split during adjustment | `split_adj_end` accepts a late split at the selected R0 boundary, limited to noninterlace. | Existing original-Plus/AmSpirit results support bounded cases; exact edge and early/late original-hardware controls remain unmeasured. Source: `asic_video.v`, `split_adj_end` and `split_at_r0`. |
 
+A private **Plus compatible IRQ alternative** moves normal counting to the
+existing delayed HS history and prompts normal52 delivery, retaining separate
+VS delivery. Its original version recounted the VS-reset line; the corrected
+b1a8c264 token preserves that line's unconditional reset and passes independent
+line/lifecycle checks plus all66 original BR source fields. These are inferred
+stage choices, not physical flip-flop evidence. Raw/delayed event unification,
+PRI-write timing and MRER aperture remain unresolved. The31/32/33-line probe
+already separates current MiSTer and AmSpirit at32; real-Plus observations are
+pending. Both private stage choices and the corrective token carry B26 labels;
+no live GA change is adopted. See the [candidate and review limits](hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md).
+
 The task branch now also contains a reviewed **Plus R4 deadline model**:
 `entered_r4_match` contributes only during the selected R4 write at terminal
 CLKEN, using existing READY/A13-shaped ENABLE. Independent ordinary/ROM REDs,
