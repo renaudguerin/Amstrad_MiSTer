@@ -14,19 +14,24 @@ checkpoint. The later reviewed Plus R4 branch candidate is identified below.
 | Type1 RFD lifetime | `rfd_parity_flag` retires on successful address save as well as frame end. | Existing photographs fit this model and a competing arm-time model. Peer source does not decide the silicon lifetime. The unsent French author question remains needed. Source: `rtl/crtc_type1_engine.v`, successful-save clear. |
 | Plus R0 deadline and lowering | `entered_terminal_match` retains a terminal opportunity; live equality can also end the line. Nonterminal lowering uses equality-based overflow. | Type3 deadline chart and original Plus A4 support bounded outcome; physical latch/clock is unidentified. Nonterminal lowering lacks a direct Type3 chronogram/hardware result; a peer trace is weaker evidence. Source: `rtl/plus/asic_video.v`, horizontal counter. |
 | Plus HS collision at zero width | End/start collision extends HS only for explicit nonzeroR3l. | Nonzero collision behaviour is sourced; excluding zero-width collision is explicitly an unverified model assumption. A source rule or original-hardware discriminator must decide it. Source: `asic_video.v`, `hsync_end_start_collision`. |
-| Plus compatible IRQ delivery | Raw request reaches CPU at next CCLK_EN_N. | Original Plus observations bound delivery, but do not identify that exact edge. Existing counter/provenance tests protect interactions; they cannot establish silicon topology. Source: `rtl/plus/asic_ga_timing.v`, `classic_delivery_n`. |
+| Plus compatible IRQ phase | Candidate ordinary counting uses delayed HS history and prompts normal-wrap delivery; VS rephase retains separate raw-event identity and an absorption token. | Real-Plus BR, both MRER widths and VS31/32/33 support the tested outcomes. They do not identify physical flip-flops or settle dynamic PRI/MRER apertures. Source: `rtl/plus/asic_ga_timing.v`; B26 labels and details below. |
 | Plus split during adjustment | `split_adj_end` accepts a late split at the selected R0 boundary, limited to noninterlace. | Existing original-Plus/AmSpirit results support bounded cases; exact edge and early/late original-hardware controls remain unmeasured. Source: `asic_video.v`, `split_adj_end` and `split_at_r0`. |
 
-A private **Plus compatible IRQ alternative** moves normal counting to the
-existing delayed HS history and prompts normal52 delivery, retaining separate
-VS delivery. Its original version recounted the VS-reset line; the corrected
-b1a8c264 token preserves that line's unconditional reset and passes independent
-line/lifecycle checks plus all66 original BR source fields. These are inferred
-stage choices, not physical flip-flop evidence. Raw/delayed event unification,
-PRI-write timing and MRER aperture remain unresolved. The31/32/33-line probe
-already separates current MiSTer and AmSpirit at32; real-Plus observations are
-pending. Both private stage choices and the corrective token carry B26 labels;
-no live GA change is adopted. See the [candidate and review limits](hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md).
+The experimental **Plus compatible IRQ alternative** moves ordinary counting
+to the existing delayed HS history and prompts normal52 delivery, retaining
+separate VS delivery. Its initial reset-line recount was rejected. Corrected
+source `ae8bc6c` matches real-Plus BR48+18 records, both MRER pages128/128 and
+31/32/33-line counts0/0/64. Original hardware therefore supersedes AmSpirit's
+32-line result. See the [physical comparison](hardware-runs/real-plus-irq-comparison-2026-11-07.md).
+
+These results do not uniquely identify physical flip-flops. Raw/delayed event
+unification, dynamic PRI writes and the MRER last-character aperture remain
+unresolved. The stage split and corrective token carry B26 labels. The old
+raw-classic-lockstep/deadline assertions are being replaced with independent
+producer-end, late-ACK, VS-threshold and snapshot guards; final review/gates
+remain required. The frozen ASIC header still describes those former failing
+gates: reconcile that comment on the next source edit without modifying an
+active proof merely for housekeeping. [Candidate limits](hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md).
 
 The task branch now also contains a reviewed **Plus R4 deadline model**:
 `entered_r4_match` contributes only during the selected R4 write at terminal

@@ -20,6 +20,12 @@ them.
 
 ## B26. Consolidate inferred RTL exceptions before upstream submission
 
+**Release boundary, 7 November:** keep optional consolidation outside the
+accuracy release. The standalone audit worktree5839 (`425be96`) remains open;
+its frozen-base C0 change needs reconciliation and current-source proof before
+adoption. The two C1 algebraic reductions remain private; state-bit removal
+still needs its bus/lifecycle contract. [Worktree/proof handover](investigations/session-logs/release-handover-2026-11-07.md).
+
 **First bounded audit and reviewed candidate complete, 2026-11-06.** The concern
 is local guards and retained state whose narrow outcomes are supported while a
 simpler general timing rule remains unknown. This is distinct from ordinary
@@ -499,19 +505,17 @@ and capture times are in the plan. Investigate digital response offline before
 any filter rewrite. Original-CPC access is not required for these bounded units;
 faithful CTM response remains unproven. These extend existing residuals.
 
-**Presentation boundary, 2026-11-06:** Full and Raw pixels regularize acquisition;
-a native scaler PNG does not capture physical CRT beam deflection. The missing
-curves in D3 therefore do not establish a CRTC/GA defect or prevent functional
-acceptance once digital content/blanking is verified. D3 now has 44 correctly
-bound current captures after a private input-count correction; its digital
-content remains to be fully adjudicated. Monitor response remains a separate
-V1 gate: original T/Y waveform export and offline candidates exist, but no
-validated dynamic response model is installed in production. The
-[Astra design revised after Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
-recommends a fourth CRT-response profile while retaining Full as default. Current
-coherent T/Y source transport is qualified. The [offline causal prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md) now passes its reviewed collector/coordinate/ownership controls and preserves T/Y/D3 replays. Period admission, reset/mode, ordinary-width response, RAM scheduling and RTL/resource gates remain open. Ordinary
-R3 width-position compensation is narrower than that model. Keep the current
-functional SHAKER work moving independently. [D3 boundary](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
+**Current V1/release boundary, 2026-11-07:** Full and Raw pixels regularize
+acquisition; native PNGs do not capture physical beam deflection. D3 digital
+content/blanking and qualitative monitor response remain separate judgments.
+The standalone RTL is READY onb291826; production integratione48614c preserves
+the model and passes48 selected benches, but enabled full fit42323729673
+fails setup by28.450ns. V1 is excluded from the release. Keep both V1 worktrees
+open and resume from the measured status[34]→absolute_phase path, then close
+RAM/full-top/ASCAL/native gates. No weaker clock constraint or coefficient
+retuning follows from this timing failure. [Integration state](investigations/video-boundary/v1-production-integration-2026-11-06.md),
+[handover](investigations/session-logs/release-handover-2026-11-07.md),
+[D3 boundary](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 
 **V1 input contract and response follow-up, 2026-11-05:** source inspection
 confirms `hs_sel`/`vs_sel` are the selected raw CRTC pins, passed directly to

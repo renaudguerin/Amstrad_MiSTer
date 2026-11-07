@@ -4,7 +4,10 @@ Fresh-session handover, 7 November 2026. The [roadmap](implementation-roadmap.md
 sets work order and acceptance gates; the [backlog](backlog.md) and
 [review debt](review-debt.md) track cross-cutting work. Dated investigations hold
 proof and limits. The [detailed prior handover](archive/current-status-detail-2026-11-05.md)
-retains the source milestones and remaining context.
+retains the source milestones and remaining context. The
+[release/open-work handover](investigations/session-logs/release-handover-2026-11-07.md)
+records the preserved worktrees, remaining proofs and six SHAKER residuals.
+Release preparation excludes V1 and optional RTL simplifications.
 
 The [active unattended session](investigations/session-logs/overnight-resume-2026-11-04.md)
 may continue to weekly quota exhaustion; the user applies resets manually and
@@ -16,12 +19,12 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 ## Current branch and artifact
 
 - Active V1 integration branch `codex/v1-production-integration-20261106`
-  checkpoint `c6de5fc` follows the preserved investigation tip `ef0c109`.
-  The explicitly enabled fit at `df761df` succeeds in resources but fails setup
-  timing by39.346ns; only an unused test-fixture pin differs at30876b4.
-  Reviewed shared arithmetic now passes199 cases /23,425,376 comparison clocks
-  and48 selected benches; its enabled timing measurement is next. No V1
-  bitstream is device-accepted.
+  checkpoint `e48614c` preserves the shared-arithmetic implementation.
+  Its enabled full fit42323729673 fails setup at−28.450ns, minimumhold+0.248ns,
+  despite48 selected passes, unchanged soak and199 cases/23,425,376 comparison
+  clocks. The critical reported path is status[34]→absolute_phase[30],43.423ns.
+  No V1 bitstream is device-accepted. Keep the standalone75c8 and integration
+  c1e6 worktrees open; resume timing from the measured path after release.
   Separately, CRTC3-only private `ae8bc6c` closes full-fit timing and matches
   all five new physical-Plus probe screens; its global source gate is still red.
   MiSTer currently runs that experimental RBF. The latest broadly accepted
@@ -131,12 +134,14 @@ now has an isolated receiver/renderer on `codex/general/v1-crt-response-20261106
 pass. The active production integration has reviewed RGB/metadata alignment,
 48 selected passes and strict disabled/enabled motherboard lint. Its retained
 consumer checks RGB/metadata/FIELD together and FRAME_FIELD separately at the
-motherboard export. The enabled full fit atdf761df uses68%ALMs/104RAM blocks,
-but fails setup by39.346ns (54.277ns receiver path against15.624ns). No V1
-hardware run is accepted. The reviewed timing change replaces six serial finalization recurrences with
+motherboard export. No V1 hardware run is accepted. The reviewed timing
+change replaces six serial finalization recurrences with
 one same-edge arithmetic tail, preserving public outputs, canonical state and
 valid history across199 cases /23,425,376 clocks. The final48-bench selection
-passes; enabled timing must be measured again. Full-top/ASCAL/native gates remain.
+passes; the new enabled fit42323729673 still fails setup by28.450ns
+(26,765ALMs/104RAM/35DSP). Selected CI passes; production-T80 is cancelled,
+not green. Timing and full-top/ASCAL/native gates remain, so V1 is excluded
+from release preparation.
 [Integration state](investigations/video-boundary/v1-production-integration-2026-11-06.md).
 Full and both Raw profiles retain their behaviour. Original T/Y and first D3
 [source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)

@@ -99,21 +99,31 @@ physical timing, full-top/ASCAL and native original-caller acceptance remain.
 
 ## Enabled full fit: timing blocker
 
-Hosted full Quartus17.0.2 run42311949060 ondf761df fits the enabled receiver:
-28,304/41,910ALMs (68%),33,144 registers,703,161 memory bits,104 RAM blocks
-and39 DSP blocks. It fails the setup gate at−39.346ns with−54,375.932ns TNS;
-hold minimum is+0.244ns. The worst path is rise_tick[1] to offset_delay[0],
-54.277ns data delay against15.624ns. No failed-timing bitstream is installed.
+The reviewed shared-arithmetic receiver is preserved at `e48614c` on
+`codex/v1-production-integration-20261106`. It passes199 cases /23,425,376
+comparison clocks,48 selected benches and unchanged soak974e5c048eb7f877.
+Fresh Opus review permits a private timing measurement. Equivalence covers
+public outputs, canonical state and valid history; dead invalid payload can
+change. The preset, presentation latency and both physical records remain.
 
-Source checkpoint30876b4 differs only by explicitly binding an unused cadence
-output in the production-T80 test fixture; it does not change Quartus inputs.
-Exact-SHA CI42312560023 at30876b4 passes selected simulation, lint and
-production-T80. This does not override the failed enabled timing gate.
+Full Quartus17.0.2 run42323729673 fails setup at **−28.450ns**, TNS
+−33,453.313ns; minimum hold is+0.248ns. The worst reported path is HPS
+status[34] to receiver absolute_phase[30],43.423ns data delay. Resources are
+26,765/41,910ALMs (64%),32,653 registers,703,161 memory bits,104 RAM blocks,
+35 DSPs. This improves on the earlier −39.346ns/28,304ALM/39DSP fit but
+still cannot qualify a hardware build. Selected CI passes; production-T80
+is cancelled and must not be reported as passing on this SHA.
 
-The receiver's procedural calls expand six serial window-finalization phase
-updates. A private exact-preserving sharing prototype is being investigated;
-it must prove its event-exclusivity invariant and preserve strict-prior window
-eligibility, lifecycle behavior and all frozen streams before source adoption.
-No timing exception or weaker clock constraint is authorized by this failure.
-Reports are preserved under v1-owned-integration-20261106/
-failed-enabled-fit-42311949060/ in the private session root.
+No failed-timing V1 bitstream is installed. V1 is excluded from the release.
+Resume from this actual TimeQuest path, without weakening clock constraints.
+A multi-edge implementation must additionally prove the tight finalization/HS
+spacing and preserve strict-prior selection and epoch cancellation; a copied
+pipeline must not change the original edge's publication contract. Enabled
+fit/RAM mapping, full-top/ASCAL and exact-build native acceptance remain.
+
+Reports and source/proof receipts are in the private session root:
+`v1-timing-shared-tail-20261107/fit-42323729673/` and its parent packet.
+The earlier rise_tick→offset_delay failure remains in
+`v1-owned-integration-20261106/failed-enabled-fit-42311949060/`.
+Preserve the standalone75c8 and production-integrationc1e6 worktrees; neither
+is the non-V1 release source. See the [handover](../session-logs/release-handover-2026-11-07.md).
