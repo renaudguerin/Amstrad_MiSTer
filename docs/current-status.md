@@ -19,7 +19,9 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
   checkpoint `c6de5fc` follows the preserved investigation tip `ef0c109`.
   The explicitly enabled fit at `df761df` succeeds in resources but fails setup
   timing by39.346ns; only an unused test-fixture pin differs at30876b4.
-  Receiver timing restructuring is private; no V1 bitstream is device-accepted.
+  Reviewed shared arithmetic now passes199 cases /23,425,376 comparison clocks
+  and48 selected benches; its enabled timing measurement is next. No V1
+  bitstream is device-accepted.
   Separately, CRTC3-only private `ae8bc6c` closes full-fit timing and matches
   all five new physical-Plus probe screens; its global source gate is still red.
   MiSTer currently runs that experimental RBF. The latest broadly accepted
@@ -131,8 +133,10 @@ pass. The active production integration has reviewed RGB/metadata alignment,
 consumer checks RGB/metadata/FIELD together and FRAME_FIELD separately at the
 motherboard export. The enabled full fit atdf761df uses68%ALMs/104RAM blocks,
 but fails setup by39.346ns (54.277ns receiver path against15.624ns). No V1
-hardware run is accepted. A private behavior-preserving timing prototype targets
-six serial window-finalization recurrences; full-top/ASCAL/native gates remain.
+hardware run is accepted. The reviewed timing change replaces six serial finalization recurrences with
+one same-edge arithmetic tail, preserving public outputs, canonical state and
+valid history across199 cases /23,425,376 clocks. The final48-bench selection
+passes; enabled timing must be measured again. Full-top/ASCAL/native gates remain.
 [Integration state](investigations/video-boundary/v1-production-integration-2026-11-06.md).
 Full and both Raw profiles retain their behaviour. Original T/Y and first D3
 [source transport](investigations/video-boundary/v1-current-original-callers-2026-11-06.md)

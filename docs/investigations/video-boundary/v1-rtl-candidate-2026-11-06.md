@@ -4,7 +4,7 @@ An isolated fixed-point receiver/renderer is implemented on
 `codex/general/v1-crt-response-20261106`, explicitly based on
 `1e95fa0a802ea0cf04bb7e06d50dff9370e204b8`. It implements the
 [accepted qualitative design](v1-qualitative-monitor-design-2026-11-06.md).
-The isolated receiver/preset remain frozen. Full stays default; mode 3 remains
+The accepted response model and preset remain frozen. Full stays default; mode 3 remains
 reserved as Full unless `V1_CRT_RESPONSE_PRIVATE` explicitly enables the private
 production path. Physical CTM calibration remains separate. Private integration
 is not READY until the enabled fit and exact-build native acceptance gates pass.
@@ -275,3 +275,63 @@ receiver-only loss holds the last bounded offset indefinitely, matching Python.
 Private integration exercises the real filter's missing-HS output through the
 production boundary; native original-caller acceptance remains open. The native 1:4 enable cadence is an interface
 requirement, without a runtime cadence checker in this slice.
+
+## Same-edge phase sharing and receiver state contract
+
+The experimental receiver admits nominal periods 641..16383 clocks, opening
+coordinates within +/-192 clocks and owned tip widths up to 256 clocks. Adjacent
+physical window deadlines are therefore at least 641-384=257 clocks apart. The
+old window owns only rises strictly before its half-open deadline D; the last
+such tip releases by D+255, at least2 clocks before the next deadline. A newly
+primed wrapped window can close as early as prime+1. These bounds justify one
+finalization arithmetic event per clock while retaining both physical records.
+They do not justify changing event timestamps or deferring a result.
+
+Collector bookkeeping records the exact event operands and the live clipping
+coordinate before acquisition HS control. A just-finished latest_tick equals
+this HS tick and is ineligible under strict-prior selection; the eligible prior
+snapshot supplies the line. Shared target/clip/relaxation arithmetic runs after
+HS control on that SAME edge, and an invalid HS step cancels the pending event.
+This removes the structural arithmetic-to-line-offset path without a pipeline,
+clock exception or presentation-latency change. Event scratch values default on
+every edge; they have no retained-state contract while no event is pending.
+
+At a cleared epoch, payload behind an invalid latest/previous valid bit has no
+observable history meaning. The reordered implementation can retain a different
+invalid latest_phase than the frozen procedural model while public outputs,
+valid snapshots and canonical phase/coordinate/line state remain equivalent.
+The proof does not claim equality of every internal variable. No RTL should be
+added solely to reproduce data behind an invalid history bit.
+
+Private proof compares all public outputs on every master edge against the full
+frozen receiver (namespace-only adaptation), plus canonical phase/coordinate/line
+state and valid history snapshots. The unchanged 193-case corpus and six additional
+source-derived witnesses pass 23,425,376 clocks. Added cases explicitly exercise
+qualified/unqualified owned overhang finalization with HS=F/F+1, epoch cancellation
+at excessive step and saturated clipping with a nonzero accepted HS step. A
+live-coordinate mutant produces a later public RGB mismatch; a no-cancel mutant
+violates cleared canonical phase while history is invalid. Those are separate
+negative-control scopes. Exact source/log/command receipts live under
+local/overnight-20261103/resumed-20261104/v1-timing-shared-tail-20261107/.
+
+These are functional timing-preparation results. Actual enabled Quartus setup/
+hold, endpoint paths, DSP removal, register/ALM/RAM mapping and final native/ASCAL
+acceptance remain required. The remaining shared arithmetic chain may still miss
+64MHz timing. Further retiming needs its own path-specific decision and proof;
+finalizations can arrive only 2 clocks apart at the minimum257/255 spacing.
+
+Fresh Opus review `20261107T011352Z-28702-cc55` permits one enabled full fit
+as a measurement, without claiming timing closure or hardware acceptance.
+The parent verified the imported receiver SHA256 as
+`9fc9bf19ce3c82b2f7e5ac91999c0d8dec955754cef6032defbcb07b56a76b6b`.
+Private one-shot negative-control commands, relative to the proof directory, are:
+
+- `mutants/no_epoch_cancel/obj/Vtiming_miter --epoch`: exit 1, canonical phase mismatch at 9020.
+- `mutants/live_coordinate/obj/Vtiming_miter --clip`: exit 1, valid phase mismatch at 9264.
+- `mutants/live_coordinate_public/obj/Vtiming_miter --clip`: exit 1, public RGB mismatch at 10500.
+
+`MUTANT-RESULTS.json` binds the complete build commands and outputs. The
+no-cancel control concerns canonical state; it does not establish a public
+failure. The 257-clock spacing coincident with HS requires an explicit witness
+before any future multi-edge retiming; this change completes arithmetic on its
+original edge.
