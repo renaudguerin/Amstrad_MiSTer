@@ -77,3 +77,53 @@ native-sampled relative lag for the qualified production source phases, not
 an assertion of260 physical registers or every arbitrary asynchronous edge.
 The timing path has261 registers. Opus requests retaining the combined consumer
 regression at import and keeping strict lint/enabled-fit/native gates open.
+
+
+## Owned source import
+
+The active branch imports the reviewed production aggregate unchanged, including
+the four timing stages. The retained full-board regression scores655104 native
+samples per owner for RGB/metadata/FIELD at the actual output consumer, and
+655104 separate FRAME_FIELD samples at the motherboard export. Each owner
+exercises all four acquisition bits and both independent field transitions.
+The test is a zero-offset transport check, not acquisition/priming or nonzero
+classic-response proof; it makes no final ASCAL coherence claim.
+
+Fresh Gemini test/plumbing review is reconciled. Strict disabled/enabled
+motherboard lint passes with receiver-only BLKSEQ/PROCASSINIT controls and an
+explicit lint parameter. Final `python3 sim/select_tests.py --run` passes48
+benches; receipt and source hashes are in the private owned-integration packet,
+review-triage-20261106/FINAL-RECEIPT.json. Enabled fullfit, RAM inference,
+physical timing, full-top/ASCAL and native original-caller acceptance remain.
+
+
+## Enabled full fit: timing blocker
+
+The reviewed shared-arithmetic receiver is preserved at `e48614c` on
+`codex/v1-production-integration-20261106`. It passes199 cases /23,425,376
+comparison clocks,48 selected benches and unchanged soak974e5c048eb7f877.
+Fresh Opus review permits a private timing measurement. Equivalence covers
+public outputs, canonical state and valid history; dead invalid payload can
+change. The preset, presentation latency and both physical records remain.
+
+Full Quartus17.0.2 run42323729673 fails setup at **−28.450ns**, TNS
+−33,453.313ns; minimum hold is+0.248ns. The worst reported path is HPS
+status[34] to receiver absolute_phase[30],43.423ns data delay. Resources are
+26,765/41,910ALMs (64%),32,653 registers,703,161 memory bits,104 RAM blocks,
+35 DSPs. This improves on the earlier −39.346ns/28,304ALM/39DSP fit but
+still cannot qualify a hardware build. Selected CI passes; production-T80
+is cancelled and must not be reported as passing on this SHA.
+
+No failed-timing V1 bitstream is installed. V1 is excluded from the release.
+Resume from this actual TimeQuest path, without weakening clock constraints.
+A multi-edge implementation must additionally prove the tight finalization/HS
+spacing and preserve strict-prior selection and epoch cancellation; a copied
+pipeline must not change the original edge's publication contract. Enabled
+fit/RAM mapping, full-top/ASCAL and exact-build native acceptance remain.
+
+Reports and source/proof receipts are in the private session root:
+`v1-timing-shared-tail-20261107/fit-42323729673/` and its parent packet.
+The earlier rise_tick→offset_delay failure remains in
+`v1-owned-integration-20261106/failed-enabled-fit-42311949060/`.
+Preserve the standalone75c8 and production-integrationc1e6 worktrees; neither
+is the non-V1 release source. See the [handover](../session-logs/release-handover-2026-11-07.md).
