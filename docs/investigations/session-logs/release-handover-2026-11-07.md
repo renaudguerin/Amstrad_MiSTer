@@ -2,8 +2,11 @@
 
 The release scope is the accumulated classic CRTC/GA and Plus accuracy fixes,
 including the hardware-backed CRTC3 compatible-interrupt correction. Its
-complete independent test-contract review and47 selected passes are recorded
-on code checkpoint `10e905c`; final release build/native checks remain separate. V1 monitor response and optional RTL simplifications
+complete independent test-contract review and 47 selected passes are recorded
+on code checkpoint `10e905c`; full CI, Quartus timing and six targeted native
+checks also pass on final build `354388d`.
+The [draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-ee9c07a27e573000d3bb) targets `354388d` and remains unpublished. V1 monitor response and optional RTL
+simplifications
 stay outside this release. Preserve their worktrees: a release does not finish
 or supersede those tasks. Do not reset them onto the release source.
 
@@ -23,7 +26,7 @@ if the host layout changes. All paths share the same repository object store.
 | V1 standalone design | `/Users/renaudg/.codex/worktrees/75c8/Amstrad_MiSTer` | `codex/general/v1-crt-response-20261106`, `b291826` | Clean; standalone READY, frozen base `1e95fa0`; no production timing/native acceptance |
 | V1 production integration | `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer` | `codex/v1-production-integration-20261106`, functional checkpoint `e48614c` | Preserved; enabled fit fails timing, excluded from release |
 | RTL audit | `/Users/renaudg/.codex/worktrees/5839/Amstrad_MiSTer` | `codex/accuracy/b26-terminal-sampling-20261106`, `425be96` | Clean; scoped audit/consolidation READY on frozen `1e95fa0`, not integrated |
-| CRTC3 candidate / release preparation | `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer/local/overnight-20261103/resumed-20261104/c3-br-private-hardware-20261107/worktree` | `codex/release-20261107`; code checkpoint `10e905c`, physical build `ae8bc6c`; candidate lineage retained as `codex/c3-br-private-hardware-20261107` | Contains the non-V1 release source and test-contract work |
+| CRTC3 candidate / release preparation | `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer/local/overnight-20261103/resumed-20261104/c3-br-private-hardware-20261107/worktree` | `codex/release-20261107`; code checkpoint `10e905c`, final build `354388d`; candidate lineage retained as `codex/c3-br-private-hardware-20261107` | Contains the non-V1 release source and test-contract work |
 | CRTC1 E→S observer | `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer/local/overnight-20261103/resumed-20261104/c1-es-passive-observer-20261107/worktree` | `codex/c1-es-passive-observer-20261107`, base `ef0c109` | Dirty, provisional passive instrumentation; source backup retained; no core fix or hardware run |
 | Older status-2 investigation | `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer/local/worktrees/plus-status2-adjustment-20261106` | `codex/plus-status2-adjustment-20261106`, `4e45417` | Preserved investigation; accepted status fixes are already in the candidate lineage |
 
@@ -88,7 +91,7 @@ and the [current inventory](../rtl-model-confidence-2026-11-06.md).
 
 The maintained tally is **377 passing / 6 broken / 1,004 unknown / 3 stale**,
 1,390 unique pages. It includes qualified historical comparisons and two new
-C3 BR passes on `ae8bc6c`; it is not a fresh baseline or a compliance percentage.
+C3 BR passes rechecked on `354388d`; it is not a fresh baseline or a compliance percentage.
 These residuals concern digital results; V1 models monitor response.
 
 | CRTC | Page | Current defect | Next evidence or task |
@@ -102,7 +105,8 @@ These residuals concern digital results; V1 models monitor response.
 
 Each page's current evidence and source links are in [SHAKER status](../../shaker-status.md).
 The demo defects are closed by the user's manual DSC4/Amazing/BTF acceptance
-on CRTC0/1/3; final-candidate preservation remains a release validation task.
+on CRTC0/1/3. Final354 scoped CRTC3 preservation also passes for all three;
+that is not a full-demo or physical HDMI/CRT acceptance.
 
 ### C1 S diagnostic checkpoint
 
@@ -152,3 +156,13 @@ or a stale running receipt does not prove a worker survived. Refresh quota
 before costly work, use Astra sparingly, and preserve partial diffs before
 replacing interrupted workers. No public release has been authorized merely
 by preparing this draft.
+
+## Release staging follow-up
+
+The draft target and all three uploaded asset hashes were verified. The
+packaging helper was used in dry-run mode, then standard gh release create
+was called with explicit `--target 354388dd118a3982237b76ae15a63bd0d0fbfd29`.
+The current helper selects the CI artifact but omits --target from its direct
+create command. Add that one flag before relying on its direct publication
+path for a non-default-branch artifact; this staged draft already has the
+correct target. No FPGA rebuild is implied by that tooling follow-up.

@@ -5,24 +5,21 @@ records exact worktree paths, proof limits and resume steps. Keep the separate
 V1 and RTL-audit worktrees open. [Prior detail](archive/current-status-pre-release-2026-11-07.md)
 is archived; replace superseded state here rather than appending milestones.
 
-## Release preparation
+## Release prepared
 
-- Source: `codex/release-20261107`, code checkpoint `10e905c`, in the preserved
-  C3 worktree identified by the handover. V1 and optional audit reductions are
-  excluded. The root c1e6 checkout remains the separate V1 integration branch.
-- Complete independent IRQ test-contract review and all **47 selected benches
-  pass**. Original-Plus constraints replace old raw-classic IRQ assumptions;
-  no failing assertion was waived. Full release fit and exact-build native
-  preservation are next, followed by the staged GitHub draft.
-- Functional RTL matches hardware-tested `ae8bc6c`: BR48+18 records,
-  MRER128 phases and VS31/32/33 counts0/0/64 match the physical 6128 Plus.
-  Its experimental full fit closes all7 setup/hold domains (min0.215/0.242ns).
-  MiSTer currently runs that build; its RBF SHA256 is
-  `c0e3b335df53272c9d19e5e3c0cc3fc0185c3fa7f972696929c0a91f8d50aa15`.
-  [Physical comparison and gate provenance](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md).
-- DSC4, Amazing and Before the Storm are manually accepted by Renaud on
-  CRTC0/1/3; that confirmation supplied no exact build SHA. Final-candidate
-  preservation is separate. [Demo evidence](investigations/hardware-runs/demos-manual-acceptance-2026-11-06.md).
+- [Draft v2026.11.07](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-ee9c07a27e573000d3bb) targets tested `354388d` on
+  `codex/release-20261107` (core/test checkpoint `10e905c`). V1 and optional audit
+  reductions are excluded. No publication or master integration is performed.
+- Full [CI42327881289](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42327881289)
+  passes, including production-T80. Local 47-bench selection and independent
+  test-contract review pass. Full Quartus setup/hold minima 0.671/0.241 ns over
+  seven clocks, zero TNS. [Acceptance](investigations/hardware-runs/release-accuracy-milestone-2026-11-07.md).
+- `Amstrad_20261107.rbf`, 3,124,560 bytes, SHA256
+  `78e063ef130bff543b5b81d6b541725cfc7e00a80be86ddc2a8623a22664073b`; reports and checksums attached and uploaded bytes verified.
+  MiSTer now runs that tested354 build, last left in BTF; CFG is restored.
+- Six final CRTC3 native checks / 12 PNGs pass: BR48+18, MRER128, VS9counts all
+  match physical Plus; DSC4/Amazing/BTF sampled scenes are preserved. User
+  manual CRTC0/1/3 acceptance remains separate from these asynchronous captures.
 
 The accumulated fixes include classic R0/vertical-adjustment/display sequencing,
 GA/ASIC horizontal positioning and Plus status/overflow/compatible IRQ handling.
@@ -33,7 +30,7 @@ retain broader scope, inferred limits and source authorities.
 ## SHAKER
 
 Counts are per unique page, carrying qualified historical comparisons. The two
-C3 BR passes were captured on ae8; successor10e passes the new47-bench gate.
+C3 BR pages freshly match the real Plus on `354388d`.
 This is not a fresh baseline or a full-compliance percentage.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |

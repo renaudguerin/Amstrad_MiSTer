@@ -29,7 +29,8 @@ unification, dynamic PRI writes and the MRER last-character aperture remain
 unresolved. The stage split and corrective token carry B26 labels. The old
 raw-classic-lockstep/deadline assertions are being replaced with independent
 producer-end, late-ACK, VS-threshold and snapshot guards; complete independent review and47 selected passes are recorded on10e905c.
-Final release synthesis/native acceptance remains required. The frozen ASIC header still describes those former failing
+Final354 full synthesis and scoped native acceptance pass; release remains a
+staged draft. The frozen ASIC header still describes those former failing
 gates: reconcile that comment on the next source edit without modifying an
 active proof merely for housekeeping. [Candidate limits](hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md).
 
