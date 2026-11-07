@@ -16,12 +16,14 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 ## Current branch and artifact
 
 - Active V1 integration branch `codex/v1-production-integration-20261106`
-  checkpoint `30876b4` follows the preserved investigation tip `ef0c109`.
+  checkpoint `c6de5fc` follows the preserved investigation tip `ef0c109`.
   The explicitly enabled fit at `df761df` succeeds in resources but fails setup
   timing by39.346ns; only an unused test-fixture pin differs at30876b4.
   Receiver timing restructuring is private; no V1 bitstream is device-accepted.
-  Latest device-verified functional source is still `cb3a1a6`, not integrated
-  into `master`.
+  Separately, CRTC3-only private `ae8bc6c` closes full-fit timing and matches
+  all five new physical-Plus probe screens; its global source gate is still red.
+  MiSTer currently runs that experimental RBF. The latest broadly accepted
+  functional source remains `cb3a1a6`, not integrated into `master`.
   [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42273216780),
   including production-T80, passes. Quartus 17.0.2 full fit closes seven
   setup/hold domains, minima 0.645/0.197 ns and zero TNS. Device-verified RBF
@@ -61,14 +63,16 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 
 The [page tally](shaker-status.md) and [ledger](shaker-results.csv) are maintained
 per unique page; passing results include qualified historical comparisons and
-are not a fresh sweep. CRTC2/4 are not selectable in this core.
+are not a fresh sweep. The two C3 BR passes use experimental `ae8bc6c`, whose
+global gate remains red; they do not certify release readiness. CRTC2/4 are
+not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
 | 0 | 7 | 2 | 477 | 1 | 487 |
 | 1 | 364 | 4 | 111 | 1 | 480 |
-| 3 | 4 | 2 | 416 | 1 | 423 |
-| All | 375 | 8 | 1004 | 3 | 1390 |
+| 3 | 6 | 0 | 416 | 1 | 423 |
+| All | 377 | 6 | 1004 | 3 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
@@ -77,7 +81,7 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | C1 AI/008D | S2/S3 remain low versus physical1111 on both direct/canonical paths. Fresh normal-boot AmSpirit has raw1111 at64ED before cleanup, excluding its formatter/restoration as the cause. The width-clock rule still needs physical/author evidence. C0 retains its16 photographed VS-bit passes. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | 008F now passes30/30 numeric fields after independent vision/source adjudication, also on C0. 0090 has310/328 C0 and316/328 C1 matrix samples plus7 actual footer comparisons matched per CRTC;18/12 glyphs remain unresolved. 008E, 0091 and direct/full-history 009A retain acceptance. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | B6/019D, CRTC0/1 | C0 now matches all four R0 rows on8ba384e; both R7 rows remain1F versus1E. Current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Astra finds the lateR7 ordering underdetermined; a physical R7=32/33 paired discriminator is prepared. No aperture or RTL fix selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
-| C3 B6 and BR | B6 passes all six current checks; BR01F0/01F1 remain broken on accepted cb3. A private delayed-count candidate passes all13 original rows and transport on current composition, including CPI C4 and its predicted20-line next interrupt. All six V5 screens and68 DMA H1 records also match physical references. The original candidate recounted the VS-reset line. Corrected privateb1a8c264 passes118 focused/26 lifecycle assertions and all48+18 complete-cart fields; fresh Opus finds no HIGH/token blocker. V5/DMA recheck, neighbouring-event coverage, physical discriminators and broader gates remain open. [Candidate](investigations/hardware-runs/shaker-crtc3-br-delayed-count-2026-11-06.md). |
+| C3 B6 and BR | B6 retains all six passes. Private `ae8bc6c` matches real Plus BR48/48+18/18, MRER128/128 and VS31/32/33 counts0/0/64, after corrected VS-rephase handling. V5/DMA retain6/6 screens and68/68 records. Full Quartus timing and production-T80 pass; global gate is red on old raw-IRQ assumptions. Justified delivered-IRQ/snapshot replacement coverage is being prepared, preserving all other lockstep obligations. The normal-count/VS split remains a B26 limit, not proven topology. [Hardware comparison](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md). |
 | C1 DI/02E3 | Native58 versus photo59; original program labels CRTC1 unreliable, so this remains excluded from confirmed broken counts. |
 | C1 S/02D3 and B9 MID | Current cb3 history gives0640 versus direct/physical/AmSpirit4E40. Passive0c9 captures both passing4E40 and failing0440 histories with valid seven-cut rings: good arrives inactive, bad with C5=15/adjustmenton. Short E→S gives0640/C5=23 active, P→S4E40/inactive, and E/P/S5060; all three fresh AmSpirit controls give4E40. Investigate E's outgoing adjustment state before S; no clear-C5 fix is selected. B9 repaired3Frows pass; MID binding remains open. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |
 | C5 and RFD lifetimes | C0 C5 parity is restored to photographed 6E/6O/OEOEOE; C5 restart/count compatibility and RFD retire-on-save versus latch-at-arm still need physical discrimination. [C5](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md), [RFD](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md). |

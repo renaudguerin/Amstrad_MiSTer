@@ -1,6 +1,6 @@
 # SHAKER status
 
-Maintained page tally, 6 November 2026. The [results ledger](shaker-results.csv)
+Maintained page tally, 7 November 2026. The [results ledger](shaker-results.csv)
 owns the counts and records each source build. Qualified historical comparisons
 carry forward unless superseded; this is an approximation of known status,
 not a fresh milestone baseline. A–E acquisition on CRTC0/1/3 has1,384images
@@ -13,9 +13,14 @@ unknown because extraC9sweep lacks hardware reference. CRTC0/1 AI008F numeric
 comparisons pass after reviewed reference readings. CRTC3 E0406 passes on5c1ab57;
 DU03BF and03C0 pass on cb3a1a6 after the status corrections. See the
 [A4 correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
-Current493 direct BR01F0/01F1 captures also reproduce the known ASIC numeric
-failures, pixel-identical to the priorfdf full-module captures; all3SSMrecords
-report actual Full0. This changes freshness, not counts.
+The private CRTC3 candidate `ae8bc6c` now matches the user's real 6128 Plus
+captures for BR01F0/01F1: all48 opcode/results and all18 complete timing records.
+Both MRER pages also match128/128 phases; the preceding model misses two phase
+boundaries. VS31/32/33 preserves0/0/64 interrupts in all three repetitions.
+These two page judgments move to passing on that experimental build. Its global
+gate remains red pending justified replacement of old raw-IRQ assumptions;
+this is not READY, integration or a full baseline.
+[Physical comparison](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md).
 Both CRTC3 STATUS2 corrections pass original CPU RED/GREEN, 46 selected benches,
 fresh Opus review, full fit and native acceptance on cb3a1a6. DU03C0 now shows
 every check OK; all eleven Module E captures match4e45417, and scoped CRTC3
@@ -41,6 +46,8 @@ Read the [reviewed static-reference text cache](shaker-reference-text.md) before
 A unit is one unique SSM page, not one screenshot or individual assertion.
 A page with any confirmed failing check is broken. A page with only partial
 validation remains unknown, even when a specific defect on it is repaired.
+The source build belongs to each ledger row: a passing page on an explicitly
+experimental build does not imply that build has passed its global gates.
 CRTC/GA content and monitor response have separate acceptance boundaries: Full
 and Raw pixels regularize acquisition and do not promise the photographed CRT
 deflection. Missing curvature alone is neither a broken page nor a reason to
@@ -72,12 +79,12 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 1 | E | 3 | 0 | 4 | 0 | 7 |
 | **1** | **Total** | **364** | **4** | **111** | **1** | **480** |
 | 3 | A | 0 | 0 | 124 | 0 | 124 |
-| 3 | B | 1 | 2 | 118 | 0 | 121 |
+| 3 | B | 3 | 0 | 118 | 0 | 121 |
 | 3 | C | 0 | 0 | 23 | 0 | 23 |
 | 3 | D | 2 | 0 | 147 | 1 | 150 |
 | 3 | E | 1 | 0 | 4 | 0 | 5 |
-| **3** | **Total** | **4** | **2** | **416** | **1** | **423** |
-| **All** | **Total** | **375** | **8** | **1004** | **3** | **1390** |
+| **3** | **Total** | **6** | **0** | **416** | **1** | **423** |
+| **All** | **Total** | **377** | **6** | **1004** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -106,7 +113,7 @@ allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
 [Correction and evidence](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
 
 - **Confirmed broken:** C0 E6/page0409, cases27/28; C1 A/0037; C0/1 B6/019D;
-  C1 AI/008D; C1 S/02D3 (history0840/0440 versus4E40); C3 BR/01F0 and01F1. E6's26/28 figure counts assertions across0407/0408/0409,
+  C1 AI/008D; C1 S/02D3 (current history0640 versus4E40). E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
   on MiSTer, while its MID glyph/reference binding remains open. Earlier S
@@ -114,12 +121,12 @@ allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
   capture. Same-RBF direct gives4E40, but exact source-font checking corrects
   the fdf prefix-repeat reading to0440. That repeat is not a passing control.
   [Current S evidence](investigations/hardware-runs/shaker-s-current-2026-11-06.md).
-- **Current CRTC3 numeric failures:** original Type3 callers/tables qualify
-  BR01F0 and01F1 as broken against the current program. The fresh peer
-  passes. A qualified original resident replay preserves twelve controls and
-  reproduces CPI CC versus table/photo C4. The shaped ACK follows the R52
-  31-to-32 seam; its cause remains unresolved. No wiring mismatch or justified
-  numerical delay fix is established. [ACK evidence](investigations/hardware-runs/shaker-crtc3-br-ack-boundary-2026-11-06.md).
+- **C3 BR page matches on private candidate:** all66 measured records match
+  the new physical Plus captures on `ae8bc6c`; accepted `cb3a1a6` still has the
+  five incorrect bytes and three thresholds. Source/gate readiness is separate
+  from these passing page comparisons. The bounded normal-count/VS split and
+  unresolved dynamic PRI aperture remain documented model limits.
+  [Hardware comparison](investigations/hardware-runs/real-plus-irq-comparison-2026-11-07.md).
 - **Closed CRTC3 status/overflow:** DU03C0 and all E0406 ordinary/ROM checks
   pass on cb3a1a6. Source-bound CPU replay and native captures support the
   sampled STATUS2 corrections despite the literal French bit4 table conflict;
