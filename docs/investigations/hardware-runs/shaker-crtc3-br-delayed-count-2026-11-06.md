@@ -1,12 +1,16 @@
 # CRTC3 BR: private delayed-count candidate
 
-The corrected private sourceb1a8c264 passes all48 original expected bytes on
-BR01F0 and all18 expected words on01F1 after cold cartridge boot, with original
-keyboard navigation and complete RAM-write reconstruction. These are source
-expectations, not a new whole-page physical-photo verdict. The earlier resident
-thirteen-row replay supplies the local twelve-CC/CPI-C4 causal receipts. The same candidate on the current
-source composition produces byte-identical trace, stack, store, RAM and loader
-ledgers. This is a private candidate, not a deployed fix or hardware verdict.
+The corrected CRTC3 source is now tested privately on MiSTer as `ae8bc6c`.
+It matches the new real-6128-Plus photographs: all48 BR01F0 opcode/results,
+all18 BR01F1 timing records and128/128 MRER phases. The VS31/32/33 probe
+preserves0/0/64 accepted interrupts. Full Quartus timing and production-T80
+pass; broader source gates still fail on old raw-IRQ assumptions. This is
+hardware-backed experimental evidence, not READY or an integrated fix.
+[Exact physical/native comparison and limits](real-plus-irq-comparison-2026-11-07.md).
+
+The causal evidence below explains the bounded model and the earlier rejected
+VS-reset recount. Those distinctions remain useful even though native BR/MRER
+comparisons have now completed.
 
 ## One delay, different ownership
 
@@ -69,8 +73,9 @@ The review also finds the old differential stimulus has a64-master-tick period
 sampled every64ticks, so it can alias to a constant. Its failure is not evidence
 of a mere character-phase shift, and its aborted tails need a legal producer
 stimulus. PRI writes between raw/delayed falls and restored VS-delay state remain
-explicit review concerns. Current-tip final gates, enabled full fit and native
-original BR/IRQ/DMA preservation remain before adoption. The
+explicit review concerns. Current-tip final gates and justified IRQ/snapshot replacement coverage remain
+before adoption. The private full fit and native BR/MRER/threshold comparison
+have completed; broader exact-build preservation remains scoped. The
 original-Plus MRER-between-edges discriminator and counter-clock alternatives
 remain in the [ACK investigation](shaker-crtc3-br-ack-boundary-2026-11-06.md).
 
@@ -78,8 +83,8 @@ Private packets under`local/overnight-20261103/resumed-20261104/`:
 `c3-br-ack-constraint-judgment-20261106/`,
 `c3-br-delayed-count-proof-20261106/` (132 final artifact hashes, original
 unchanged analyzer and supplemental receipts), and
-`c3-br-current-composition-gates-20261106/`. The current native SHAKER tally
-stays unchanged; accepted cb3a1a6 still has BR01F0/01F1 broken.
+`c3-br-current-composition-gates-20261106/`. The current ledger counts two passing pages on experimental `ae8bc6c`;
+accepted cb3a1a6 still has BR01F0/01F1 broken.
 
 
 ## Corrected private source
@@ -97,15 +102,18 @@ The unchanged full original Module B cartridge, real HID and production CPU/
 SDRAM path still pass48/48 and18/18 on these exact corrected bytes. Both128KiB
 captures reconstruct from297,678 retired writes. Coarse source/key/render/wait
 event times match the old cart run; instruction counts differ, so this does not
-claim full-trace identity or replace the focused phase proof. V5/DMA rechecks
-and a separate neighbour-event vector are in progress.
+claim full-trace identity or replace the focused phase proof. V5/DMA rechecks pass all6 screens and68 records. The neighbour vector is
+179/180: its minimum-line MRER helper assumes immediate zero despite a due
+delayed end. That RED is retained; standard-width physical results do not
+resolve this minimum-line overlap.
 
 The new autonomous real-Plus VS-threshold CPR measures64 whole PB0 periods
 after settling, for31/32/33-line frames and three repeats. Current MiSTer
 reports0/0/64 IRQs; AmSpirit1.17.1 reports0/64/64. Both reach DONE with valid
-zero cases. This makes the32-line boundary an outstanding hardware discriminator,
-not a source-proven pass/fail oracle. It also prevents treating the peer result
-as authority for the counter topology. Original Plus photographs are pending.
+zero cases. The original Plus photograph now confirms0/0/64 for all three repetitions.
+Two independent AmSpirit cold boots confirm its32-line disagreement; a focused
+French report with the own-code CPR and sources is packaged privately. The
+program outcomes still do not uniquely establish the internal counter topology.
 
 Private proof/caller packets: c3-br-vsync-rephase-proof-20261106/ and
 c3-br-vsync-corrected-cart-proof-20261106/ under the session root; standalone
