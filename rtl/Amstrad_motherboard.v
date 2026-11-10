@@ -159,7 +159,7 @@ module Amstrad_motherboard
 	output        frame_field,
 
 	// B6 applied output policy
-	// (docs/investigations/video-boundary/b6-video-boundary.md).  raw_crt is
+	// (hardware observations).  raw_crt is
 	// the committed Raw CRT selection; the core uses it to force native cadence
 	// and drop its post-processing.  pixel_vblank is the dot-sampled raw
 	// vertical blank tag that travels with the pixel it belongs to and is
@@ -251,7 +251,7 @@ wire crtc_extra_byte, crtc_start_gen, crtc_end_gen;
 // B6 applied output policy.  One register owns the timing tuple, the byte
 // policy, the pixel mask and the top-level Raw CRT restrictions, so a mode
 // change cannot be seen at different times by different consumers
-// (docs/investigations/video-boundary/b6-video-boundary.md, "Mode and
+// (hardware observations, "Mode and
 // transition contract").  Reserved value 3 normalises to Full.  The commit
 // condition itself lives next to crt_filter, where the Full vertical blank
 // and the selected CPU phase are in scope.
@@ -429,7 +429,7 @@ CRTC crtc
 // instantiate (the house pattern here is capability muxes, no generate);
 // in classic mode their outputs are muxed away and the classic CRTC +
 // ga40010 path is untouched bit-for-bit, which the classic suites and the
-// soak hash pin. See docs/plus/architecture.md §2/§5 Risk 1.
+// soak hash pin. See the Plus architecture contract §2/§5 Risk 1.
 // -----------------------------------------------------------------------
 wire plus_crtc_hs, plus_crtc_vs, plus_crtc_de;
 wire [13:0] plus_ma;
@@ -1063,8 +1063,8 @@ end
 //                  diagnostic/CRT output mode, not an automatic fallback.
 //   3 reserved     Normalised to Full by sync_filter_req.
 //
-// See docs/investigations/video-boundary/b6-video-boundary.md and
-// docs/backlog.md B1 for the evidence.
+// See hardware observations and
+// the integration test contract B1 for the evidence.
 crt_filter_output_select crt_filter_output_select
 (
 	.MODE(sync_filter_applied),

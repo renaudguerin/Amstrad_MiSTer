@@ -279,7 +279,7 @@ void test_rom_enable_gating() {
     tb.dut().plus_mode = 1;
 }
 
-// docs/plus/references/asic-reference.md §1-§2: while locked, 101xxxxx is
+// published ASIC references §1-§2: while locked, 101xxxxx is
 // the legacy MRER alias (bit 5 ignored); after unlock it is RMR2, whose
 // positions relocate the low window and whose D4D3=11 sets ASIC-page-enable.
 void test_rmr2_locking_positions_pages() {

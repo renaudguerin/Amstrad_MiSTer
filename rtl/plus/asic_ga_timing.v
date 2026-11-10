@@ -3,7 +3,7 @@
 //  bus sequencer, CPU/memory strobes, sync filtering and interrupt
 //  generation, and the legacy Gate Array register file.
 //
-//  Architecture role (docs/plus/architecture.md §2/§5 Risk 1, decision
+//  Architecture role (the Plus architecture contract §2/§5 Risk 1, decision
 //  recorded 2026-08-24): in Plus mode the Z80/SDRAM timing contract that the
 //  classic path receives from the ga40010 netlist is reproduced HERE,
 //  behaviourally, so no netlist-derived Gate Array personality runs in the
@@ -33,8 +33,7 @@
 //     with prompt normal-wrap delivery; non-normal causes retain the
 //     existing next-character delivery. DMA ACK retains compatible requests.
 //     PA7 V5/overlap photographs constrain outcomes, not this internal split.
-//     See docs/investigations/hardware-runs/
-//     shaker-crtc3-br-delayed-count-2026-11-06.md and B26.
+//     See hardware observations and B26.
 //   - Snapshot (SNA) preload covers more than ga40010's: besides the register
 //     file it seeds the sync/interrupt phase from the v3 header (B8-5).
 //     Power-up values are defined constants rather than uninitialised
@@ -62,9 +61,9 @@ module asic_ga_timing
 	// Authoritative Plus ASIC lock state from plus_mmu.  A locked 101xxxxx
 	// write is the legacy MRER alias; once unlocked it belongs exclusively to
 	// RMR2 and must not update mode, ROM enables, or the IRQ-clear bit.
-	// Source: docs/plus/references/asic-reference.md sections 1-2; the classic
+	// Source: published ASIC references sections 1-2; the classic
 	// MRER bit-5 don't-care is also tabulated in
-	// docs/references/Amstrad CPC Gate-Array.md, "Rom configuration selection".
+	// Amstrad CPC Gate Array reference, "Rom configuration selection".
 	input        plus_unlocked,
 
 	// Z80 bus (chip-side view, same signals ga40010 samples). D[5] is
@@ -378,7 +377,7 @@ module asic_ga_timing
 	// (and with it the interrupt-counter re-sync, intcntclr_4) rises when
 	// hcnt reaches 06. Two or three HSYNCs therefore separate the raw VSYNC
 	// start from that re-sync, which is exactly the "0..2, counts down to the
-	// reset action" B2 field (docs/plus/b8-5-snapshot-apply-2026-09-08.md,
+	// reset action" B2 field (Plus probe results,
 	// where the format's own prose is resolved against Caprice32's runtime
 	// and loader):
 	//   B2 = 2 -> no HSYNC seen yet     -> hcnt 00, next 01
@@ -571,8 +570,7 @@ module asic_ga_timing
 	// counting; no new numeric delay or change to raw monitor/VS ownership.
 	// Falling-edge history refills from raw while PRI history is invalid,
 	// preventing an import/reset refill from manufacturing a count event.
-	// See docs/investigations/hardware-runs/
-	// shaker-crtc3-br-delayed-count-2026-11-06.md and B26.
+	// See hardware observations and B26.
 	reg intcnt_hs_q;
 	always @(posedge clk) begin
 		if (!pri_valid) intcnt_hs_q <= HSYNC_I;
@@ -602,8 +600,7 @@ module asic_ga_timing
 	// §§27.1-27.2 p.283 and §27.3.2 p.284 require unconditional rephase at
 	// the second HSYNC end; they do not establish this internal topology.
 	// Raw/delayed event unification remains unresolved; see
-	// docs/investigations/hardware-runs/
-	// shaker-crtc3-br-delayed-count-2026-11-06.md and B26. Reset/import
+	// hardware observations and B26. Reset/import
 	// abandon a pre-existing token; restored B2 owns subsequent VS rephase.
 	// Re-arm only with valid current-epoch character history. During the
 	// U204 reset restart, CCLK sampling can stop and leave an old clear
@@ -646,7 +643,7 @@ module asic_ga_timing
 	// Only an ACK selected as raster may arm the held counter clear. A DMA
 	// ACK can overlap raw compatible creation and its later CPU delivery;
 	// neither transition may reclassify that ACK or reset the counter.
-	// Original-Plus evidence: docs/plus/pa7-dma-overlap-original-plus-2026-09-28.md.
+	// Original-Plus evidence: Plus probe results.
 	// Source selection matches asic_regs: delivered raster at each ASIC ACK
 	// start, held for that pulse. DCSR first-pulse provenance is separate.
 	wire classic_raw_n;
@@ -684,17 +681,16 @@ module asic_ga_timing
 	// or MRER bit 4, shared with the classic path.
 	//
 	// This single comparator is the mechanism recorded in
-	// docs/plus/source-divergences.md ("PRI delayed-comparator candidate");
+	// Plus timing observations ("PRI delayed-comparator candidate");
 	// AmSpirit matches every original-Plus probe screen, and it reproduces:
 	//  - the ordinary request 1 us after raw HSYNC assertion at every width,
 	//    including width 1 (probe 01; flat-plane markers ~136/135/139 dots at
-	//    R3=3/6/11, docs/plus/references/eerie-pri-trigger-counterfactual-
-	//    2026-09-27.md). Written accounts differ: [ARNOLD-REV] names the
+	//    R3=3/6/11). Written accounts differ: [ARNOLD-REV] names the
 	//    monitor HSYNC trailing edge, [KT] ~10 us;
 	//  - a PRI write to the current line requesting while HSYNC_d is high,
 	//    one character past raw HSYNC end (probe 04: writes C0 45..60 with
 	//    HSYNC 49..59). FF2's palette chain relies on this (46->48 at C0=52
-	//    of line 48, docs/plus/references/ff2-runtime-pri-2026-09-27.md);
+	//    of line 48, Plus probe results);
 	//  - HSYNC crossing into the PRI line requests at its C0 0, including
 	//    a raw HSYNC ending exactly at the line start (HSYNC_d is still high
 	//    there); with R2=R0 line_d still holds the PRI line when HSYNC_d
@@ -793,8 +789,7 @@ module asic_ga_timing
 	// count admission, with prompt delivery only for that source. Keep the
 	// existing VS-rephase delivery and MRER/ACK priority; a shared physical
 	// phase law is unresolved. This bounded split is not independently
-	// established silicon topology; see docs/investigations/hardware-runs/
-	// shaker-crtc3-br-delayed-count-2026-11-06.md and B26. The existing
+	// established silicon topology; see hardware observations and B26. The existing
 	// normal-wrap guard is retained; DMA-selected ACK retains this fire.
 	wire normal_wrap_prompt = classic_fire & intcnt_cnt & intcnt52 & ~intcntclr_4;
 	assign classic_raw_n = programmed_int_n & (classic_int_n | (pri != 8'd0));

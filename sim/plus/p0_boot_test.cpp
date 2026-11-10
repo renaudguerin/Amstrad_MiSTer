@@ -305,7 +305,7 @@ void test_malformed_images_abort() {
 
 // A raw machine reset mid-load clears parser state and service transients
 // without committing anything; a fresh download afterwards works normally
-// (reset-time cleanup ownership, docs/plus/architecture.md).
+// (reset-time cleanup ownership, the Plus architecture contract).
 void test_reset_during_load_cleans_up() {
     Harness h;
     h.initialize();

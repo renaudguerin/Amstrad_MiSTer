@@ -64,7 +64,7 @@ void model_controls() {
 // the RAM rate:
 //   NOP        4T  -> 1 us =  64 ticks between opcode fetches
 //   LD HL,nn  10T  -> 3 us = 192 ticks between opcode fetches
-// The Sonic rearm trace (docs/investigations/sonic/cart-wait-2026-09-22.md)
+// The Sonic rearm trace (hardware observations)
 // shows the model instead taking 128 ticks per cartridge NOP: the cartridge
 // stall covers the only WAIT sample inside the READY window.
 void cart_timing() {
@@ -246,7 +246,7 @@ void audit_page_and_tape() {
 }
 
 // PA4: original 6128 Plus V4 screen29, IMG_3971 (2026-09-28),
-// docs/plus/asic-audit-probes-v4.md: absolute reads retain operand high
+// Plus probe results: absolute reads retain operand high
 // bytes 50/68; LD A,(HL) retains opcode 7E. Observe CPU-written results,
 // not the combinational module output. Cartridge execution also proves
 // real operand fetches survive the retained-byte path.
@@ -310,7 +310,7 @@ void audit_page_readback() {
 
 // PA1: original 6128 Plus V4 screen26, IMG_3968 (2026-09-28).
 // CPU bytes and palette words are independently photographed observations:
-// docs/plus/asic-audit-probes-v4.md. Keep the existing IN-performs-write
+// Plus probe results. Keep the existing IN-performs-write
 // decoder path pinned while repairing the CPU's returned byte.
 void audit_ga_readback() {
     std::vector<uint8_t> program{0xf3};

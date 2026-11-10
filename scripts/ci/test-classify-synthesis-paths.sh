@@ -73,7 +73,7 @@ expect true rtl/pll.qip
 expect true rtl/pll/pll_0002.v
 
 # Simulation, tooling, documentation, and RTL that no QIP compiles.
-expect false docs/current-status.md
+expect false docs/roadmap.md
 expect false sim/sim_main.cpp
 expect false sim/plus/asic_video_test.cpp
 expect false tools/split-differential/diff_main.cpp
@@ -86,7 +86,7 @@ expect true rtl/plus/asic_video.v
 expect true rtl/plus/asic_ga_timing.v
 expect false README.md
 
-actual="$(printf '%s\n' docs/current-status.md rtl/plus/asic_video.v Amstrad.sv sim/sim_main.cpp | "$classifier")"
+actual="$(printf '%s\n' docs/roadmap.md rtl/plus/asic_video.v Amstrad.sv sim/sim_main.cpp | "$classifier")"
 if [[ "$actual" != "true" ]]; then
 	printf 'classification mismatch: boundary path in a list must win, got %s\n' \
 		"$actual" >&2

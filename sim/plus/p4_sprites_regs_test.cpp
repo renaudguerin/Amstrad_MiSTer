@@ -7,7 +7,7 @@
 // pixel read is held for several clocks; asic_regs must suppress ACK while
 // the engine holds FQ_REQ/FQ_ADDR, then grant the request after release.
 //
-// Expectations are derived from docs/plus/references/asic-reference.md §§3-6
+// Expectations are derived from published ASIC references §§3-6
 // and the production contracts in rtl/plus/asic_regs.v (sprq_grant) and
 // rtl/plus/asic_sprites.v (fq_stale / live row-tag emission gate).
 

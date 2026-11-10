@@ -1,7 +1,7 @@
 // Exhaustive unit vectors for rtl/plus/asic_regs.v (P2, architecture §4
 // exit: "exhaustive page decode/read/write/mirror/mask/open-bus tests").
 //
-// Expectations are derived from docs/plus/references/asic-reference.md and
+// Expectations are derived from published ASIC references and
 // cited at each assertion — never read back out of the simulator.
 //
 //   a01  sprite pixel RAM: full 4K sweep, low-nibble mask, isolation

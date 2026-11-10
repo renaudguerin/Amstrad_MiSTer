@@ -1,5 +1,5 @@
 // T80 maskable-INT sampling edge (Zilog UM008011-0816, p12 and Fig9 p13,
-// via docs/plus/pa7-interrupt-phase-followup.md "Sampling-edge diagnosis").
+// via Plus probe results "Sampling-edge diagnosis").
 //
 // Documented rule: INT is sampled at the rising edge that begins the final
 // T-state of the last machine cycle, one CPU clock before the next M1.

@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / 'scripts/diagnostics'))
 import pa7_dma_overlap
 import plus_hw_probes_sim
 
-# Authority: docs/plus/pa7-dma-overlap-original-plus-2026-09-28.md,
+# Authority: Plus probe results,
 # full photograph transcription (all four pages, 17 rows x eight repeats).
 # Expectations are the observed software records, not internal ASIC timing.
 ANCHORS = (0, -1, 0, 0)

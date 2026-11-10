@@ -1,7 +1,7 @@
 // Amstrad Plus cartridge MMU (P0): cartridge window paging and the CPU-side
 // read bridge to plus_cartridge_memory.
 //
-// Behaviour implemented from docs/plus/references/asic-reference.md:
+// Behaviour implemented from published ASIC references:
 //
 //   High window (&C000-&FFFF), selected by the ROM-select port (any I/O
 //   write with A13=0, mirroring the classic MMU's alias decode):
@@ -40,7 +40,7 @@
 // visible: a read whose MREQ starts two master clocks into a microsecond
 // still had the stall up at the only WAIT sample inside READY and lost a
 // whole microsecond (a cartridge NOP took 2 us; see
-// docs/investigations/sonic/cart-wait-2026-09-22.md).
+// hardware observations).
 // Admission is early enough: from the grant edge sdram.v returns the byte in
 // six clocks, and it reaches cart_dout three clocks later. cart_granted is
 // seen here one clock after the grant and cart_stall falls the clock after
@@ -229,8 +229,8 @@ always @(posedge clk) begin
 		// exactly as it does to PENR/INKR/RMR in asic_ga_timing.  While the
 		// ASIC is locked, 101xxxxx is the old CPC MRER decode (bit 5 is
 		// ignored), so the local window gates must mirror that write too.
-		// Sources: docs/plus/references/asic-reference.md sections 1-2 and
-		// docs/references/Amstrad CPC Gate-Array.md, "Rom configuration
+		// Sources: published ASIC references sections 1-2 and
+		// Amstrad CPC Gate Array reference, "Rom configuration
 		// selection" (classic MRER bit 5 is unused).
 		if (plus_mode && io_access_start && !A[15] && A[14]) begin
 			if ((D[7:5] == 3'b101) && unlocked) begin

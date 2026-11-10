@@ -4,7 +4,7 @@
 // container and block chunks ("cb00".."cb31"), forwarding page data to
 // plus_cartridge_memory, and pulsing control lines (load_begin, load_commit,
 // load_abort).  A cbNN chunk declaring more than one 16 KiB page is malformed
-// and aborts the load (fail closed); see docs/plus/architecture.md,
+// and aborts the load (fail closed); see the Plus architecture contract,
 // "CPR parser policy (P0)".
 
 module plus_cpr_parser

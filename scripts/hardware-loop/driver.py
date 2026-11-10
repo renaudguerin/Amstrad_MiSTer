@@ -828,7 +828,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 1
 
-    out_dir = (args.out_dir or Path(f"docs/references/hardware-loop/{config['case_id']}_{int(time.time())}")).resolve()
+    out_dir = (args.out_dir or Path(f"local/captures/hardware-loop/{config['case_id']}_{int(time.time())}")).resolve()
 
     if args.dry_run:
         manifest = run_hardware_loop(None, config, out_dir, target=args.target, port=args.port, dry_run=True, ssh_multiplex=args.ssh_multiplex)

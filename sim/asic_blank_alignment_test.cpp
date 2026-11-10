@@ -4,7 +4,7 @@
 // Expected RGB indices15..46 are independently measured SOFTWARE-reference
 // behavior, not a silicon constant: four normal-boot AmSpirit Lite1.17.1 cases,
 // full VRAM/palette/register controls and both Mode1/2 byte origins verified.
-// See docs/investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md#normal-boot-reference-controls.
+// See hardware observations#normal-boot-reference-controls.
 // One primary motherboard/production-T80/READY/VRAM-to-RGB boundary regression;
 // the leaf cases protect the distinct reset-free SNA_LOAD lifecycle boundary.
 #include "Vasic_blank_alignment_top.h"

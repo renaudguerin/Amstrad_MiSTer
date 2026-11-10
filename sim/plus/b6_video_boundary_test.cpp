@@ -171,7 +171,7 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
         const unsigned word=d.dbg_video_vram_word;
         const uint8_t native=bs?word>>8:word;
         // Pre-edge oracle: byte policy in
-        // docs/investigations/video-boundary/b6-video-boundary.md. Never
+        // hardware observations. Never
         // recover expected history from the observed serializer output.
         const uint8_t expected=(mode==0&&shift)?(bs?uint8_t(word):history):native;
         const bool check=!(mode==0&&shift&&!bs&&!history_valid);
@@ -190,7 +190,7 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
             // Renderer samples raw blank on this edge. The converter consumes
             // the preceding dot's tag alongside that dot's registered RGB.
             // Both raw modes carry the additional vertical mask; Full never
-            // does (docs/investigations/video-boundary/b6-video-boundary.md,
+            // does (hardware observations,
             // "Pixel and output pipeline").
             if(mode&&tag_valid&&expected_mask) {
                 ++r.mask_checks;

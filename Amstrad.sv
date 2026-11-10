@@ -1292,7 +1292,7 @@ wire plus_gx4000 = (plus_model == 2'b01);
 // CPC Plus BASIC configuration: /EXP low selects BASIC at logical ROM 0;
 // ROM 7 remains disc firmware. High requests the ROM-0 disc auto-boot route.
 // GX4000 ignores /EXP in the MMU. Keep its live decoder polarity unchanged.
-// Source rationale and production-T80 boot evidence: docs/plus/architecture.md D5.
+// Source rationale and production-T80 boot evidence: the Plus architecture contract D5.
 wire plus_exp_n = 1'b0;
 
 plus_mmu plus_mmu
@@ -1491,8 +1491,8 @@ Amstrad_motherboard motherboard
 	// to the single core video stream, so HDMI acquisition can become
 	// unusable there.  The motherboard commits a changed selection at a safe
 	// byte phase and reports it back as raw_crt.  See
-	// docs/investigations/video-boundary/b6-video-boundary.md and
-	// docs/backlog.md B1.
+	// hardware observations and
+	// the integration test contract B1.
 	.sync_filter(status[36:35]),
 	.raw_crt(raw_crt),
 	.pixel_vblank(pixel_vblank),
@@ -1814,7 +1814,7 @@ ssm_marker ssm
 assign DDRAM_CLK = clk_sys;
 
 //////////////////////////////////////////////////////////////////////
-// SNA save (backlog B18, docs/b18-sna-save.md).
+// SNA save (backlog B18, the SNA save design).
 //
 // OSD "Save snapshot" arms a request. The Z80 freezes at the next
 // instruction boundary, the same point a hardware WAIT would hold it, while

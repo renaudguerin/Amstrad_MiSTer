@@ -2,9 +2,8 @@
 """Static SSM marker inventory for a SHAKER disc image.
 
 Answers, without hardware and without executing anything, which SSM codes a
-SHAKER build actually emits. That question turned out to gate the whole
-`#FFFE` capture path: see
-`docs/investigations/ssm-csl/shaker-ssm-marker-inventory-2026-09-12.md`.
+SHAKER build actually emits. The static marker inventory constrains whether
+the `#FFFE` capture path can be used.
 
 Reads an EDSK or standard DSK image, walks the AMSDOS DATA-format directory,
 reassembles each module binary, and scans it for `ED LL ED HH` pairs whose

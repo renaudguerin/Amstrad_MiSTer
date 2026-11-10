@@ -16,7 +16,7 @@ set -euo pipefail
 # "Ignored assignment:" so an edition that silently drops one of these
 # overrides fails the run instead of compiling at full cost while looking
 # like a smoke run.  Measured figures and rationale live in
-# docs/ci-testing-policy.md.
+# the CI timing policy.
 
 effort="${1:?usage: apply-quartus-effort.sh <full|smoke> <project.qsf>}"
 qsf="${2:?usage: apply-quartus-effort.sh <full|smoke> <project.qsf>}"

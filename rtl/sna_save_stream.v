@@ -8,7 +8,7 @@
 //  Main polls UIO 0x3C only for C64/C128 and arcade NVRAM with bespoke per-core
 //  handlers, so it would need new Amstrad-specific Main code, and Main's
 //  automatic save-state copy to SD needs an FS load that would take over SD
-//  slot 0, which is drive A here (see docs/b18-sna-save.md "Why not SD directly").
+//  slot 0, which is drive A here (see the SNA save design "Why not SD directly").
 //
 //  Publication order:
 //  1. word 0 = 64'hFFFF_FFFF_FFFF_FFFF (invalid generation)
@@ -17,7 +17,7 @@
 //  3. word 1 = {32'd0, file_bytes / 4} (length in 32-bit words: 0x8040 or 0x4040)
 //  4. word 0 = {32'd0, generation} (generation counter 1.., never all ones)
 //
-//  Reference: docs/b18-sna-save.md, "Transport", "Memory capture".
+//  Reference: the SNA save design, "Transport", "Memory capture".
 //============================================================================
 
 module sna_save_stream

@@ -7,7 +7,7 @@
 //  screen). The final precedence mux lives in asic_video; this module only
 //  decides WHERE a sprite pixel exists and WHAT palette entry it selects.
 //
-//  Sources: docs/plus/references/asic-reference.md §4/§5 ([ARNOLD §2.1],
+//  Sources: published ASIC references §4/§5 ([ARNOLD §2.1],
 //  [ARNOLD-REV], [KT], [QUASAR]); each rule cites its source below. MAME
 //  amstrad_m.cpp amstrad_plus_update_video_sprites() was used as the
 //  behavioural cross-reference for magnification/priority/palette-entry

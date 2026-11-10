@@ -10,7 +10,7 @@
 // C++ script below.
 //
 // Source-derived expectations are from
-// docs/plus/references/asic-reference.md §9, "Timing & bus interaction":
+// published ASIC references §9, "Timing & bus interaction":
 // LOAD is >=8 CCLK cycles, +1 when a CPU access simultaneously uses the 8255,
 // and +2 when that access is a PSG register write; the 8255, selected AY
 // register, and AY read/write state are restored afterwards.

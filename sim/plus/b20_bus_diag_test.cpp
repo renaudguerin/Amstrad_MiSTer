@@ -232,7 +232,7 @@ void run_cell(const CellConfig& cfg) {
                              : ack_address==cfg.origin+1,
             cfg.name+": acknowledge did not follow the intended opcode class");
     // Handler-read regression: split vector delivery must preserve the first
-    // raster ACK provenance (see docs/plus/ack-provenance-regression-2026-09-26.md).
+    // raster ACK provenance (see Plus probe results).
     require(dcsr_seen && dcsr==0x80,cfg.name+": handler DCSR provenance incorrect");
     require(seen, cfg.name+": no target execution");
     require(!cfg.memory_write || write_seen,cfg.name+": no LD(DE),A memory write");

@@ -4,7 +4,7 @@
 // restoring ASIC sprite RAM, sprite attributes, 12-bit palette entries,
 // raster/interrupt control registers, sound DMA registers, and ASIC lock state.
 //
-// Reference: docs/references/Snapshot (.SNA) file format.md
+// Reference: SNA v3 file format
 
 module plus_sna_parser
 (

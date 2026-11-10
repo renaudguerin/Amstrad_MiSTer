@@ -1,7 +1,7 @@
 // Shared classic/Plus FDC port decoder.
 //
 // Classic CPC decoding follows the partial I/O map in
-// docs/references/I_O port allocation.md: A10, A8 and A7 select the FDC;
+// CPC I/O port allocation: A10, A8 and A7 select the FDC;
 // A9 and A4-A1 are deliberately ignored. The caller uses A0 only for reads;
 // either selected CPC write alias is mapped to the uPD765 data register.
 //

@@ -1,7 +1,7 @@
 //============================================================================
 //  SNA snapshot freeze controller and header latch (B18 slice 4a).
 //
-//  Reference: docs/b18-sna-save.md, "Freeze point", "Header fields and their
+//  Reference: the SNA save design, "Freeze point", "Header fields and their
 //  sources (classic)".
 //============================================================================
 

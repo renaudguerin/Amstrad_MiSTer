@@ -1,6 +1,6 @@
 // Deterministic unit tests for rtl/plus/asic_dma.v (Phase P7)
 //
-// Expectations derived from docs/plus/references/asic-reference.md §9 and
+// Expectations derived from published ASIC references §9 and
 // _Arnold V_ Specification - Issue 1.5 §2.6 / §2.7.
 
 #include <cstdint>

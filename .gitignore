@@ -43,6 +43,9 @@ c5_pin_model_dump.txt
 # Local private workspace (shared across worktrees via symlink; never committed)
 /local
 /test_media
+/docs/references/
+/.agents/
+/.claude/
 
 # Local source/reference artifacts (deliberately not versioned).
 docs/**/ACCC*.pdf

@@ -840,8 +840,8 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 // -----------------------------------------------------------------------------
 // B8-5 slice A: DMA/MMU/apply focused tests (required-pass, --b8-dma-mmu).
 //
-// Contract under test (docs/plus/b8-5-snapshot-apply-2026-09-08.md, SNA format
-// docs/references/Snapshot (.SNA) file format.md):
+// Contract under test (Plus probe results, SNA format
+// SNA v3 file format):
 // - Parser captures CPC+ DMA internal bytes 0x8E0-0x8F4 (three 7-byte
 //   records: LE16 loop count lower12, LE16 loop address, LE16 pause count
 //   lower12, prescaler8) and the 0x8F7 unlock sequence state; shadows clear
@@ -1329,7 +1329,7 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 	// Case PPR-reload: pause=2, prescaler phase 0, PPR=1. HSYNC1 reloads the
 	// phase and counts 2->1; HSYNC2 ticks the phase; HSYNC3 reloads and
 	// counts 1->0 and fetches on that same expiry edge. See Sonic DMA
-	// cadence evidence in docs/investigations/sonic/hardware-loop-2026-09-22.md.
+	// cadence evidence in hardware observations.
 	B8ChunkParams p;
 	p.sar_lo[0] = 0x00; p.sar_hi[0] = 0x40; p.ppr[0] = 0x01;
 	p.pause_cnt[0] = 2; p.pause_presc[0] = 0;
@@ -2319,7 +2319,7 @@ void test_b8_palette_provenance(Vplus_p8_test_top& dut) {
 // -----------------------------------------------------------------------------
 // B20-1 live PPR writes (required-pass, production regs->DMA path).
 //
-// Sources (see docs/plus/live-ppr-2026-09-22.md):
+// Sources (see Plus probe results):
 // - S02 p.4: a changed pause unit takes effect immediately; e.g. unit 5 with
 //   the counter at 3 wraps at once and the next value is 0.
 // - S22 p.10 ("Prenez la pause"): a mid-PAUSE PPR change — even same-value or

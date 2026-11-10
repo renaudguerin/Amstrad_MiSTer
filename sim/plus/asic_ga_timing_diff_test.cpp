@@ -1,5 +1,5 @@
 // Lockstep differential bench for rtl/plus/asic_ga_timing.v against the
-// classic netlist-derived ga40010 (docs/plus/architecture.md §5 Risk 1,
+// classic netlist-derived ga40010 (the Plus architecture contract §5 Risk 1,
 // decision 2026-08-24: Plus-mode CPU/SDRAM timing is reproduced behaviourally
 // and pinned cycle-exact to the synthesised classic contract here).
 //

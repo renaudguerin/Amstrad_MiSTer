@@ -54,7 +54,7 @@ int main(int argc,char**argv) {
    check(b.d.plus_model==3,"manual selection works after echo");
   } else check(b.requests.empty(),"existing Plus model preserved without update");
  }
- // Header specification docs/specs/formats/Snapshot (.SNA) file format.md:
+ // Header specification the cited specification:
  // 6D types 4=6128+, 5=464+, 6=GX4000; zero/unknown retain menu policy.
  for(int initial=0;initial<4;initial++) for(int machine=0;machine<8;machine++) {
   Bench b; b.d.status=uint64_t(initial)<<33; b.tick(); b.start(machine);

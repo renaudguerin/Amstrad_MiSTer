@@ -52,7 +52,7 @@ JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
 	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
-	ga40010-test u765-test b18-save-admission-test
+	ga40010-test u765-test b18-save-admission-test hardware-loop-host-test
 
 .PHONY: full test-run full-run list-tests crtc-test plus-test plus-full ga40010-test u765-test
 test full:
@@ -79,6 +79,10 @@ ga40010-test:
 
 u765-test:
 	"$(MAKE)" -C ../rtl/u765 test
+
+.PHONY: hardware-loop-host-test
+hardware-loop-host-test:
+	python3 -m unittest discover -s ../scripts/hardware-loop -p 'test_*.py'
 
 # Randomized equivalence soak (sim/README.md). Override the golden hash to
 # check one, e.g.: make -C sim soak SOAK_EXPECT=1a2b3c4d5e6f7081

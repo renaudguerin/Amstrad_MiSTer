@@ -9,7 +9,7 @@
 //  PSG, RAM-configuration and memory-size bytes stay in Amstrad.sv; they are
 //  outside this restore slice.
 //
-//  Reference: docs/references/Snapshot (.SNA) file format.md
+//  Reference: SNA v3 file format
 //    v1 header  2E        GA index of selected pen
 //               2F-3F     GA current palette (16 pens + border, HW colours)
 //               40        GA multi configuration (RMR)

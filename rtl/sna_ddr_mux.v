@@ -10,7 +10,7 @@
 //  - B releases by dropping b_request when b_we is deasserted.
 //  - Ownership returns to A on the next clock.
 //
-//  Reference: docs/b18-sna-save.md, "Transport", "SSM coexistence".
+//  Reference: the SNA save design, "Transport", "SSM coexistence".
 //============================================================================
 
 module sna_ddr_mux

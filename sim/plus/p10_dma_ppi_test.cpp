@@ -1,7 +1,7 @@
 // Focused production-shaped P10e DMA/PPI/PSG/input concurrency test.
 //
 // The timing expectations are taken from
-// docs/plus/references/asic-reference.md §9, lines 438-446: a LOAD occupies
+// published ASIC references §9, lines 438-446: a LOAD occupies
 // at least eight CCLK cycles, with +1 for a simultaneous 8255 access and +2
 // when that access is a PSG register write.  The same paragraph requires the
 // PPI port-A direction, selected AY register, and AY read/write state to be

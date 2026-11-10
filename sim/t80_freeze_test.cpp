@@ -1,6 +1,6 @@
 // B18 slice 1: production-T80 snapshot freeze point (T80pa INSN_START).
 //
-// Design: docs/b18-sna-save.md, "Freeze point" and "Acceptance" item 1.
+// Design: the SNA save design, "Freeze point" and "Acceptance" item 1.
 //
 // At an INSN_START boundary, REG must hold the architectural state after the
 // previous instruction, with PC the address of the instruction being fetched.
@@ -997,7 +997,7 @@ void test_header_cpu_bytes() {
 // During fetch of HALT at 04h, R low 7 bits increment from 5 to 6 (R becomes 86h).
 // T80 enters HALT with halt_n low. Internal PC points to 0005h (address after HALT).
 // On dummy M1 fetch during HALT, INSN_START pulses.
-// SNA save rule for HALT (docs/b18-sna-save.md):
+// SNA save rule for HALT (the SNA save design):
 //   - Saved PC = PC - 1 = 0005h - 1 = 0004h (address of HALT opcode).
 //   - Saved R = {R[7], R[6:0] - 1} = {1'b1, 7'd6 - 7'd1} = 85h.
 // Bit 7 of R is preserved as 1.
@@ -1200,7 +1200,7 @@ void test_refusal() {
   }
 
   // Case 5c: admitted request, then RAMpage leaves 3 before the boundary.
-  // docs/b18-sna-save.md "Mapping admission": the dump covers the base 128K
+  // the SNA save design "Mapping admission": the dump covers the base 128K
   // only, so a mapping change between request and freeze must refuse at the
   // boundary rather than capture a header naming memory the file lacks.
   {

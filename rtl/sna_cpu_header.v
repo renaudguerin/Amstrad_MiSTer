@@ -9,7 +9,7 @@
 //  up on hardware. The memory-chunk and CPC+ chunk parser stays in Amstrad.sv;
 //  it is outside this slice.
 //
-//  Reference: docs/references/Snapshot (.SNA) file format.md
+//  Reference: SNA v3 file format
 //    v1 header  11        Z80 F            -> cpu_dir[15:8]
 //               12        Z80 A            -> cpu_dir[7:0]
 //               13        Z80 C            -> cpu_dir[87:80]

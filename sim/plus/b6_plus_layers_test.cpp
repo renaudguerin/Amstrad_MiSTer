@@ -6,7 +6,7 @@
 
 namespace {
 // Palette packing, sprite size/priority and scroll semantics are the fixture's
-// inputs from docs/plus/references/asic-reference.md sections 5, 6 and 8.
+// inputs from published ASIC references sections 5, 6 and 8.
 // This is an output-boundary integration check, not a new ASIC timing model.
 constexpr unsigned ink0=0x327, ink1=0xe91, border=0x4ad, sprite=0xc58;
 unsigned expand(unsigned rgb) {

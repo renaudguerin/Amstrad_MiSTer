@@ -1226,7 +1226,7 @@ begin
 	IORQ <= IORQ_i;
 	Stop <= I_DJNZ;
 
-	-- B18 snapshot freeze point (docs/b18-sna-save.md, "Freeze point").
+	-- B18 snapshot freeze point (the SNA save design, "Freeze point").
 	-- High during T2 of an opcode fetch that starts a new instruction. The T1
 	-- enable has committed the previous instruction's deferred ALU write
 	-- (Save_ALU_r), while the T2 enable has not yet incremented PC and R or

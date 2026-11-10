@@ -898,8 +898,8 @@ clean:
 D5_SRC_DIR := $(abspath obj_dir/d5_sources)
 D5_OBJ_DIR := $(abspath obj_dir/d5_boot)
 D5_RTL = $(D5_SRC_DIR)/Amstrad_motherboard.v $(filter-out $(abspath ../../rtl/Amstrad_motherboard.v) $(P10BOOT_TV80),$(P10BOOT_RTL)) $(abspath ../obj_dir/t80/T80pa.v) $(abspath ../../rtl/YM2149.sv) $(abspath ../../rtl/hid.sv)
-D5_EN ?= ../../docs/plus/cartridges/06_System/Plus_EN.cpr
-D5_FR ?= ../../docs/plus/cartridges/06_System/6128_FR.cpr
+D5_EN ?= ../../local/test_media/cartridges/06_System/Plus_EN.cpr
+D5_FR ?= ../../local/test_media/cartridges/06_System/6128_FR.cpr
 .PHONY: d5-boot-build d5-boot
 
 d5-boot-build:

@@ -8,7 +8,7 @@
 // tightest legal cadence, one dot per clock, so any timing that passes
 // here has strictly more slack in production (4 clocks per dot).
 //
-// Expectations derive from docs/plus/references/asic-reference.md S4/S5
+// Expectations derive from published ASIC references S4/S5
 // and the [KT] comparison formulas; MAME amstrad_plus_update_video_sprites
 // is the behavioural cross-reference named by architecture S6. Each
 // assertion cites its source. Nothing is read back out of the simulator

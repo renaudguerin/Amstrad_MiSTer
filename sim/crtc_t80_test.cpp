@@ -309,7 +309,7 @@ void test_out_r0_type1_widen() {
 
 // SHAKER 019D: hardware observes 1E for the fifth-us call and 1F for
 // the fourth-us call, one character earlier. See
-// docs/investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md.
+// hardware observations.
 // French ACCC v1.11 section 16.4.2 p.171 describes the immediate R7=C4
 // VSYNC effect, but does not specify the bus sampling edge within a character.
 // The frame and write value preserve the hardware test's matching row and

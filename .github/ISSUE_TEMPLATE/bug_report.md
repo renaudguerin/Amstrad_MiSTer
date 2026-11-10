@@ -1,29 +1,23 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Report a reproducible core problem
 title: ''
 labels: ''
-assignees: renaudguerin
-
+assignees: ''
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Core release or commit:**
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Machine model and settings:**
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Disk, cartridge or program:**
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Steps to reproduce:**
+1.
+2.
 
-**Version used**
+**Expected result:**
 
-**Additional context**
-Add any other context about the problem here.
+**Observed result:**
+
+**Photograph, video or capture (if relevant):**

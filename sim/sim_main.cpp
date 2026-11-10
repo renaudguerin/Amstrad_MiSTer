@@ -1876,7 +1876,7 @@ void test_type1_r0_zero_r2_zero_infinite_hsync(TestBench& test) {
     // every character, so the pulse never ends.  Real CRTC 1 hardware
     // confirms it: SHAKER 2.7 page 01F4 (BR/E "R52 INC IN HSYNC") reads
     // #FF, meaning no R52 overflow in a 3328 us window (Logon System photo,
-    // docs/investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md).
+    // hardware observations).
     // Observe 40 characters, beyond two full C3l overflow cycles, at every
     // raw CLOCK tick.
     start_type1_r2_zero_one_char_hsync(test, 0);
@@ -4780,8 +4780,7 @@ void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
 // completion, and R5=0 retained management. The positive R4/R9 re-entry
 // duration is inferred from original-CPC SHAKER CE/02C9's 0080 result;
 // it is an abstract output rule, not a measured silicon C5 reset.
-// See docs/investigations/hardware-runs/
-// shaker-e-0080-positive-r5-reentry-2026-11-04.md (original caller trace).
+// See hardware observations (original caller trace).
 void test_type1_positive_r5_reentry_origin_delay(TestBench& test) {
     check_type1_ivm_adjustment_r4_boundary(test, false);
     const auto prepare_retained_adjustment = [&]() {
@@ -6342,7 +6341,7 @@ void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     test.expect_ma("type 0 R0=0 continues ignoring R12/R13 (0x3ABC) write (MA remains 0)", 0);
 }
 
-// Review action item A3 (docs/review-debt.md): live-entry twin of t20g.
+// Review action item A3 (the review note): live-entry twin of t20g.
 // t20g reaches the R0=0 state by cold reset, where no counter edge has run
 // before the freeze pins C0, so the section 20.3.1 reload never fires and
 // MA stays at its reset value. The actual section 13.2.6 setup is reached

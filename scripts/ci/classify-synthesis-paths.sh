@@ -17,7 +17,7 @@ set -euo pipefail
 # WHEN this answers "true" leads to a Quartus run is the workflow's decision,
 # not this script's.  Stream branches stay on Tier A no matter what they touch;
 # integration branches, pull requests, tags, and manual dispatches synthesize.
-# See docs/ci-testing-policy.md.
+# See the CI timing policy.
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 

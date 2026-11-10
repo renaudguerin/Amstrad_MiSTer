@@ -4,9 +4,9 @@
 // Target: MiSTer FPGA (Quartus 17.0.2 target, DE10-Nano)
 //
 // Sources & Reference:
-// - docs/plus/references/asic-reference.md §9 (DMA Sound Engine)
-// - docs/references/_Arnold V_ Specification - Issue 1.5 §2.6 (Automatic feeding of sound generator)
-// - docs/references/_Arnold V_ Specification - Issue 1.5 §2.7 (Interrupt Service)
+// - published ASIC references §9 (DMA Sound Engine)
+// - Arnold V specification §2.6 (Automatic feeding of sound generator)
+// - Arnold V specification §2.7 (Interrupt Service)
 //
 // Attribution:
 // Portions implementing documented Amstrad Plus ASIC behaviour follow
@@ -262,7 +262,7 @@ module asic_dma (
 
 			// HSYNC leading edge starts DMA line cycle
 			// B20-1 live PPR (S02 p.4 immediate, S22 p.10 iteration
-			// advance; see docs/plus/live-ppr-2026-09-22.md): a PPR write forces
+			// advance; see Plus probe results): a PPR write forces
 			// the current prescaler interval to end. On the HSYNC edge
 			// that means one tick with the new PPR reload, whether the
 			// edge is natural (prescaler==0) or forced (ppr_wr). A pulse

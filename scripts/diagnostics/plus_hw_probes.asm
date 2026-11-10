@@ -515,7 +515,7 @@ sprite_table:
             ld bc,5 : ldir              ; X lo, X hi, Y lo, Y hi, magnification
             jr sprite_table
 
-; ---- V4 audit screens. Hand predictions: docs/plus/asic-audit-probes-v4.md.
+; ---- V4 audit screens. Hand predictions: Plus probe results.
 ; These experiments expose observations, never decide which source is correct.
 
 ; A in hex at DE; preserve the caller's result pointer and loop registers.
@@ -745,7 +745,7 @@ pa7_window_end:
             assert (pa7_window_end & 0x2000) != 0
 
 ; ---- PA7 follow-up screens 31-35 (G/W/L/R/I). Predeclared expectations in
-; docs/plus/pa7-interrupt-phase-followup.md, never adjust to match output.
+; Plus probe results, never adjust to match output.
 ; Same shared yellow ISR (isr_pal) for every request. B = A +78 lines +1us
 ; via 3 extra NOPs, giving complementary parity for 2us sleds. PRI0 then
 ; MRER reset order preserved; all markers finish before VSYNC240.

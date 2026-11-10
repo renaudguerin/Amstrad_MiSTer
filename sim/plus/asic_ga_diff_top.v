@@ -2,7 +2,7 @@
 // support path (asic_ga_timing) and the classic netlist-derived ga40010 with
 // IDENTICAL inputs and exposes both modules' shared contract outputs side by
 // side. The C++ bench compares them every clock edge; cycle-exact equality is
-// the acceptance criterion for docs/plus/architecture.md §5 Risk 1 option (a).
+// the acceptance criterion for the Plus architecture contract §5 Risk 1 option (a).
 //
 // Simulation-only: never added to files.qip.
 

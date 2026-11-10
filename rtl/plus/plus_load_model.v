@@ -54,7 +54,7 @@ module plus_load_model (
   end
   if (sna_header_wr) begin
    if (sna_addr == 8'h10) sna_version <= sna_data;
-   // docs/specs/formats/Snapshot (.SNA) file format.md, header offset 6D.
+   // the cited specification, header offset 6D.
    // Classic/unknown headers preserve the current Plus model (separate policy).
    if (sna_addr == 8'h6d) begin
     case (sna_data)

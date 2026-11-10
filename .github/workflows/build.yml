@@ -144,7 +144,7 @@ jobs:
           # tags, and manual dispatches) default to full effort to produce
           # hardware-testable RBFs directly on integration merges.
           # Manual dispatch also accepts "smoke" or "both" when explicitly requested.
-          # Measured figures: docs/ci-testing-policy.md.
+          # Keep the synthesis effort setting explicit for this build.
           legs='[]'
           mode=none
           if [[ "$required" == "true" ]]; then
@@ -183,6 +183,12 @@ jobs:
 
       - name: Set up pinned Verilator
         uses: ./.github/actions/setup-verilator
+
+      - name: Set up Python for hardware-loop tests
+        run: |
+          python3 -m venv "$RUNNER_TEMP/amstrad-tests"
+          "$RUNNER_TEMP/amstrad-tests/bin/python" -m pip install --disable-pip-version-check Pillow
+          echo "$RUNNER_TEMP/amstrad-tests/bin" >> "$GITHUB_PATH"
 
       - name: Run selected behavioral tests and lint
         env:

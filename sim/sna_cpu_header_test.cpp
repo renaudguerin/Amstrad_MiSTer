@@ -1,7 +1,7 @@
 // SNA CPU-header decode vectors (B18 slice 2).
 //
 // Every expected value below is derived on paper from the SNA specification
-// (docs/references/Snapshot (.SNA) file format.md, offsets and notes cited at
+// (SNA v3 file format, offsets and notes cited at
 // each assertion) and the T80pa DIR layout (rtl/T80/T80pa.vhd REG/DIR
 // comment: IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I,
 // F', A', F, A from high bits to low; T80.vhd consumes DIR(211) as IFF2,

@@ -1401,7 +1401,7 @@ void test_tape_image_placement_outside_model_maps(TestState &test) {
 
 void test_top_level_wiring(TestState &test) {
     // The P-1 tie-off pin became obsolete when P0 production-connected the
-    // cartridge service (docs/plus/architecture.md, "Cartridge SDRAM
+    // cartridge service (the Plus architecture contract, "Cartridge SDRAM
     // contract"). This check pins the new contract: the reserved SDRAM port
     // is driven by the service's memory interface, and the CPR loader side
     // is still explicitly tied off until the parser joins.

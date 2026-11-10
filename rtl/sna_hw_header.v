@@ -5,7 +5,7 @@
 //  Purely combinational module that assembles classic hardware observations
 //  into the SNA v3 header bytes (offsets 0x2E to 0xB4, 135 bytes total).
 //
-//  Reference: docs/references/Snapshot (.SNA) file format.md
+//  Reference: SNA v3 file format
 //    0x2E       GA pen select (0-15)
 //    0x2F-0x3E  GA palette pens 0-15 (hardware colours)
 //    0x3F       GA border colour (hardware colour)

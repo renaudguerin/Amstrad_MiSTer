@@ -268,7 +268,7 @@ int main(int argc,char**argv) {
                 // throughout this short stage. R3=5 alone cannot promise SHIFT.
                 // Keep shift coverage on the acquired type-0/Plus traces and
                 // transport checks on every machine, without retiming the CPU.
-                // Evidence: docs/investigations/video-boundary/b22-short-hsync-2026-09-23.md.
+                // Evidence: hardware observations.
                 // If type 1 later acquires, require coverage there too. Two
                 // armed pulses leave fetch time after the first; hs4 history
                 // can cancel shift and is a separate monitor-policy question.

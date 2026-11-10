@@ -1,6 +1,6 @@
 // B18 acceptance 2+3: executed classic program -> published SNA -> real owners.
-// Expected bytes come from the program below and docs/references/formats/Snapshot
-// (.SNA) file format.md, not from capture ports or decoder outputs. RAM uses
+// Expected bytes come from the program below and the SNA v3 file format,
+// not from capture ports or decoder outputs. RAM uses
 // an independent bank/page/offset pattern plus the program's specified writes.
 #include "Vb18_snapshot_top.h"
 #include "verilated.h"

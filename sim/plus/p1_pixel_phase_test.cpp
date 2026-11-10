@@ -1,4 +1,4 @@
-// P1 pixel-phase validation (docs/plus/architecture.md §4 P1 exit item,
+// P1 pixel-phase validation (the Plus architecture contract §4 P1 exit item,
 // closing the t05h unverified-assumption note against the production
 // cadence).
 //
@@ -413,7 +413,7 @@ bool p1_pixel_stream(Bench& b) {
 // Snapshot import changes the connected video line and HSYNC on one edge.
 // It is state restoration, not traversal into a matching line: the PRI
 // comparator (rising edge of HSYNC_d && {0,PRI} matching line_d or the live line;
-// docs/plus/source-divergences.md) must not see the import as a rising edge,
+// Plus timing observations) must not see the import as a rising edge,
 // neither on the apply edge nor when its delayed terms refill from the
 // restored counters at the next character strobe. The restored HSYNC
 // (HSW=3 of width 14) stays active for 11 more characters, so a later live
@@ -466,7 +466,7 @@ void pri_history_guards() {
 
 // HSYNC crossing into the PRI line (connected CRTC + GA). The request is the
 // rising edge of HSYNC_d && PRI matching line_d or the live line, where the
-// _d terms are one character late (docs/plus/source-divergences.md, "PRI
+// _d terms are one character late (Plus timing observations, "PRI
 // delayed-comparator candidate"; original Plus probes 05-09). R0=63,
 // width 14, PRI=2:
 //   R2=49: raw HSYNC 49..62, HSYNC_d 50..63: ordinary request only.

@@ -20,7 +20,7 @@
 //  the owner's request would never stay low for two edges and the other
 //  client would wait for the whole save.
 //
-//  Reference: docs/b18-sna-save.md, slice 4c constraints.
+//  Reference: the SNA save design, slice 4c constraints.
 //============================================================================
 
 module sna_cart_mux

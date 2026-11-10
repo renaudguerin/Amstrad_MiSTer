@@ -1059,7 +1059,7 @@ void t03h_vde_rows_past_r6_stay_bordered(TestBench& test) {
 // temporarily as on type 1, so no R6 rewrite cancels it. Alcon 2020 (CPR)
 // relies on this: its HUD frame borders at C4=R6=2, then rewrites R6=29
 // at C4=5 for the next frame; the two rows before the playfield must stay
-// border (docs/investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
+// border (hardware observations).
 // Conversely, lowering R6 below C4 without an equality never borders.
 void t03i_r6_border_latched_until_frame_origin(TestBench& test) {
     program_display_frame(test);
@@ -2744,8 +2744,7 @@ void t07e_status2_vertical_events(TestBench& test) {
 // HIGH4DFF), with the same byte-identical 26/27 predicates/photo binding.
 // This bounded hardware/software oracle conflicts with FR §21.3.4.2 p.249's
 // bit4 "Always 1" table row. It does not establish a general R5 rule or the
-// photographed payload hash. See docs/investigations/hardware-runs/
-// shaker-crtc3-status-overflow-2026-11-06.md for the derivation and evidence
+// photographed payload hash. See hardware observations for the derivation and evidence
 // limits.
 void t07h_status2_bits0_and4_body_and_adjustment(TestBench& test) {
     constexpr unsigned kFrameCharacters = 312 * 64; // 19968, original4E00 buffer
@@ -2842,7 +2841,7 @@ void t07g_readonly_and_neutral_cycles(TestBench& test) {
 }
 
 // P6: Screen split (SPLT &6801, SSA &6802/&6803) and Soft scroll (SSCR &6804).
-// Sources: docs/plus/references/asic-reference.md §8 ([ARNOLD §2.3/§2.5], [KT], [QUASAR], ACCC §20.5).
+// Sources: published ASIC references §8 ([ARNOLD §2.3/§2.5], [KT], [QUASAR], ACCC §20.5).
 
 // t08a: Screen split capture at HCC==R1 on the SPLT line, line reload from SSA,
 // and subsequent row advance from the SSA base.
@@ -3086,7 +3085,7 @@ void t08m_split_during_adjustment(TestBench& test) {
 // 12/24 NOPs earlier yields green adjustment, then red frame0-7.
 // This pins capture before the late enable and preserves frame-origin
 // reload. Exact R1 timing and the early-arm hardware control remain open
-// (docs/plus/asic-audit-probes-v4.md). R5=0 R0 capture stays covered by t08l.
+// (Plus probe results). R5=0 R0 capture stays covered by t08l.
 void t08n_terminal_split_before_adjustment(TestBench& test) {
     program_display_frame(test);
     test.write_register(5, 16);
@@ -3122,7 +3121,7 @@ void t08n_terminal_split_before_adjustment(TestBench& test) {
 // R1=4, before R0=7); frame line0 shows R12/R13=1234 (red), line1 onwards
 // SSA=2400 (green). R8=0 only; interlace extra-line timing is unmeasured.
 // Emulator-only timing; original-hardware early-arm confirmation pending
-// (docs/plus/asic-audit-probes-v4.md).
+// (Plus probe results).
 void t08o_last_adjustment_split_uses_r0(TestBench& test) {
     program_display_frame(test);
     test.write_register(5, 16);
@@ -3390,7 +3389,7 @@ enum class R4WriteWindow { Early, Late, FragmentedRom };
 // early [-119,-31), late [-55,33), ROM [-55,-39) plus [5,25).
 // READY/A13 already qualify ENABLE upstream; no ROM input exists here.
 // These intervals are transport receipts, not a silicon sampling aperture.
-// See docs/investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md.
+// See hardware observations.
 void t02m_r4_source_window(TestBench& test, unsigned r0,
                            R4WriteWindow window) {
     test.set_pixen_divider(4);

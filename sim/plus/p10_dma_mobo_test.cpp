@@ -1,7 +1,7 @@
 // Full production-motherboard DMA/PPI concurrency regression (P10 round 3).
 //
 // The timing assertions below are derived from
-// docs/plus/references/asic-reference.md, §9, "Timing & bus interaction":
+// published ASIC references, §9, "Timing & bus interaction":
 // a DMA LOAD occupies at least eight CCLK cycles, extends by one cycle when a
 // CPU 8255 access overlaps it, and extends by two cycles for an overlapping
 // PSG-register write.  The CPU is allowed to wait for at most the ordinary

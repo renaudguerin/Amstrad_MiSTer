@@ -7,7 +7,7 @@
 //  interrupt/DMA register bytes later phases consume, and the documented
 //  read-back rules (masks, mirrors, open bus).
 //
-//  Sources: docs/plus/references/asic-reference.md §2-§6 ([ARNOLD App.1],
+//  Sources: published ASIC references §2-§6 ([ARNOLD App.1],
 //  [ARNOLD-REV], [KT], [QUASAR]); sections cited at each rule below.
 //
 //  Bus contract: the caller asserts asic_cs for memory accesses inside the
@@ -148,7 +148,7 @@ module asic_regs
 	output [7:0] sar1_lo, output [7:0] sar1_hi, output [7:0] ppr1, output sar1_wr,
 	output [7:0] sar2_lo, output [7:0] sar2_hi, output [7:0] ppr2, output sar2_wr,
 	// B20-1 live PPR write events (S02 p.4 immediate, S22 p.10 iteration
-	// advance; see docs/plus/live-ppr-2026-09-22.md): registered
+	// advance; see Plus probe results): registered
 	// one-shot per-channel CPU-write pulses, aligned so the updated PPR
 	// byte is already visible when the pulse is live. CPU decode only
 	// (asic_cs && mem_wr, PPR address, never sna_wr); a stretched bus

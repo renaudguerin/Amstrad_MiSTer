@@ -582,8 +582,7 @@ void pr07_raster_fire_during_intack(PriBench& b) {
 // Information (interrupts), says CPC requests are inactive while ASIC raster
 // interrupts are active. The retain/unmask control is observed in AmSpirit
 // 1.15.1/core2491682; original-hardware adjudication remains outstanding.
-// See docs/investigations/hardware-runs/
-// eerie-forest-pending-classic-2026-09-23.md.
+// See hardware observations.
 void pr08_pending_classic_mode_switch() {
 	PriBench b;
 	b.power_on();
@@ -609,7 +608,7 @@ void pr08_pending_classic_mode_switch() {
 
 // A changed PRI matching the delayed nine-bit line while delayed HSYNC is
 // high requests an interrupt: the comparator term rises on the write
-// (docs/plus/source-divergences.md, "PRI delayed-comparator candidate").
+// (Plus timing observations, "PRI delayed-comparator candidate").
 // FF2's production-T80 replay writes 46->48 on line 48 at C0=52, after the
 // ordinary request and before raw HSYNC ends at C0=57; its palette/music
 // chain otherwise waits a whole frame (references/ff2-runtime-pri-
@@ -728,12 +727,12 @@ std::string describe(const std::vector<Req>& reqs) {
 // pr10: ordinary PRI phase and HSYNC width. The request is the rising edge
 // of HSYNC_d && {0,PRI}==line_d && PRI!=0 && !adj_d, where the _d terms are
 // the CRTC outputs one character (64 clocks) late and PRI is live
-// (docs/plus/source-divergences.md, "PRI delayed-comparator candidate").
+// (Plus timing observations, "PRI delayed-comparator candidate").
 // HSYNC_d rises exactly one character after raw HSYNC, whatever the width,
 // and a one-character HSYNC still gives a one-character HSYNC_d pulse.
 //   - Width independence and the 1 us CPU slot: original Plus flat-plane
 //     markers at R3=3/6/11 (~136/135/139 dots), AmSpirit 139/139/139;
-//     docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
+//     Plus probe results.
 //   - Width 1 requests: original Plus probe 01, IRQ/FRAME=01.
 // Measured from the first edge sampling raw HSYNC high, INT_N falls 64
 // clocks later, exactly one request per matching line.
@@ -770,7 +769,7 @@ void pr10_ordinary_phase() {
 //   x >= 61: HSYNC_d is low for the rest of line 10, and on line 11
 //            line_d moves away from 10 as HSYNC_d returns: no request.
 // Probe 04 photographs: marks for writes at C0 45..60, none at 61..63,
-// IRQ/FRAME=16 (docs/plus/source-divergences.md). The old raw-HSYNC write
+// IRQ/FRAME=16 (Plus timing observations). The old raw-HSYNC write
 // window missed C0 60.
 //----------------------------------------------------------------------
 void pr11_pri_write_window() {
@@ -814,7 +813,7 @@ void pr11_pri_write_window() {
 //   R2=50, R3=14: raw HSYNC 50..63 ends exactly at line 7's start
 //                                                      -> (7,0), (7,51)
 // Hardware IRQ/FRAME: 01, 02, 02, 02, 02 for R2=49/57/58/62/63
-// (docs/plus/source-divergences.md). The two exact-end cases are probe
+// (Plus timing observations). The two exact-end cases are probe
 // screens 19-20: AmSpirit gives 02 for both (it matches every photographed
 // screen), and the CRTC3 demo's plasma, sphere and Wolverine scenes (R2=50,
 // R3=14) need the line-start request. The line_d-only comparator gave one.

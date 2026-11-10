@@ -328,7 +328,7 @@ wire       type0_r0_widen_write_accept = type0_r0_widen_write_eligible && frame_
 // to other pre-CLKEN writes (including late OUTI) is an inferred extension.
 // Non-last direct first-CLKEN admission and the old-one horizontal deadline
 // remain unresolved; the existing direct route and sample exclusion stay.
-// See docs/backlog.md B26.
+// See the integration test contract B26.
 // French section 13.7.2 p.127: an early write has already updated R0
 // before CLKEN, so C0 must advance 1->2 on that edge, with no duplicate
 // C0=1 character. Retain the vertical action until that edge. The existing

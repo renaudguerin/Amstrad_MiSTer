@@ -3,7 +3,7 @@
 //  foundation: register file and horizontal character counter.
 //
 //  This module is the Plus-stream counterpart of the classic rtl/CRTC.v
-//  wrapper. Per docs/plus/architecture.md the ASIC's CRTC-3 is a new
+//  wrapper. Per the Plus architecture contract the ASIC's CRTC-3 is a new
 //  behavioural implementation, never a third personality inside the classic
 //  core. P1 scope (roadmap §5, architecture §4): CRTC3 counters, MA/RA, DE,
 //  both sync widths, VSYNC gate, +1µs display alignment; exact readback
@@ -157,7 +157,7 @@ module asic_video
 	// registered owner reset released one clock before the pulse, so this
 	// module is out of reset while it applies.
 	//
-	// Scope note (docs/plus/b8-5-snapshot-apply-2026-09-08.md): SNA v3 does
+	// Scope note (Plus probe results): SNA v3 does
 	// serialize the counters below, but it does NOT serialize the video
 	// pointer latches, frame/C9 parity, interlace pending events or the
 	// pixel-serializer phase. Those take an explicit deterministic seed
@@ -395,7 +395,7 @@ wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
 // supplies the timing distinction; no explicit ROM decode is added here.
 // Late false-to-true matches remain live as an unverified compatibility
 // choice; generalization beyond R4->0 remains unresolved. See B26 and
-// docs/investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md.
+// hardware observations.
 reg        entered_r4_match;
 wire       r4_write_active = ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd4);
 wire       last_charline = (charline == R4_v_total) |
@@ -568,7 +568,7 @@ wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 // offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw raster
 // 8, 9 and 10, advancing three source rows per character row. Original Plus
 // probe 15 shows exactly that (rows 00,03,06,...; AmSpirit identical;
-// docs/plus/source-divergences.md). In IVM the §19.8.4 C9>=R9 decision is
+// Plus timing observations). In IVM the §19.8.4 C9>=R9 decision is
 // the terminal-line test, including the even-parity overshoot line.
 wire row_latch_done = ivm_active ? c9_done : (ra_eff >= R9_v_max_line);
 wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
@@ -586,7 +586,7 @@ wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
 // SSA to frame1 onwards. R0 is the selected sampling model; the exact edge
 // and both original-Plus early/late controls remain unmeasured. Restrict
 // this added case to non-interlace: extra-line timing remains unprobed.
-// See docs/plus/source-divergences.md; t08n/t08o pin the oracle outcomes.
+// See Plus timing observations; t08n/t08o pin the oracle outcomes.
 wire split_adj_end = in_adj && adj_end_n &&
                      !ivm_active && !sync_interlace_active;
 wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
@@ -1039,8 +1039,7 @@ wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
 // gives C9 to R5 there. Qualifying this strict comparator by !in_adj matches
 // that observable; comparator topology, live writes, interlace and other
 // status bits remain unproved. Ordinary extra-interlace-line behavior is
-// unchanged. See docs/investigations/hardware-runs/
-// shaker-crtc3-status-overflow-2026-11-06.md.
+// unchanged. See hardware observations.
 wire s2_bit0 = ~(!in_adj && (charline == R4_v_total) &&
                  (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&
@@ -1054,8 +1053,7 @@ wire s2_bit3 = frame16_toggle;
 // §21.3.4.2 p.249's "Always 1" row. Reusing adjustment termination matches
 // those samples; it does not prove decoder topology. End of adjustment versus
 // true frame origin, extra interlace lines and live R5/R0 writes are unmeasured.
-// See docs/investigations/hardware-runs/
-// shaker-crtc3-status-overflow-2026-11-06.md.
+// See hardware observations.
 wire s2_bit4 = (R5_v_total_adj == 5'd0) ||
                  (in_adj && adj_end_n && hcc_equal);
 wire s2_bit5 = ~(raster == R9_v_max_line);
@@ -1311,8 +1309,7 @@ wire [11:0] rgb_mux = PAL_EN ? asic_rgb : legacy_colour(hw_sel);
 // output offset is a measured AmSpirit Lite1.17.1 Type3 software reference
 // (normal-boot Mode1/2 controls), not a verified silicon delay. ACCC French
 // v1.11 §14.7.2 p144 explicitly qualifies its Type3 chronogram as a working
-// assumption. Evidence/limits: docs/investigations/hardware-runs/
-// asic-credit-blank-boundary-2026-11-04.md#normal-boot-reference-controls. Raw HSYNC and its mode/IRQ
+// assumption. Evidence/limits: hardware observations. Raw HSYNC and its mode/IRQ
 // consumers retain their original timing; only the final RGB mask is delayed.
 reg [14:0] horizontal_blank_history;
 always @(posedge CLOCK) begin

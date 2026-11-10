@@ -320,7 +320,7 @@ void test_b20_two_distinct_acks(Vplus_p8_test_top& dut) {
 
 // Primary trace: two pulses within M1, first clears source; second empty is04.
 // DCSR retains first-pulse provenance for the handler (regression candidate,
-// docs/plus/ack-provenance-regression-2026-09-26.md); the physical trace only
+// Plus probe results); the physical trace only
 // establishes the vectors. DMA manual-clear must keep DMA2/00 on both pulses.
 void test_b20_double_pulse_dma(Vplus_p8_test_top& dut) {
     auto tick = [&]() { dut.clk=0; dut.eval(); dut.clk=1; dut.eval(); };
