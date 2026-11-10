@@ -391,7 +391,7 @@ wire       wk_go   = walk_act &&
                      c_ena[wk_s] &&
                      (walk[7] ? (c_predok[wk_s] && sval[{wk_s[3:0], ~abit[wk_s]}]) : c_lact[wk_s]);
 // Block advance deliberately splits the old 5-bit increment (see the
-// synthesis-cost audit, docs/plans/2026-08-26): the sprite field wraps
+// synthesis-cost audit of 2026-08-26): the sprite field wraps
 // with a standalone 4-bit adder and the bank-half flips by pure decode,
 // so no carry crosses the half boundary into the walk register.
 // Measured 2026-08-26 (dispatch 32947815127): this does NOT lift the

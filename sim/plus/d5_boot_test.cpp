@@ -56,7 +56,7 @@ void model_controls() {
 // Rule: the Gate Array/ASIC READY output is the only CPU wait source, and the
 // arbitration "also applies to ROM access ... the Z80 always runs at the same
 // speed, regardless of the type of memory being accessed" (CPCWiki "Gate
-// Array", bus arbitration; local/scrapes/Gate Array - CPCWiki.pdf). Every
+// Array", bus arbitration). Every
 // instruction is stretched to a whole number of microseconds: 4 T-states at
 // 4 MHz, 64 master ticks at 64 MHz. The CPC+ ASIC drives the cartridge /ROM
 // and CA14-CA18 itself and has no other CPU wait output (CPCWiki "Gate Array

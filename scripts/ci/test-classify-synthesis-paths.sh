@@ -76,7 +76,7 @@ expect true rtl/pll/pll_0002.v
 expect false docs/roadmap.md
 expect false sim/sim_main.cpp
 expect false sim/plus/asic_video_test.cpp
-expect false tools/split-differential/diff_main.cpp
+expect false scripts/diagnostics/plus_hw_probes_sim.cpp
 expect false rtl/GA40010/Makefile
 expect false rtl/GA40010/ga40010_test.v
 # asic_video.v is instantiated by Amstrad_motherboard.v since the P1

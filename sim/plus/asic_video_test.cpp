@@ -3110,10 +3110,8 @@ void t08n_terminal_split_before_adjustment(TestBench& test) {
 }
 
 // PA3b: AmSpirit Lite1.15.1 last-adjustment oracle (V4 screen28 delayed
-// 1024 NOPs/16 lines to the last adjustment line311 with R5=16; pre-run
-// prediction in
-// output_files/plus-hw-probes/v4/amspirit-phase4/last-adjustment-prediction.txt,
-// source variants in last-adjustment-early0/early24): late enable about C48
+// 1024 NOPs/16 lines to the last adjustment line311 with R5=16, predicted
+// before the run, with early0/early24 source variants): late enable about C48
 // and early about C24 BOTH capture, frame0 red then frame1-7 green. The
 // late enable lands after R1=40, so the actual adjustment-ending line must
 // accept the late enable; R0 is the selected sampling model. Reduced geometry R0=7 R1=4 R4=2 R9=3 R5=16:

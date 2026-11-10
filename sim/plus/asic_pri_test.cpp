@@ -611,8 +611,8 @@ void pr08_pending_classic_mode_switch() {
 // (Plus timing observations, "PRI delayed-comparator candidate").
 // FF2's production-T80 replay writes 46->48 on line 48 at C0=52, after the
 // ordinary request and before raw HSYNC ends at C0=57; its palette/music
-// chain otherwise waits a whole frame (references/ff2-runtime-pri-
-// 2026-09-27.md; CPCEC c025aab cpcec.c:2106-2114 has the same rule).
+// chain otherwise waits a whole frame (runtime observation of
+// 2026-09-27; CPCEC c025aab cpcec.c:2106-2114 has the same rule).
 // On this bench raw HSYNC covers C0 0..6 of each 8-character line, so
 // HSYNC_d covers C0 1..7 and is low at C0 0 with line_d still the previous
 // line. Phase 480 is C0 7, one character after raw HSYNC ends: original

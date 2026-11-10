@@ -35,7 +35,7 @@
 // The Gate Array/ASIC READY output is the only CPU wait source on the real
 // machine, and it treats ROM like RAM: "the Z80 always runs at the same
 // speed, regardless of the type of memory being accessed" (CPCWiki "Gate
-// Array", bus arbitration; local/scrapes). The FPGA SDRAM latency must
+// Array", bus arbitration). The FPGA SDRAM latency must
 // therefore stay hidden. Holding WAIT until the data itself returned made it
 // visible: a read whose MREQ starts two master clocks into a microsecond
 // still had the stall up at the only WAIT sample inside READY and lost a

@@ -1,7 +1,7 @@
 name: Local VM build
 
 # Tier B on the Quartus UTM VM: the same compile the hosted route performs,
-# executed by the self-hosted runner provisioned by ansible/local-runner.yml.
+# executed by the maintainer's self-hosted runner.
 #
 # This workflow is deliberately workflow_dispatch-only. The repository is
 # public, and a self-hosted runner executes repository-controlled Tcl and RTL

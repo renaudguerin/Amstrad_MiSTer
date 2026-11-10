@@ -53,7 +53,7 @@ constexpr Case cases[] = {
     {"live equality at C0=63", Kind::live_match, 61, 0, 63},
     // Software-reference control, NOT a French/hardware lowering golden:
     // authentic DSC4 first E2B has oldR0=63/currentC0=63, writes59 and
-    // wraps. Ordered AmSpirit observations are in the dated investigation.
+    // wraps, as observed in AmSpirit.
     {"lower59 on old terminal (software reference)", Kind::lower_terminal, 61, 0, 59},
 };
 struct Program {
@@ -158,7 +158,7 @@ bool exercise(const Case& c) {
 
 bool zero_exit_transport() {
     // FR §13.6.3 p125 includes old R0=0 ->10. This exact synthetic SNA
-    // was independently run in AmSpirit; see the dated investigation.
+    // was independently run in AmSpirit.
     // Those software-reference CPU boundary states, not an assumed raw
     // register-write phase, pin this degenerate zero-line transition.
     auto s=Program(cases[0]).snapshot();
