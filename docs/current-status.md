@@ -83,9 +83,14 @@ and [review debt](review-debt.md). Do not infer general closure from a targeted 
 
 ## Tools and operation
 
-AmSpirit1.17.1 and CPCSyntaxError0.12.0 are available peers; physical hardware
-wins. The focused AmSpirit VS32 French report/own CPR/source ZIP is prepared
-privately and has not been sent. Read the [static-photo text cache](shaker-reference-text.md)
+AmSpirit1.17.1 and CPCSyntaxError are available peers; physical hardware wins.
+CPCSyntaxError v0.14.2 is the sole installed package in the main checkout;
+headless `--shot` and minimal CSL smoke tests pass. v0.12.0 captures remain
+historical evidence. See [testing and source comparison](cpcsyntaxerror-testing.md).
+The recent accuracy leads are queued in [B28](backlog.md#b28-triage-cpcsyntaxerror-v0130v0142-accuracy-changes-against-open-work);
+[B29](backlog.md#b29-sweep-the-entire-cpcsyntaxerror-release-note-history)
+holds the full historical release-note sweep.
+The focused AmSpirit VS32 French report/own CPR/source ZIP is prepared privately and has not been sent. Read the [static-photo text cache](shaker-reference-text.md)
 before reopening covered images. The hardware loop applies CFG settings with
 requested-versus-observed limits; one operator owns MiSTer. Check
 `local/overnight-20261103/resumed-20261104/ACTIVE-JOBS.json` and real Git/process

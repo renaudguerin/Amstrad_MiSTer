@@ -9,19 +9,26 @@ the relevant hardware comparison or its timing model cannot answer the question.
 
 ## Installed tool and source
 
-The user-supplied macOS universal v0.12.0 package is ignored at
-`local/CPCSyntaxError-macos-universal-v0.12.0/` in the main checkout. The current
-validation worktree also has a private copy for headless batches. The package
-keeps settings inside the app: an isolated copy avoids sharing those files with
-the open GUI. Neither the package, its firmware nor captured media belongs in Git.
+The macOS universal v0.14.2 package is installed at
+`local/CPCSyntaxError-macos-universal-v0.14.2/` in the main checkout;
+`~/code/CPCSyntaxError` is checked out at tag `v0.14.2`, commit
+`6da5c0b63cbfe633d59a09e95e11cdcc8a826685`. Its executable SHA-256 is
+`67cf46afb45f7f1709fbae9cb6d9600e3cd6b5d5dac765ce3de73dd516f57e27`.
+A one-frame headless `--shot` and a minimal headless CSL reset/wait run pass
+with the bundled 6128 ROMs. The package keeps settings inside the app, so use
+an isolated copy for batches while a GUI instance is open. Firmware and media
+remain private and untracked.
 
 - Executable: `CPCSyntaxError.app/Contents/MacOS/cpcse` inside the package.
 - Client: `cpcse-ctl` beside the app.
 - Firmware: `CPCSyntaxError.app/Contents/Resources/roms`.
-- Matching source: `~/code/CPCSyntaxError`, tag `v0.12.0`, commit
-  `22de765ef44da46c55217e4dd7caa385d69a6045`.
-- Executable SHA-256:
-  `f4254653b11676055eedd89dcdae6c6aab381835344d69780f56fcbff218a577`.
+
+The v0.12.0 package has been removed. Its two settings files are preserved at
+`local/CPCSyntaxError-settings-v0.12.0/`; its historical captures remain pinned
+to source tag `v0.12.0` (`22de765ef44da46c55217e4dd7caa385d69a6045`)
+and executable SHA-256
+`f4254653b11676055eedd89dcdae6c6aab381835344d69780f56fcbff218a577`.
+Those old results are evidence for v0.12.0, not a fresh v0.14.2 comparison.
 
 Read the matching source's `README.md` (CSL/SSM and headless sections) and
 `docs/external-debugging.md` for additional operations. Pin a new binary and
@@ -29,12 +36,14 @@ source revision together before attributing new output to the inspected code.
 
 ## Headless CSL batches
 
-The bundled executable runs CSL without opening a window. This route was
-exercised on macOS with the supplied v0.12.0 binary; it does not need the command
-API or a replacement client library. From a checkout with the private inputs:
+The bundled executable runs CSL without opening a window. A minimal
+v0.14.2 reset/wait script passes; the detailed SHAKER recipe below was exercised
+with v0.12.0 and needs a fresh run before attributing its results to v0.14.2.
+The route needs neither the command API nor a replacement client library.
+From a checkout with the private inputs:
 
 ```sh
-CPCSE_DIR="$PWD/local/CPCSyntaxError-macos-universal-v0.12.0"
+CPCSE_DIR="$PWD/local/CPCSyntaxError-macos-universal-v0.14.2"
 "$CPCSE_DIR/CPCSyntaxError.app/Contents/MacOS/cpcse" \
   --csl "local/test_media/shaker/CSL_27/MODULE C/SHAKER-C-1.CSL" \
   --out local/investigations/cpcse-c1-unique-run \
@@ -155,8 +164,8 @@ configured GUI for live inspection, rather than assuming a listener is running.
 ## Hardware-backed source investigation
 
 1. Pin the disk, script/history, supported CRTC/revision, firmware and binary.
-   Use fresh v0.12.0 captures; older portal CPCSyntaxError images are not results
-   for this build.
+   Use fresh v0.14.2 captures for new comparisons; older v0.12.0 and portal
+   images are not results for this build.
 2. Compare the relevant result with original hardware. Separate counter/status
    values and intended pixels from monitor-dependent shear, scaling and capture
    phase. Keep unmatched cases for AmSpirit checks.

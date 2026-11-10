@@ -99,6 +99,83 @@ when a narrow exception is used without an established general rule, naming its
 scope, evidence and unresolved alternative. Add existing labels when the area
 is next edited, without invalidating an active frozen proof for housekeeping.
 
+## B28. Triage CPCSyntaxError v0.13.0–v0.14.2 accuracy changes against open work
+
+**Source comparison, 2026-11-10; no RTL change authorized by the peer alone.**
+The [release notes](https://github.com/WacKEDmaN/CPCSyntaxError/releases) and
+matching source at `v0.14.2` expose the following bounded leads since our
+v0.12.0 baseline. Reproduce each candidate with the new binary before using
+its output as evidence; the existing v0.12.0 captures remain version-bound.
+Original hardware and the French ACCC decide rules, not emulator convergence.
+
+1. **CRTC1 AI/008D — high priority.** CPCSE now holds its VSYNC width counter
+   while R0=0 (`src/core/crtc_type_1.h`, `vsyncCounterHeldByR0Zero`). This is a
+   plausible explanation for our `1/0/0/1` versus the original `1/1/1/1`.
+   Recheck the qualified caller on v0.14.2, derive a discriminator for VSYNC
+   duration versus line counting, and obtain hardware evidence before changing
+   the CRTC1 engine. [Current failure](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
+2. **CRTC1 RFD — high priority, overlaps B26.** CPCSE clears `rfdActive` at the
+   new frame and distinguishes R4-triggered case-2 parity from R9-triggered
+   RFD (`src/core/crtc.cpp`, `src/core/crtc_type_1.h`). Compare the lifecycle
+   and the R4 no-reset consequence with our F7/C8 model and the pending C1
+   state simplifications. Use the original D9/R4 and R9+R4 pages to decide
+   which state is required; do not import a state reduction from the separate
+   RTL audit merely because the emulator's model is shorter.
+3. **CRTC0 B6/019D — high priority.** CPCSE now blocks a last-character R7
+   VSYNC start only when C9=R9 as well as C0=R0 (`src/core/crtc_type_0.cpp`).
+   Our two late rows remain `1F/1F` versus physical `1E/1E`.
+   v0.12.0 CPCSE already matched all six rows, so this code change alone
+   does not explain the mismatch. Continue the caller write-aperture and
+   comparison-order discriminator in the [B6 record](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md).
+4. **Classic GA colour timing — candidate unknown.** CPCSE changes the displayed
+   character's palette timing and mode-2 alignment (`src/core/video.cpp`).
+   Check whether our `rtl/GA40010/video.sv` samples a mid-character palette
+   write at the same displayed pixel/character; first establish an original
+   hardware or ACCC expectation and a qualified guest write. Keep this pixel
+   production check distinct from V1's CRT response and photo acquisition.
+5. **Plus R8 skew and DMA response — candidate unknowns.** CPCSE models R8
+   skew as a delay line with a live write visible on the next character, and
+   separates DMA IM2 response timing from raster IRQ timing. Our display-enable
+   path has a skew delay line, but live-write phase has no independent physical check;
+   the T80/ASIC path has no source-qualified DMA/raster response comparison.
+   Revisit only with a failing title or a small original-Plus trace, alongside
+   [B20](#b20-independent-plus-asic-interrupt-and-dma-accuracy-findings),
+   rather than treating Sonic's already accepted stage as newly broken.
+6. **Monitor validation — overlaps V1.** CPCSE adds D4 multi-sync and no-sync
+   recovery, then a CM14 late-overhang correction in its monitor renderer.
+   After the [V1 integration](investigations/video-boundary/v1-production-integration-2026-11-06.md)
+   clears its timing failure, include those pages as held-out visual cases and
+   preserve the real-CPC photos as the reference. Do not copy CPCSE's
+   SHAKER-trained monitor constants.
+7. **Plus soft-scroll left edge — check at title level.** CPCSE v0.14.2 uses
+   the first displayed character for SSCR[7] border extension. Our RTL already
+   tracks display entry, and original-Plus probe 18 validates sprite masking
+   there. Check Ghosts'n Goblins GX on the next Plus title pass; this is not
+   evidence of a current RTL defect. Its frame-compositing smooth-movement fix
+   concerns the emulator renderer and has no direct FPGA equivalent.
+
+CPCSE's PRI phase change conflicts with the original-Plus width and line-entry
+probes in [the source-divergence ledger](plus/source-divergences.md); do not
+replace that hardware-backed rule. Its CRTC3/4 Status2 bit 0/4 correction is
+already represented by our bounded hardware-backed implementation. These are
+triaged, not new implementation tasks.
+
+Acceptance: for each promoted lead, record the exact CPCSE tag/source diff,
+fresh binary result, relevant original-hardware/ACCC constraint and MiSTer
+failing-before vector; reconcile any V1/B26 overlap before editing shared RTL.
+
+## B29. Sweep the entire CPCSyntaxError release-note history
+
+**Deferred research todo.** Read every CPCSyntaxError release note from the
+first published release through the then-current tag, including versions
+before v0.12.0 and releases after v0.14.2. For each claimed accuracy fix,
+inspect the corresponding source diff and classify its applicability to our
+classic CRTC, GA, Plus ASIC, CPU, monitor or tooling. Link to an existing
+finding where possible; open a new bounded item only for a credible, uncovered
+MiSTer behavior. Record peer-only renderer changes, already implemented rules
+and hardware contradictions explicitly so they are not rediscovered. This
+historical sweep is separate from B28's selected recent leads.
+
 ## B27. Reviewed text cache for static real-CPC SHAKER photographs
 
 **Eighteen photos have reviewed fields, with explicit partial coverage, 2026-11-06.** Avoid repeated vision reads
