@@ -1017,15 +1017,25 @@ asic-mode-latch: $(MODE_TEST_BIN)
 B6_RESPONSE_BIN := obj_dir/b6_response/b6_response_tests
 B6_RESPONSE_MBOARD ?= ../../rtl/Amstrad_motherboard.v
 B6_RESPONSE_RTL := $(subst $(abspath ../../rtl/Amstrad_motherboard.v),$(abspath $(B6_RESPONSE_MBOARD)),$(B7_RTL))
+B6_RESPONSE_SYNC_FIX := $(abspath obj_dir/b6_response/sync_fix.v)
+B6_RESPONSE_BRIDGE_RTL := $(B6_RESPONSE_SYNC_FIX) $(abspath ../../sys/scanlines.v)
+
+# Compile the actual framework module without elaborating all of sys_top.
+# The exported proof records both bridge source hashes; ordinary source
+# refactors remain checked by the pin/latency/pixel contracts, not hash locks.
+$(B6_RESPONSE_SYNC_FIX): $(abspath ../../sys/sys_top.v) $(abspath ../../sys/scanlines.v) Makefile
+	mkdir -p $(@D)
+	sed -n '/^module sync_fix$$/,/^endmodule$$/p' "$(abspath ../../sys/sys_top.v)" > "$@.tmp"
+	mv "$@.tmp" "$@"
 .PHONY: b6-response-consumer motherboard-response-lint
 b6-response-consumer: $(B6_RESPONSE_BIN)
 	./$(B6_RESPONSE_BIN)
 motherboard-response-lint:
 	"$(MAKE)" motherboard-lint MBOARD_LINT_FLAGS="$(MBOARD_LINT_FLAGS) -GENABLE_CRT_RESPONSE=1"
-$(B6_RESPONSE_BIN): $(P10BOOT_TEST_TOP) $(B6_RESPONSE_RTL) $(B6_VIDEO_RTL) b6_response_consumer_test.cpp b6_video_boundary_test.cpp $(B7_TEST_SRC) Makefile
+$(B6_RESPONSE_BIN): $(P10BOOT_TEST_TOP) $(B6_RESPONSE_RTL) $(B6_VIDEO_RTL) $(B6_RESPONSE_BRIDGE_RTL) b6_response_consumer_test.cpp b6_video_boundary_test.cpp $(B7_TEST_SRC) Makefile
 	mkdir -p $(@D)
 	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv \
 		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DB6_VIDEO_BOUNDARY -DB6_RESPONSE_CONSUMER -DP10_DMA_MOBO_REAL_IO \
 		--public-flat-rw --top-module $(P10BOOT_TOP) --Mdir $(@D) \
 		-Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
-		-o $(@F) $(P10BOOT_TEST_TOP) $(B6_RESPONSE_RTL) $(B6_VIDEO_RTL) $(abspath b6_response_consumer_test.cpp)
+		-o $(@F) $(P10BOOT_TEST_TOP) $(B6_RESPONSE_RTL) $(B6_VIDEO_RTL) $(B6_RESPONSE_BRIDGE_RTL) $(abspath b6_response_consumer_test.cpp)

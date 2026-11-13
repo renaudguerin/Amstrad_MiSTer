@@ -171,7 +171,9 @@ module p10_boot_test_top #(
 `ifdef B6_RESPONSE_CONSUMER
     , output [23:0] b6_consumer_rgb,
     output [3:0] b6_consumer_meta,
-    output b6_consumer_field, b6_motherboard_frame
+    output b6_consumer_field, b6_motherboard_frame,
+    output [23:0] b6_ascal_rgb,
+    output b6_ascal_hs, b6_ascal_vs, b6_ascal_de, b6_ascal_ce
 `endif
     , input [1:0] b6_mode,
     output [1:0] b6_applied,
@@ -933,6 +935,22 @@ module p10_boot_test_top #(
         .VGA_HS(b6_mixer_hs), .VGA_VS(b6_mixer_vs), .VGA_DE(b6_mixer_de), .VGA_SL(),
         .VIDEO_ARX(), .VIDEO_ARY(), .en270p()
     );
+`ifdef B6_RESPONSE_CONSUMER
+    // sys/sys_top.v:1383 and1707-1719, unchanged production input bridge.
+    // The Makefile extracts sync_fix byte-for-byte into an ignored unit.
+    // VGA_F1 bypasses this bridge, as it does at the actual ASCAL input.
+    wire b6_ascal_hs_fix, b6_ascal_vs_fix;
+    sync_fix b6_sync_h(clk, b6_mixer_hs, b6_ascal_hs_fix);
+    sync_fix b6_sync_v(clk, b6_mixer_vs, b6_ascal_vs_fix);
+    scanlines #(0) b6_ascal_scanlines (
+        .clk(clk), .scanlines(2'd0),
+        .din(b6_mixer_de ? b6_mixer_rgb : 24'd0),
+        .hs_in(b6_ascal_hs_fix), .vs_in(b6_ascal_vs_fix),
+        .de_in(b6_mixer_de), .ce_in(b6_mixer_ce),
+        .dout(b6_ascal_rgb), .hs_out(b6_ascal_hs), .vs_out(b6_ascal_vs),
+        .de_out(b6_ascal_de), .ce_out(b6_ascal_ce)
+    );
+`endif
 `else
 	assign dbg_sync_filter       = SYNC_FILTER;
 `endif
