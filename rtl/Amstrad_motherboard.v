@@ -1161,19 +1161,29 @@ assign mode  = plus_mode ? plus_gamode : ga_mode;
 wire [11:0] selected_source_rgb = plus_mode ? {plus_rgb_r, plus_rgb_g, plus_rgb_b} :
     {2'b00, ga_red, 2'b00, ga_green, 2'b00, ga_blue};
 // Frozen qualitative renderer. No producer/filter state consumes its output.
-// Both field tags and the complete filtered tuple travel continuously, even
-// when mode3 is inactive or RGB history is being invalidated.
-crt_response crt_response (
-    .clk(clk), .ce_16(ce_16), .reset(reset),
-    .context_clear(sna_load | sync_filter_commit), .owner(plus_mode),
-    .ga_hs(hsync_ga), .ga_vs(vsync_ga), .source_missing(crt_source_missing),
-    .rgb12(selected_source_rgb), .raw_vblank(source_pixel_vblank),
-    .hs(hsync_filtered), .vs(vsync_filtered), .hblank(hblank_filtered), .vblank(vblank_filtered),
-    .field(source_field), .frame_field(source_frame_field),
-    .rgb12_out(crt_rgb), .raw_vblank_out(crt_raw_vblank), .available(crt_response_available),
-    .hs_out(crt_hs), .vs_out(crt_vs), .hblank_out(crt_hbl), .vblank_out(crt_vbl),
-    .field_out(crt_field), .frame_field_out(crt_frame_field)
-);
+// Compile out its clocked history when the private profile is disabled.
+// Enabled builds transport both field tags and the complete filtered tuple
+// continuously, even when mode3 is inactive or RGB history is invalidated.
+generate
+if (ENABLE_CRT_RESPONSE) begin : g_crt_response
+    crt_response crt_response (
+        .clk(clk), .ce_16(ce_16), .reset(reset),
+        .context_clear(sna_load | sync_filter_commit), .owner(plus_mode),
+        .ga_hs(hsync_ga), .ga_vs(vsync_ga), .source_missing(crt_source_missing),
+        .rgb12(selected_source_rgb), .raw_vblank(source_pixel_vblank),
+        .hs(hsync_filtered), .vs(vsync_filtered), .hblank(hblank_filtered), .vblank(vblank_filtered),
+        .field(source_field), .frame_field(source_frame_field),
+        .rgb12_out(crt_rgb), .raw_vblank_out(crt_raw_vblank), .available(crt_response_available),
+        .hs_out(crt_hs), .vs_out(crt_vs), .hblank_out(crt_hbl), .vblank_out(crt_vbl),
+        .field_out(crt_field), .frame_field_out(crt_frame_field)
+    );
+end else begin : g_no_crt_response
+    assign crt_rgb = 12'd0;
+    assign crt_raw_vblank = 1'b1;
+    assign crt_response_available = 1'b0;
+    assign {crt_hs, crt_vs, crt_hbl, crt_vbl, crt_field, crt_frame_field} = 6'd0;
+end
+endgenerate
 reg [11:0] full_rgb_history [0:7];
 reg rgb_owner;
 reg rgb_sampled, rgb_old_hs;
