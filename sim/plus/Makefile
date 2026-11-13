@@ -495,7 +495,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit b20-bus-diag b23-cpu-diff pa7-dma-overlap
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit d5-fdc-read b20-bus-diag b23-cpu-diff pa7-dma-overlap
 
 # Original-Plus photographs: unchanged four-page CPR, production T80/ASIC.
 .PHONY: pa7-dma-overlap
@@ -909,15 +909,33 @@ clean:
 # Opt-in: private firmware and GHDL are not dependencies of the ordinary suite.
 D5_SRC_DIR := $(abspath obj_dir/d5_sources)
 D5_OBJ_DIR := $(abspath obj_dir/d5_boot)
+D5_PREPARED := $(D5_SRC_DIR)/.prepared
 D5_RTL = $(D5_SRC_DIR)/Amstrad_motherboard.v $(filter-out $(abspath ../../rtl/Amstrad_motherboard.v) $(P10BOOT_TV80),$(P10BOOT_RTL)) $(abspath ../obj_dir/t80/T80pa.v) $(abspath ../../rtl/YM2149.sv) $(abspath ../../rtl/hid.sv)
 D5_EN ?= ../../local/test_media/cartridges/06_System/Plus_EN.cpr
 D5_FR ?= ../../local/test_media/cartridges/06_System/6128_FR.cpr
+# All D5 consumers share one preparation in this make graph. Reuse the
+# netlist file rule above so B20/B23 cannot synthesize it concurrently.
+$(D5_PREPARED): prepare_d5_boot.py p10_boot_test_top.v ../../Amstrad.sv ../../rtl/Amstrad_motherboard.v $(B20MAT_NETLIST) Makefile
+	python3 prepare_d5_boot.py
+	touch $@
+
+.PHONY: d5-prepare
+d5-prepare: $(D5_PREPARED)
+
+# The diagnostic helper also consumes these sources through d5-prepare.
+# Finish preparation in this graph before its nested make checks the stamp.
+pa7-dma-overlap: $(D5_PREPARED)
+
+# Verilator may reuse a linked binary after preparation-only changes, so
+# successful recipes update its mtime for the outer make dependency graph.
+D5_BUILD_DEPS = $(D5_PREPARED) $(filter-out $(D5_SRC_DIR)/Amstrad_motherboard.v,$(D5_RTL)) $(abspath p10_boot_test.cpp) Makefile
 .PHONY: d5-boot-build d5-boot
 
-d5-boot-build:
-	"$(MAKE)" -C .. t80-netlist
-	python3 prepare_d5_boot.py
+d5-boot-build: $(D5_OBJ_DIR)/d5_boot
+
+$(D5_OBJ_DIR)/d5_boot: $(D5_BUILD_DEPS) $(abspath d5_boot_test.cpp)
 	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top --Mdir $(D5_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o d5_boot $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath d5_boot_test.cpp)
+	touch $@
 
 d5-boot: d5-boot-build
 	python3 run_d5_boot.py $(D5_OBJ_DIR)/d5_boot $(D5_EN) $(D5_FR)
@@ -934,15 +952,29 @@ d5-cart-timing: d5-boot-build
 d5-asic-audit: d5-boot-build
 	$(D5_OBJ_DIR)/d5_boot --asic-audit
 
+# Synthetic READ DATA through production T80, motherboard, FDC and SDRAM.
+# Uses only the tracked EDSK fixture, with independent descriptor/payload checks.
+D5_FDC_OBJ_DIR := $(abspath obj_dir/d5_fdc_read)
+.PHONY: d5-fdc-read-build d5-fdc-read
+d5-fdc-read-build: $(D5_FDC_OBJ_DIR)/d5_fdc_read
+
+$(D5_FDC_OBJ_DIR)/d5_fdc_read: $(D5_BUILD_DEPS) $(abspath d5_fdc_read_test.cpp)
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top --Mdir $(D5_FDC_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS) -DFDC_PRODUCTION_T80" -o d5_fdc_read $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath d5_fdc_read_test.cpp)
+	touch $@
+
+d5-fdc-read: d5-fdc-read-build
+	$(D5_FDC_OBJ_DIR)/d5_fdc_read
+
 # B20 production-bus discriminator: production T80 + motherboard/ASIC
 # acknowledge/vector/request path on the D5 prepared fixture.
 B20_BUS_OBJ_DIR := $(abspath obj_dir/b20_bus_diag)
 .PHONY: b20-bus-diag-build b20-bus-diag
 
-b20-bus-diag-build:
-	"$(MAKE)" -C .. t80-netlist
-	python3 prepare_d5_boot.py
+b20-bus-diag-build: $(B20_BUS_OBJ_DIR)/b20_bus_diag
+
+$(B20_BUS_OBJ_DIR)/b20_bus_diag: $(D5_BUILD_DEPS) $(abspath b20_bus_diag_test.cpp)
 	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top -GSYNC_FILTER=0 --Mdir $(B20_BUS_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o b20_bus_diag $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath b20_bus_diag_test.cpp)
+	touch $@
 
 b20-bus-diag: b20-bus-diag-build
 	$(B20_BUS_OBJ_DIR)/b20_bus_diag

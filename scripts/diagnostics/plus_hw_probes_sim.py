@@ -49,8 +49,7 @@ PORTS = {
 
 
 def build_model(obj, cxx, rtl_overrides=None):
-    subprocess.run(['make', '-C', str(ROOT / 'sim'), 't80-netlist'], check=True)
-    subprocess.run(['python3', 'prepare_d5_boot.py'], cwd=ROOT / 'sim/plus', check=True)
+    subprocess.run(['make', '-C', str(ROOT / 'sim/plus'), 'd5-prepare'], check=True)
     top = ROOT / 'sim/plus/obj_dir/d5_sources/p10_boot_test_top.v'
     s = top.read_text()
     anchor = 'output      [1:0] dbg_video_gamode,'

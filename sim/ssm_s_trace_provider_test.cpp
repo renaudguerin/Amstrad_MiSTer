@@ -19,7 +19,7 @@ struct H {
  unsigned tick=0,completed=0,cut_count=0,fetch_addr=0;bool was_fetch=false;
  void put(unsigned a,std::initializer_list<unsigned char> b){std::copy(b.begin(),b.end(),ram.begin()+a);}
  H(bool on){
-  d.plus_mode=0;d.irq=0;d.extra_wait=0;d.reset=1;d.s_trace_enable=on;d.s_trace_busy=0;
+  d.plus_mode=0;d.irq=0;d.nmi=0;d.extra_wait=0;d.reset=1;d.s_trace_enable=on;d.s_trace_busy=0;
   // ROM disable operands mirrored into RAM, as in the existing provider.
   put(0,{0xF3,0x31,0xFE,0xFF,0x01,0,0x7F,0x3E,0x8C,0xED,0x79,0xC3,0xF3,0x5A});rom=ram;
   put(0x5AF3,{0xCD,0x72,0xA0}); // Original CALL A072; trampoline is fixture-only.

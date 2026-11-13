@@ -145,8 +145,8 @@ module Amstrad_motherboard #(parameter ENABLE_CRT_RESPONSE = 0)
 	output  [3:0] green,
 	output  [3:0] blue,
 	// Passive opcode-fetch tap for the SSM marker detector (rtl/ssm_marker.v).
-	// Raw signals only: the detector owns the edge and the byte latch, so
-	// that the logic under test lives in the module the vectors exercise.
+	// HALT-qualified read level and resolved bus data. The detector owns
+	// fetch completion and the byte latch.
 	output        ssm_m1_fetch,
 	output  [7:0] ssm_bus_data,
 	output [20:0] ssm_sync_observation,
@@ -341,7 +341,20 @@ always @(posedge clk) begin
 end
 
 // Passive tap for the SSM marker detector.
-assign ssm_m1_fetch = m1_fetch;
+// T80 completes the initial HALT opcode read before asserting HALT_n low.
+// Keep that opcode as a marker separator, but exclude the repeated memory
+// reads while halted: T80 executes internal NOPs instead of those bus bytes.
+// Hold eligibility across the whole physical read: NMI wake clears HALT_n
+// during its dummy M1 read, and must not expose the remaining dummy byte.
+// Normal-running NMI dummy reads remain a provider limit until the CPU
+// exports accepted-opcode validity; HALT_n is already high in that case.
+// Physical m1_fetch continues to drive Plus open-bus handling above.
+reg ssm_fetch_eligible;
+always @(posedge clk) begin
+	if (reset) ssm_fetch_eligible <= 1'b0;
+	else if (!m1_fetch) ssm_fetch_eligible <= cpu_halt_n;
+end
+assign ssm_m1_fetch = m1_fetch & ssm_fetch_eligible;
 assign ssm_bus_data = cpu_data_bus;
 
 // Passive tap for printer data (I/O write with ~A[12], port EFxx).
