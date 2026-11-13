@@ -774,6 +774,82 @@ void test_reset_after_write_byte_preserves_fresh_read() {
                        bench.read_data());
 }
 
+void test_normal_seek_keeps_other_drive_idle() {
+    Bench bench;
+    mount_synthetic_edsk(bench);
+    wait_for_track_ready(bench, 0);
+    bench.dut().fast = 0;
+    bench.expect_equal("both drives idle before normal-speed SEEK", 0,
+                       bench.status() & 0x03);
+    // Only drive A receives SEEK. Normal stepping provides a sustained
+    // execution interval for repeated observations through the public MSR.
+    issue_seek(bench, 1);
+    unsigned drive_a_busy_samples = 0;
+    unsigned unexpected_drive_b_busy = 0;
+    for (unsigned sample = 0; sample < 64; ++sample) {
+        const auto msr = bench.status();
+        if (msr & 0x01) ++drive_a_busy_samples;
+        unexpected_drive_b_busy |= msr & 0x02;
+        bench.fdc_step();
+    }
+    bench.expect_equal("normal-speed SEEK supplies sustained drive-A busy samples", 1,
+                       drive_a_busy_samples >= 8);
+    std::cout << "SEEK isolation: command=0F 00 01 fast=0 samples=64 A_busy_samples="
+              << drive_a_busy_samples << " unexpected_B_busy_mask="
+              << unexpected_drive_b_busy << '\n';
+    // NEC µPD765A/µPD765B datasheet, Table 2, Main Status Register:
+    // D0B describes FDD0 Seek mode and D1B describes FDD1 Seek mode.
+    // Drive B has received no SEEK command in this fixture.
+    bench.expect_equal("drive B remains idle throughout drive-A SEEK", 0,
+                       unexpected_drive_b_busy);
+}
+
+void test_completed_seek_stays_busy_until_sense_interrupt() {
+    Bench bench;
+    mount_synthetic_edsk(bench);
+    wait_for_track_ready(bench, 0);
+    bench.expect_equal("both drives idle before fast SEEK", 0,
+                       bench.status() & 0x03);
+    issue_seek(bench, 1);
+    // Internal position/metadata observations only bound fixture setup.
+    // The public SIS result below must independently prove a successful
+    // completed drive-A seek before interpreting the saved MSR sample.
+    wait_for_track_ready(bench, 1);
+    bench.wait_until("command-ready after completed SEEK", [&] {
+        return (bench.status() & 0xd0) == 0x80;
+    });
+    const auto before_sis = bench.status();
+
+    bench.write_data(0x08, true);  // SENSE INTERRUPT STATUS
+    bench.wait_until("SIS result available after completed SEEK", [&] {
+        return (bench.status() & 0xd0) == 0xd0;
+    });
+    const auto st0 = bench.read_data();
+    const auto pcn = bench.read_data();
+    bench.wait_until("command-ready after SIS result", [&] {
+        return (bench.status() & 0xd0) == 0x80;
+    });
+    const auto after_sis = bench.status();
+    std::cout << "Completed SEEK/SIS: command=0F 00 01 fast=1 MSR_before=0x"
+              << std::hex << unsigned(before_sis) << " ST0=0x" << unsigned(st0)
+              << " PCN=0x" << unsigned(pcn) << " MSR_after=0x"
+              << unsigned(after_sis) << std::dec << '\n';
+
+    // NEC uPD765A datasheet, "Sense Interrupt Status", Table 9:
+    // normal seek termination has IC=00/SE=1; unit0/head0 gives ST0=20.
+    bench.expect_equal("SIS reports normal Seek End for drive A", 0x20, st0);
+    bench.expect_equal("SIS reports completed SEEK cylinder 1", 1, pcn);
+    bench.expect_equal("drive B remains idle before SIS", 0, before_sis & 0x02);
+    bench.expect_equal("completed SEEK releases controller busy before SIS", 0,
+                       before_sis & 0x10);
+    bench.expect_equal("SIS retires drive-A busy while drive B stays idle", 0,
+                       after_sis & 0x03);
+    // NEC uPD765A datasheet, "Seek": D0B-D3B are set during seeking
+    // and cleared by SENSE INTERRUPT STATUS, after physical stepping ends.
+    bench.expect_equal("completed SEEK retains drive-A busy until SIS", 1,
+                       before_sis & 0x01);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -811,6 +887,10 @@ int main(int argc, char** argv) {
             test_write_data_uninterrupted_payload);
         run("u765_reset_after_write_byte_preserves_fresh_read",
             test_reset_after_write_byte_preserves_fresh_read);
+        run("u765_normal_seek_keeps_other_drive_idle",
+            test_normal_seek_keeps_other_drive_idle);
+        run("u765_completed_seek_stays_busy_until_sense_interrupt",
+            test_completed_seek_stays_busy_until_sense_interrupt);
     } catch (...) {
         return 1;
     }
