@@ -20,7 +20,7 @@ module video_field_test_top (
     );
     wire [21:0] gamma_bus = 22'd0;
     amstrad_video_output output_chain (
-        .CLK_VIDEO(clk), .ce_16(ce_16), .raw_crt(1'b0),
+        .CLK_VIDEO(clk), .ce_16(ce_16), .native_cadence(1'b0), .raw_crt(1'b0),
         .pixel_vblank(1'b0), .plus_mode(1'b0), .mode(2'd2),
         .scale(2'd0), .ar(2'd0), .integer_scale(2'd0), .mix(3'd0),
         .r4(4'hf), .g4(4'hf), .b4(4'hf),

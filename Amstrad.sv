@@ -45,6 +45,13 @@ assign HDMI_BOB_DEINT = 0;
 // XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXX   XXX
 
 `include "build_id.v"
+// Explicit private build profile; disabled builds keep the three-choice OSD
+// and reserved mode3=Full behavior byte-for-byte.
+`ifdef V1_CRT_RESPONSE_PRIVATE
+localparam ENABLE_CRT_RESPONSE = 1;
+`else
+localparam ENABLE_CRT_RESPONSE = 0;
+`endif
 localparam CONF_STR = {
 	"Amstrad;;",
 	"d4S0,DSK,Mount A:;",
@@ -76,7 +83,11 @@ localparam CONF_STR = {
 	"P1OU,Pixel Clock,16MHz,Adaptive;",
 	"P1-;",
 	"d3P1O2,CRTC,Type 1,Type 0;",
+`ifdef V1_CRT_RESPONSE_PRIVATE
+	"P1O[36:35],Video output,Full,Raw pixels,Raw CRT,CRT response;",
+`else
 	"P1O[36:35],Sync filter,Full,Raw pixels,Raw CRT;",
+`endif
 	"P1OBD,Display,Color(GA),Color(ASIC),Green,Amber,Cyan,White;",
 	"P1-;",
 	"P1O78,Stereo mix,none,25%,50%,100%;",
@@ -1453,7 +1464,7 @@ plus_cartridge_memory cartridge_memory
 	.mem_rdata(cart_mem_rdata)
 );
 
-Amstrad_motherboard motherboard
+Amstrad_motherboard #(.ENABLE_CRT_RESPONSE(ENABLE_CRT_RESPONSE)) motherboard
 (
 	.reset(reset),
 	.clk(clk_sys),
@@ -1485,7 +1496,7 @@ Amstrad_motherboard motherboard
 	.no_wait(status[6] & ~tape_motor),
 	.ppi_jumpers({1'b1, ~status[44:42]}),
 	.crtc_type(~status[2]),
-	// 0 Full, 1 Raw pixels, 2 Raw CRT (3 reserved, normalised to Full).
+	// 0 Full, 1 Raw pixels, 2 Raw CRT; private3 only when explicitly compiled.
 	// Raw pixels keeps the whole Full acquisition tuple and changes only the
 	// pixels; Raw CRT is the user-approved exception that sends raw geometry
 	// to the single core video stream, so HDMI acquisition can become
@@ -1495,6 +1506,7 @@ Amstrad_motherboard motherboard
 	// the integration test contract B1.
 	.sync_filter(status[36:35]),
 	.raw_crt(raw_crt),
+	.native_cadence(native_cadence),
 	.pixel_vblank(pixel_vblank),
 
 	.sna_load(sna_load),
@@ -1714,7 +1726,7 @@ assign CLK_VIDEO = clk_sys;
 wire [3:0] b4, g4, r4;
 wire hs, vs, hbl, vbl;
 // One applied motherboard mode controls the complete production output chain.
-wire raw_crt, pixel_vblank, en270p;
+wire raw_crt, native_cadence, pixel_vblank, en270p;
 // B4 phase 2 observation tap. Outputs only; with no recorder compiled in they
 // are unconnected and synthesis removes them, so the default build is exactly
 // the phase 1 build.
@@ -1723,7 +1735,7 @@ wire [7:0] obs_r, obs_g, obs_b;
 wire [7:0] obs_applied_config;
 amstrad_video_output video_output (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
-    .raw_crt(raw_crt), .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
+    .raw_crt(raw_crt), .native_cadence(native_cadence), .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
     .mode(mode), .scale(status[10:9]), .ar(status[26:25]),
     .integer_scale(status[29:28]), .mix(status[13:11]),
     .r4(r4), .g4(g4), .b4(b4), .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl),

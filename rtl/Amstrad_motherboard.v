@@ -15,7 +15,7 @@
 --
 */
 
-module Amstrad_motherboard
+module Amstrad_motherboard #(parameter ENABLE_CRT_RESPONSE = 0)
 (
 	input         reset,
 
@@ -166,7 +166,8 @@ module Amstrad_motherboard
 	// consumed as an exact-zero mask after colour conversion.  Both are
 	// inactive in Full mode.
 	output        raw_crt,
-	output reg    pixel_vblank,
+	output        pixel_vblank,
+	output        native_cadence,
 
 	input  [15:0] vram_din,
 	output reg [14:0] vram_addr,
@@ -252,13 +253,38 @@ wire crtc_extra_byte, crtc_start_gen, crtc_end_gen;
 // policy, the pixel mask and the top-level Raw CRT restrictions, so a mode
 // change cannot be seen at different times by different consumers
 // (hardware observations, "Mode and
-// transition contract").  Reserved value 3 normalises to Full.  The commit
+// transition contract"). Reserved3 remains Full unless the private profile
+// is explicitly compiled in. The commit
 // condition itself lives next to crt_filter, where the Full vertical blank
 // and the selected CPU phase are in scope.
-wire [1:0] sync_filter_req = (sync_filter == 2'd3) ? 2'd0 : sync_filter;
+// Private admission is off by default: saved reserved3 remains Full.
+wire [1:0] sync_filter_req = ((sync_filter == 2'd3) && !ENABLE_CRT_RESPONSE) ? 2'd0 : sync_filter;
 reg  [1:0] sync_filter_applied;
 wire       sync_filter_commit;
 assign raw_crt = (sync_filter_applied == 2'd2);
+wire crt_response_active = ENABLE_CRT_RESPONSE && (sync_filter_applied == 2'd3);
+assign native_cadence = raw_crt | crt_response_active;
+
+// Declare response wires before any continuous/instance use (Verilog-2001).
+wire [11:0] crt_rgb;
+wire crt_raw_vblank, crt_response_available, crt_source_missing;
+wire crt_hs, crt_vs, crt_hbl, crt_vbl, crt_field, crt_frame_field;
+wire rgb_owner_match;
+wire crt_hs_aligned, crt_vs_aligned, crt_hbl_aligned, crt_vbl_aligned;
+wire crt_field_aligned, crt_frame_field_aligned;
+reg [5:0] crt_tuple_alignment [0:3];
+integer crt_align_i;
+// The renderer's RGB is held until the next native converter edge. Raw
+// pixels also crosses that converter, so RGB's relative lag is 260 clocks.
+// Add one native dot to all six timing tags to keep the same common lag.
+// Continue transport through every reset/context/owner clear, like receiver.
+always @(posedge clk) begin
+    crt_tuple_alignment[0] <= {crt_hs,crt_vs,crt_hbl,crt_vbl,crt_field,crt_frame_field};
+    for (crt_align_i=1; crt_align_i<4; crt_align_i=crt_align_i+1)
+        crt_tuple_alignment[crt_align_i] <= crt_tuple_alignment[crt_align_i-1];
+end
+assign {crt_hs_aligned,crt_vs_aligned,crt_hbl_aligned,crt_vbl_aligned,
+        crt_field_aligned,crt_frame_field_aligned} = crt_tuple_alignment[3];
 
 // CPC Plus CPU schematic: IC116 G3/G2/G1 and D201/D202/R210.
 // https://oldwiki.cpcwiki.eu/imgs/8/84/CPC_Plus_CPU_Schematic.jpg
@@ -483,10 +509,12 @@ wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;
 // own frame parity (see asic_video FIELD). Unselected-engine perturbation must
 // not reach the pin.
 wire        plus_field;
-assign field = plus_mode ? plus_field : crtc_field;
+wire source_field = plus_mode ? plus_field : crtc_field;
+assign field = crt_response_active ? crt_field_aligned : source_field;
 // Classic R8 pulses must not advertise interlace to the platform scaler.
 // Preserve the existing Plus FIELD export; this repair concerns classic R8.
-assign frame_field = plus_mode ? plus_field : crtc_frame_field;
+wire source_frame_field = plus_mode ? plus_field : crtc_frame_field;
+assign frame_field = crt_response_active ? crt_frame_field_aligned : source_frame_field;
 
 wire plus_mode_update_en;
 
@@ -1019,8 +1047,11 @@ wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
 // timing never produces Full VBLANK the request simply waits; the existing
 // reset action applies it without that dependency, so a selection made to
 // diagnose broken sync is still reachable.
+// Timing transport continues during lifecycle clears. Enter/leave the
+// delayed profile only when neither live nor delayed raster is visible.
+wire response_transition = crt_response_active || (ENABLE_CRT_RESPONSE && sync_filter_req == 2'd3);
 assign sync_filter_commit = (sync_filter_applied != sync_filter_req) &
-                            vblank_filtered & ~cpu_n;
+                            vblank_filtered & (~response_transition | crt_vbl_aligned) & ~cpu_n;
 
 always @(posedge clk) begin
 	if (reset) sync_filter_applied <= sync_filter_req;
@@ -1033,10 +1064,16 @@ end
 // cannot black out a neighbouring pixel.  Only the raw modes tag: Full
 // conversion is unchanged, and the horizontal force blank keeps the
 // renderer/DAC near-black rendering it already has.
+reg source_pixel_vblank;
 always @(posedge clk) begin
-	if (reset) pixel_vblank <= 1'b0;
-	else if (ce_16) pixel_vblank <= (sync_filter_applied != 2'd0) & vblank_ga;
+	if (reset) source_pixel_vblank <= 1'b0;
+	else if (ce_16) source_pixel_vblank <= (sync_filter_applied != 2'd0) & vblank_ga;
 end
+// Mask the converter's newly registered output on lifecycle invalidation.
+// Its live owner mux still exposes one pre-edge stale dot to gamma/mixer;
+// Raw has that same consumer exposure. This limits it, not end-to-end removal.
+wire crt_pixel_invalidate = reset | sna_load | sync_filter_commit | ~rgb_owner_match;
+assign pixel_vblank = crt_response_active ? (crt_raw_vblank | crt_pixel_invalidate) : source_pixel_vblank;
 
 // Sync filter modes.  crt_filter does two separable jobs: it regenerates a
 // stable HSYNC/VSYNC so the scaler can lock even when the CRTC emits
@@ -1061,10 +1098,16 @@ end
 //                  exception to Full acquisition timing: there is one core
 //                  video stream, so scaler geometry follows.  A deliberate
 //                  diagnostic/CRT output mode, not an automatic fallback.
-//   3 reserved     Normalised to Full by sync_filter_req.
+//   3 CRT response Private qualitative response; native byte order and
+//                  cadence, delayed filtered geometry. Disabled builds Full.
 //
 // See hardware observations and
 // the integration test contract B1 for the evidence.
+wire profile_hsync, profile_vsync, profile_hblank, profile_vblank;
+assign hsync = crt_response_active ? crt_hs_aligned : profile_hsync;
+assign vsync = crt_response_active ? crt_vs_aligned : profile_vsync;
+assign hblank = crt_response_active ? crt_hbl_aligned : profile_hblank;
+assign vblank = crt_response_active ? crt_vbl_aligned : profile_vblank;
 crt_filter_output_select crt_filter_output_select
 (
 	.MODE(sync_filter_applied),
@@ -1076,10 +1119,10 @@ crt_filter_output_select crt_filter_output_select
 	.VSYNC_RAW(vsync_ga),
 	.HBLANK_RAW(hs_sel),
 	.VBLANK_RAW(vblank_ga),
-	.HSYNC_OUT(hsync),
-	.VSYNC_OUT(vsync),
-	.HBLANK_OUT(hblank),
-	.VBLANK_OUT(vblank)
+	.HSYNC_OUT(profile_hsync),
+	.VSYNC_OUT(profile_vsync),
+	.HBLANK_OUT(profile_hblank),
+	.VBLANK_OUT(profile_vblank)
 );
 
 // SSM v2: raw request remains distinguishable from the normalized/applied mode.
@@ -1103,6 +1146,7 @@ crt_filter crt_filter
 	.EXTRA_BYTE(crtc_extra_byte),
 	.START_GEN(crtc_start_gen),
 	.END_GEN(crtc_end_gen),
+	.SOURCE_MISSING(crt_source_missing),
 	.SYNC_OBSERVATION(filter_sync_observation)
 );
 
@@ -1116,6 +1160,20 @@ assign mode  = plus_mode ? plus_gamode : ga_mode;
 // This is output history, not a literal monitor/silicon-stage model.
 wire [11:0] selected_source_rgb = plus_mode ? {plus_rgb_r, plus_rgb_g, plus_rgb_b} :
     {2'b00, ga_red, 2'b00, ga_green, 2'b00, ga_blue};
+// Frozen qualitative renderer. No producer/filter state consumes its output.
+// Both field tags and the complete filtered tuple travel continuously, even
+// when mode3 is inactive or RGB history is being invalidated.
+crt_response crt_response (
+    .clk(clk), .ce_16(ce_16), .reset(reset),
+    .context_clear(sna_load | sync_filter_commit), .owner(plus_mode),
+    .ga_hs(hsync_ga), .ga_vs(vsync_ga), .source_missing(crt_source_missing),
+    .rgb12(selected_source_rgb), .raw_vblank(source_pixel_vblank),
+    .hs(hsync_filtered), .vs(vsync_filtered), .hblank(hblank_filtered), .vblank(vblank_filtered),
+    .field(source_field), .frame_field(source_frame_field),
+    .rgb12_out(crt_rgb), .raw_vblank_out(crt_raw_vblank), .available(crt_response_available),
+    .hs_out(crt_hs), .vs_out(crt_vs), .hblank_out(crt_hbl), .vblank_out(crt_vbl),
+    .field_out(crt_field), .frame_field_out(crt_frame_field)
+);
 reg [11:0] full_rgb_history [0:7];
 reg rgb_owner;
 reg rgb_sampled, rgb_old_hs;
@@ -1132,7 +1190,7 @@ initial begin
     rgb_end_seen = 0;
     rgb_correction = 0;
 end
-wire rgb_owner_match = rgb_owner == plus_mode;
+assign rgb_owner_match = rgb_owner == plus_mode;
 wire rgb_context_clear = reset | sna_load | sync_filter_commit |
                          ~rgb_owner_match | (sync_filter_applied != 2'd0);
 wire rgb_raw_rise = ~rgb_old_hs & hs_sel;
@@ -1194,7 +1252,8 @@ always @(posedge clk) begin
 end
 // An owner change must bypass the old history immediately, before the
 // clocked context clear can run. The new owner then needs a complete pulse.
-wire [11:0] rendered_rgb = (rgb_correction & rgb_owner_match) ? full_rgb_history[7] :
+wire [11:0] rendered_rgb = crt_response_active ? crt_rgb :
+    (rgb_correction & rgb_owner_match) ? full_rgb_history[7] :
                                                                        selected_source_rgb;
 assign red   = rendered_rgb[11:8];
 assign green = rendered_rgb[7:4];
