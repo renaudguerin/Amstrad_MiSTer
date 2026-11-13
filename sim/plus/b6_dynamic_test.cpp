@@ -19,7 +19,20 @@ Program dynamic_program() {
         emit(1);emit(port&255);emit(port>>8);emit(0x3e);emit(value);emit(0xed);emit(0x79);
     };
     auto reg=[&](unsigned r,unsigned v){io(0xbc00,r);io(0xbd00,v);};
+    // Acquire a regular 64-us HS cadence before the timed disturbances.
+    // Eight-row setup frames supply a genuine VSYNC within this bounded
+    // guest wait, replacing the filter's reset-time training history.
+    // Unroll the reads because this TV80 substitute cannot execute
+    // conditional polling. The same guest runs on every machine/mode.
+    reg(4,7);reg(7,3);
+    for(unsigned wait=0;wait<1600;++wait) {
+        emit(0x3a);emit(0);emit(0x40); // LD A,(&4000)
+    }
+    reg(4,38);reg(7,30);
     for(unsigned stage=0;stage<stages;++stage) {
+        // End the scored window before programming the next regime. Those
+        // writes can emit HS already, especially when leaving "missing".
+        if(stage) {emit(0x3e);emit(0);emit(0x32);emit(0);emit(0xb0);}
         if(stage==1) reg(3,0x25);              // five-character raw HS
         if(stage==2) {reg(2,255);reg(7,255);} // no horizontal/vertical equality
         if(stage==3) {reg(0,15);reg(1,8);reg(2,4);reg(3,0x22);reg(7,8);}
@@ -29,7 +42,9 @@ Program dynamic_program() {
         emit(0x3e);emit(stage+1);emit(0x32);emit(0);emit(0xb0);
         // Unrolled real memory reads avoid relying on the TV80 substitute's
         // relative-branch behavior. Each interval spans many complete lines.
-        const unsigned reads[stages]={1200,1000,400,1000,800,0};
+        // Rebalance the unrolled waits to fit the acquisition preamble in
+        // the 16-KiB ROM. Each scored regime still spans many HS periods.
+        const unsigned reads[stages]={900,700,300,700,400,0};
         for(unsigned wait=0;wait<reads[stage];++wait) {
             emit(0x3a);emit(0);emit(0x40); // LD A,(&4000)
         }
@@ -152,7 +167,7 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string&
     unsigned elapsed=0;
     for(unsigned n=0;n<16000000;++n) {
         auto&d=h.dut;
-        if(!d.dbg_mreq_n&&!d.dbg_wr_n&&d.dbg_addr==0xb000&&d.dbg_dout>=1&&d.dbg_dout<=stages) {
+        if(!d.dbg_mreq_n&&!d.dbg_wr_n&&d.dbg_addr==0xb000&&d.dbg_dout<=stages) {
             int next=d.dbg_dout-1;if(next!=stage){std::cerr<<"stage "<<next<<" tick="<<n<<" pc="<<std::hex<<d.dbg_pc<<std::dec<<std::endl;stage=next;age=0;}
         }
         trace.sample(n,stage,age,d);

@@ -3,7 +3,8 @@
 // https://oldwiki.cpcwiki.eu/imgs/7/7e/IM2_Plus_Ack_Bug.png
 // Separate M1 cycles and never-pending idle acknowledges retain the existing
 // unspecified00 default. DMA2 auto/manual-clear controls pin pending priority.
-// Snapshot setup supplies pending flags; no HSYNC occurs during these probes.
+// Snapshot setup supplies pending flags. PA7 additionally follows real video
+// HS ends so compatible creation crosses an in-flight DMA acknowledge.
 
 #include <cstdint>
 #include <cstdio>
@@ -430,7 +431,7 @@ void test_pa7_compatible_during_dma(Vplus_p8_test_top& dut) {
         B8Header h;
         h.crtc[0]=63; h.crtc[1]=40; h.crtc[2]=49; h.crtc[3]=0x88;
         h.crtc[4]=38; h.crtc[6]=25; h.crtc[7]=30; h.crtc[9]=7;
-        h.intcnt=51;
+        h.intcnt=50; // one quiet producer end, then overflow during DMA ACK
         B8ChunkParams p;
         p.dcsr=0x40; // pending DMA0, stopped; B4=0 leaves compatible idle
         b8_stream_chunk_apply(dut, tick, p, h);
@@ -440,16 +441,26 @@ void test_pa7_compatible_during_dma(Vplus_p8_test_top& dut) {
             tick(); dut.aregs_cs=0; dut.aregs_mem_wr=0; tick();
         };
         if (manual) write(0x2805, 1);
-        unsigned guard=0;
-        while (dut.ga_raw_int_n_out && ++guard < 6000) tick();
-        if (dut.ga_raw_int_n_out || !dut.ga_int_n_out)
-            fail("PA7 setup: expected undelivered compatible request");
+        // Observe the producer's first complete HS pulse, not a private
+        // pending latch. Starting from count50 leaves the next overflow
+        // inside the held DMA ACK. The bound is eight ordinary64-character
+        // lines in this cen_16-always fixture; it does not select an internal
+        // raw/delivery phase.
+        bool was_hs = dut.video_hs;
+        unsigned guard = 0;
+        for (; guard < 8192; ++guard) {
+            tick();
+            if (was_hs && !dut.video_hs) break;
+            was_hs = dut.video_hs;
+        }
+        if (guard == 8192 || !dut.ga_int_n_out)
+            fail("PA7 setup: expected first quiet producer HS end");
         dut.ga_m1_n=0; dut.ga_iorq_n=0;
-        auto first=b20_ack_pulse(dut, tick, 100, "PA7 DMA across compatible delivery");
+        auto first=b20_ack_pulse(dut, tick, 8192, "PA7 DMA across compatible delivery");
         if (first[0] != 4) fail("PA7: first source must be DMA0/04");
         if (dut.aregs_dcsr != (manual ? 0x40 : 0))
             fail("PA7: compatible maturation changed DMA clear/status provenance");
-        if (dut.ga_int_n_out || dut.ga_raw_int_n_out)
+        if (dut.ga_int_n_out)
             fail("PA7: compatible request lost inside DMA ACK");
         b20_release(dut, tick, 4);
         if (manual) write(0x2c0f, 0x40); // handler clears manual flag
