@@ -52,7 +52,7 @@ JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
 	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
-	ga40010-test u765-test b18-save-admission-test hardware-loop-host-test
+	ga40010-test u765-test b18-save-admission-test hardware-loop-host-test crt-response-test
 
 .PHONY: full test-run full-run list-tests crtc-test plus-test plus-full ga40010-test u765-test
 test full:
@@ -426,3 +426,15 @@ $(CLASSIC_B25_BIN): $(CLASSIC_IRQ_PHASE_RTL) classic_b25_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build --top-module classic_irq_phase_top -UVERILATOR \
 		--Mdir $(OBJ_DIR)/classic_b25 -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o classic_b25_tests $(CLASSIC_IRQ_PHASE_RTL) classic_b25_test.cpp
+
+# Private V1 standalone receiver/renderer contract.
+
+CRT_RESPONSE_BIN := $(OBJ_DIR)/crt_response/crt_response_tests
+.PHONY: crt-response-test
+crt-response-test: $(CRT_RESPONSE_BIN)
+	$<
+$(CRT_RESPONSE_BIN): ../rtl/crt_response.sv ../rtl/plus/asic_sprites.v crt_response_test_top.sv crt_response_test.cpp Makefile
+	mkdir -p $(@D)
+	$(VERILATOR) --cc --exe --build -j 1 --top-module crt_response_test_top --prefix Vcrt_response \
+		--Mdir $(OBJ_DIR)/crt_response -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o crt_response_tests ../rtl/crt_response.sv ../rtl/plus/asic_sprites.v crt_response_test_top.sv $(abspath crt_response_test.cpp)

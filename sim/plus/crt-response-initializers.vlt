@@ -1,0 +1,4 @@
+`verilator_config
+// Frozen V1 receiver: declaration initialization intentionally matches FPGA
+// power-up state. Loaded only on tools that recognize PROCASSINIT.
+lint_off -rule PROCASSINIT -file "*/rtl/crt_response.sv"

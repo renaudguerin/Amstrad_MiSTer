@@ -36,6 +36,7 @@ module crt_filter
 	output reg END_GEN,
 	// Passive acquisition/history state; bit layout is the SSM v2 payload
 	// above the two requested/applied mode fields supplied by the motherboard.
+	output        SOURCE_MISSING,
 	output [15:0] SYNC_OBSERVATION
 );
 
@@ -66,9 +67,10 @@ assign SHIFT = shift ^ hs4;
 
 // generate HSync if original is absent for almost whole frame
 reg hsync, no_hsync;
+assign SOURCE_MISSING = no_hsync;
 
-// Hybrid live blanking for the scaler.  HSYNC_I is the Gate Array/ASIC force-
-// blank event and therefore owns the live horizontal phase, but the pulse is
+// Hybrid live blanking diagnostic. HSYNC_I is the selected raw CRTC HS
+// event and therefore owns this live horizontal phase, but the pulse is
 // not by itself a complete acquisition blank.  The production ratio is
 // 64 MHz CLK / 4 MHz CE_4, so 1024 master clocks preserve the 64-CE Full
 // blank width without quantising a three-pixel-M2 (12-master-clock) R2.JIT

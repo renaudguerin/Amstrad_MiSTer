@@ -1,0 +1,4 @@
+`verilator_config
+// Frozen V1 receiver: procedural scratch calculations in sequential blocks.
+// Other modules and every other warning class retain their existing policy.
+lint_off -rule BLKSEQ -file "*/rtl/crt_response.sv"

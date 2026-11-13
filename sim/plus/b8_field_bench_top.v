@@ -123,6 +123,7 @@ module b8_field_bench_top (
 		.vsync(mb_vsync),
 		.field(mb_field),
 
+		.native_cadence(),
 		.vram_din(16'd0),
 		.vram_addr(),
 

@@ -168,6 +168,13 @@ module p10_boot_test_top #(
 	output            dbg_cpr_load_error,
 	output      [1:0] dbg_sync_filter
 `ifdef B6_VIDEO_BOUNDARY
+`ifdef B6_RESPONSE_CONSUMER
+    , output [23:0] b6_consumer_rgb,
+    output [3:0] b6_consumer_meta,
+    output b6_consumer_field, b6_motherboard_frame,
+    output [23:0] b6_ascal_rgb,
+    output b6_ascal_hs, b6_ascal_vs, b6_ascal_de, b6_ascal_ce
+`endif
     , input [1:0] b6_mode,
     output [1:0] b6_applied,
     output [20:0] b6_sync_observation,
@@ -176,7 +183,7 @@ module p10_boot_test_top #(
     output [7:0] b6_history,
     output b6_raw_crt, b6_pixel_vblank,
     output b6_raw_vblank, b6_shift, b6_cpu_n, b6_ras_n, b6_cas_n, b6_bs,
-    output b6_mixer_de, b6_mixer_ce,
+    output b6_mixer_de, b6_mixer_ce, b6_mixer_hs, b6_mixer_vs,
     output [23:0] b6_mixer_rgb, b6_color_rgb,
     output [3:0] b6_color_tuple,
     output b6_plus_de, b6_plus_hsync, b6_plus_sprite_en,
@@ -489,7 +496,14 @@ module p10_boot_test_top #(
 	wire [7:0] mb_audio_l;
 	wire [7:0] mb_audio_r;
 
-	Amstrad_motherboard mb (
+`ifdef B6_RESPONSE_CONSUMER
+    wire b6_field;
+`endif
+	Amstrad_motherboard
+`ifdef B6_RESPONSE_CONSUMER
+    #(.ENABLE_CRT_RESPONSE(1))
+`endif
+    mb (
 	// SSM opcode-fetch tap: unused here, wired explicitly so the -Wall
 	// lint stays quiet about it.
 	.ssm_m1_fetch(),
@@ -602,7 +616,13 @@ module p10_boot_test_top #(
 		.red(mb_red),
 		.green(mb_green),
 		.blue(mb_blue),
-		.field(),
+`ifdef B6_RESPONSE_CONSUMER
+        // FRAME_FIELD reaches production VGA_F1 directly; keep its test
+        // boundary separate from the ce_pix-registered output FIELD tap.
+        .field(b6_field), .frame_field(b6_motherboard_frame),
+`else
+        .field(),
+`endif
 `ifdef B6_VIDEO_BOUNDARY
 		// Real production output policy: the B6 fixture consumes the applied
 		// Raw CRT flag and the dot-sampled vertical-blank tag, never a
@@ -875,6 +895,8 @@ module p10_boot_test_top #(
     assign b6_ras_n = mb.ras_n;
     assign b6_cas_n = mb.cas_n;
     assign b6_bs = mb.vram_bs;
+    wire b6_native_cadence;
+    assign b6_native_cadence = mb.native_cadence;
     wire [7:0] b6_r, b6_g, b6_b;
     wire b6_ce, b6_hs, b6_vs, b6_hb, b6_vb;
     wire [21:0] b6_gamma;
@@ -891,19 +913,44 @@ module p10_boot_test_top #(
     assign b6_color_tuple = {b6_hs,b6_vs,b6_hb,b6_vb};
     assign b6_gamma[20:0] = 21'd0; // production gamma pipeline, correction disabled
     amstrad_video_output b6_output (
-        .CLK_VIDEO(clk), .ce_16(ce_16), .raw_crt(b6_raw_crt),
+        .CLK_VIDEO(clk), .ce_16(ce_16), .native_cadence(b6_native_cadence), .raw_crt(b6_raw_crt),
         .pixel_vblank(b6_pixel_vblank), .plus_mode(plus_mode), .mode(mb_mode),
         .scale(2'd0), .ar(2'd0), .integer_scale(2'd0), .mix(3'd0),
         .r4(mb_red), .g4(mb_green), .b4(mb_blue),
         .hs(mb_hsync), .vs(mb_vsync), .hbl(mb_hblank), .vbl(mb_vblank),
-        .pixel_rate_select(1'b0), .forced_scandoubler(1'b0), .field_in(1'b0),
+`ifdef B6_RESPONSE_CONSUMER
+        .obs_r(b6_consumer_rgb[23:16]), .obs_g(b6_consumer_rgb[15:8]),
+        .obs_b(b6_consumer_rgb[7:0]),
+        .obs_hs(b6_consumer_meta[3]), .obs_vs(b6_consumer_meta[2]),
+        .obs_hbl(b6_consumer_meta[1]), .obs_vbl(b6_consumer_meta[0]),
+        .obs_field(b6_consumer_field), .field_in(b6_field),
+`else
+        .field_in(1'b0),
+`endif
+        .pixel_rate_select(1'b0), .forced_scandoubler(1'b0),
         .vcrop_en(1'b0), .HDMI_WIDTH(12'd1920), .HDMI_HEIGHT(12'd1080),
         .HDMI_FREEZE(1'b0), .progress_pix(1'b0), .gamma_bus(b6_gamma),
         .CE_PIXEL(b6_mixer_ce), .VGA_R(b6_mixer_rgb[23:16]),
         .VGA_G(b6_mixer_rgb[15:8]), .VGA_B(b6_mixer_rgb[7:0]),
-        .VGA_HS(), .VGA_VS(), .VGA_DE(b6_mixer_de), .VGA_SL(),
+        .VGA_HS(b6_mixer_hs), .VGA_VS(b6_mixer_vs), .VGA_DE(b6_mixer_de), .VGA_SL(),
         .VIDEO_ARX(), .VIDEO_ARY(), .en270p()
     );
+`ifdef B6_RESPONSE_CONSUMER
+    // sys/sys_top.v:1383 and1707-1719, unchanged production input bridge.
+    // The Makefile extracts sync_fix byte-for-byte into an ignored unit.
+    // VGA_F1 bypasses this bridge, as it does at the actual ASCAL input.
+    wire b6_ascal_hs_fix, b6_ascal_vs_fix;
+    sync_fix b6_sync_h(clk, b6_mixer_hs, b6_ascal_hs_fix);
+    sync_fix b6_sync_v(clk, b6_mixer_vs, b6_ascal_vs_fix);
+    scanlines #(0) b6_ascal_scanlines (
+        .clk(clk), .scanlines(2'd0),
+        .din(b6_mixer_de ? b6_mixer_rgb : 24'd0),
+        .hs_in(b6_ascal_hs_fix), .vs_in(b6_ascal_vs_fix),
+        .de_in(b6_mixer_de), .ce_in(b6_mixer_ce),
+        .dout(b6_ascal_rgb), .hs_out(b6_ascal_hs), .vs_out(b6_ascal_vs),
+        .de_out(b6_ascal_de), .ce_out(b6_ascal_ce)
+    );
+`endif
 `else
 	assign dbg_sync_filter       = SYNC_FILTER;
 `endif
