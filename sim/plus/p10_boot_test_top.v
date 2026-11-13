@@ -181,7 +181,7 @@ module p10_boot_test_top #(
     output [7:0] b6_history,
     output b6_raw_crt, b6_pixel_vblank,
     output b6_raw_vblank, b6_shift, b6_cpu_n, b6_ras_n, b6_cas_n, b6_bs,
-    output b6_mixer_de, b6_mixer_ce,
+    output b6_mixer_de, b6_mixer_ce, b6_mixer_hs, b6_mixer_vs,
     output [23:0] b6_mixer_rgb, b6_color_rgb,
     output [3:0] b6_color_tuple,
     output b6_plus_de, b6_plus_hsync, b6_plus_sprite_en,
@@ -930,7 +930,7 @@ module p10_boot_test_top #(
         .HDMI_FREEZE(1'b0), .progress_pix(1'b0), .gamma_bus(b6_gamma),
         .CE_PIXEL(b6_mixer_ce), .VGA_R(b6_mixer_rgb[23:16]),
         .VGA_G(b6_mixer_rgb[15:8]), .VGA_B(b6_mixer_rgb[7:0]),
-        .VGA_HS(), .VGA_VS(), .VGA_DE(b6_mixer_de), .VGA_SL(),
+        .VGA_HS(b6_mixer_hs), .VGA_VS(b6_mixer_vs), .VGA_DE(b6_mixer_de), .VGA_SL(),
         .VIDEO_ARX(), .VIDEO_ARY(), .en270p()
     );
 `else
