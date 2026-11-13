@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import os
+import socket
 import subprocess
 from unittest.mock import patch
 import json
@@ -542,6 +543,84 @@ class TestHardwareLoopContracts(unittest.TestCase):
             self.assertIn("-O", argv)
             self.assertEqual(argv[argv.index("-P") + 1], "2222")
             self.assertTrue(any("owner@fake-target:" in a for a in argv))
+
+    def test_shared_ssh_master_is_reused_without_taking_ownership(self):
+        # A terminal-authenticated master must survive all three transport
+        # operations and cleanup, even after its signing agent disconnects.
+        with tempfile.TemporaryDirectory(prefix="shared_ssh_", dir="/tmp") as td:
+            control = Path(td) / "control %h socket"
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+                listener.bind(str(control))
+                with patch("driver.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+                    transport = SSHTransport("owner@fake-target", control_path=str(control))
+                # Exercise OpenSSH's option parser, not a second copy of our
+                # argument construction. -G makes no network connection.
+                parsed = subprocess.run(
+                    ["ssh", "-G", "-F", "/dev/null", *transport._mux_options(), "fake-target"],
+                    capture_output=True, text=True, check=True,
+                )
+                self.assertIn(f"controlpath {control}", parsed.stdout.splitlines())
+                local = Path(td) / "payload"
+                local.write_bytes(b"x")
+                with patch("driver.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")) as run:
+                    transport.run_cmd("true", 2)
+                    transport.upload_file(local, "/media/fat/probe", 2)
+                    transport.download_file("/media/fat/probe", local, 2)
+                    self.assertEqual(run.call_count, 3)
+                    for call in run.call_args_list:
+                        argv = call.args[0]
+                        self.assertIn("ControlMaster=no", argv)
+                    transport.close()
+                    transport.close()
+                    self.assertEqual(run.call_count, 3)
+                self.assertTrue(control.is_socket())
+                self.assertTrue(Path(td).exists())
+                with self.assertRaises(ValueError):
+                    SSHTransport("owner@fake-target", multiplex=True, control_path=str(control))
+
+    def test_borrowed_master_rejects_stale_socket_locally(self):
+        with tempfile.TemporaryDirectory(prefix="stale_ssh_", dir="/tmp") as td:
+            control = Path(td) / "control socket"
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stale:
+                stale.bind(str(control))
+            with self.assertRaisesRegex(DriverError, "SSH control master"):
+                SSHTransport("127.0.0.1", control_path=str(control))
+            self.assertTrue(control.is_socket())
+
+    def test_lost_borrowed_master_never_opens_direct_connection(self):
+        # The master can disappear between its local liveness check and any
+        # SSH/SCP operation. Exercise the real clients against a TCP tripwire.
+        with tempfile.TemporaryDirectory(prefix="lost_ssh_", dir="/tmp") as td, \
+                socket.socket() as tripwire:
+            tripwire.bind(("127.0.0.1", 0))
+            tripwire.listen()
+            tripwire.setblocking(False)
+            control = Path(td) / "control socket"
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as master:
+                master.bind(str(control))
+                with patch("driver.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+                    transport = SSHTransport("127.0.0.1", tripwire.getsockname()[1], control_path=str(control))
+            control.unlink()
+            payload = Path(td) / "payload"
+            payload.write_bytes(b"x")
+            operations = (
+                lambda: transport.run_cmd("true", 1),
+                lambda: transport.upload_file(payload, "/media/fat/probe", 1),
+                lambda: transport.download_file("/media/fat/probe", payload, 1),
+            )
+            try:
+                for operation in operations:
+                    with self.subTest(operation=operation):
+                        with self.assertRaises(DriverError):
+                            operation()
+                        try:
+                            connection, _ = tripwire.accept()
+                        except BlockingIOError:
+                            continue
+                        connection.close()
+                        self.fail("Lost borrowed master fell back to a direct TCP connection")
+            finally:
+                transport.close()
 
     def test_ssh_multiplexing_opt_in_shares_task_socket_and_cleans_up(self):
         """Opt-in multiplexing provisions a task-owned socket under /tmp,

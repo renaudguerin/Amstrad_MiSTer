@@ -350,6 +350,15 @@ class CommandResult:
         self.stderr = stderr
 
 
+def validate_ssh_control_path(control_path: str) -> str:
+    """Validate an existing local socket without contacting its master."""
+    control_path = os.fspath(control_path)
+    if (any(c in control_path for c in "\x00\r\n") or
+            not os.path.isabs(control_path) or not Path(control_path).is_socket()):
+        raise ValueError("Shared SSH control path must name an existing absolute Unix socket")
+    return control_path
+
+
 class SSHTransport:
     """SSH and SCP communication transport."""
 
@@ -358,21 +367,44 @@ class SSHTransport:
         target: str,
         port: int = 22,
         multiplex: bool = False,
+        control_path: Optional[str] = None,
     ):
         validate_ssh_target(target)
         validate_port(port)
+        if multiplex and control_path is not None:
+            raise ValueError("Choose task-owned multiplexing or an existing SSH control socket")
+        if control_path is not None:
+            control_path = validate_ssh_control_path(control_path)
         self.target = target
         self.port = port
-        self.multiplex = multiplex
+        self.multiplex = bool(multiplex or control_path is not None)
+        self.borrowed_control_path = control_path
+        self._owns_control_master = multiplex
         self.command_log: List[Dict[str, Any]] = []
         self._closed = False
         self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = None
 
-        if self.multiplex:
+        if control_path is not None:
+            self.control_path = control_path
+        elif self.multiplex:
             self._temp_dir = tempfile.TemporaryDirectory(prefix="mister_mux_", dir="/tmp")
             self.control_path = os.path.join(self._temp_dir.name, "cm.sock")
         else:
             self.control_path = None
+
+        if control_path is not None:
+            # -O check addresses only the local mux socket. A socket inode
+            # alone can outlive the authenticated master that created it.
+            try:
+                result = subprocess.run(
+                    ["ssh", "-o", "BatchMode=yes", *self._mux_options(),
+                     "-O", "check", "-p", str(self.port), self.target],
+                    capture_output=True, text=True, timeout=2.0,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise DriverError(f"SSH control master check failed: {exc}") from exc
+            if result.returncode != 0:
+                raise DriverError(f"SSH control master unavailable: {result.stderr.strip()}")
 
     def _log_record(self, cmd: str, ts: str, dur: float, code: int, out: str, err: str) -> None:
         self.command_log.append({
@@ -381,6 +413,14 @@ class SSHTransport:
         })
 
     def _mux_options(self) -> List[str]:
+        if self.borrowed_control_path is not None:
+            # -o is parsed as an ssh_config line even though argv is not a
+            # shell command. Preserve spaces/quotes in the supplied socket.
+            path = self.control_path.replace("%", "%%").replace("\\", "\\\\").replace('"', '\\"')
+            # If the borrowed master disappears, OpenSSH otherwise falls back
+            # to a new connection. Disable that path for both SSH and SCP.
+            return ["-o", "ControlMaster=no", "-o", f'ControlPath="{path}"',
+                    "-o", "ProxyCommand=false"]
         if self.multiplex and self.control_path:
             return [
                 "-o", "ControlMaster=auto",
@@ -458,7 +498,7 @@ class SSHTransport:
         if self._closed:
             return
         self._closed = True
-        if not self.multiplex:
+        if not self._owns_control_master:
             return
 
         if self.control_path and os.path.exists(self.control_path):
@@ -616,6 +656,7 @@ def run_hardware_loop(
         manifest = {
             "case_id": config["case_id"], "run_id": run_id, "timestamp": ts, "dry_run": True,
             "ssh_multiplex": is_mux,
+            "ssh_control_path": getattr(transport, "borrowed_control_path", None),
             "hardware_contacted": False, "target": target, "port": port, "effective_case": config,
             "intended_sequence": seq, "partial_identity": {}, "captures": [], "command_log": plan,
             "status": "dry_run", "error": None,
@@ -761,6 +802,7 @@ def run_hardware_loop(
         manifest = {
             "case_id": config["case_id"], "run_id": run_id, "timestamp": ts, "dry_run": False,
             "ssh_multiplex": is_mux,
+            "ssh_control_path": getattr(transport, "borrowed_control_path", None),
             "hardware_contacted": hardware_contacted, "target": target, "port": port, "effective_case": config,
             "intended_sequence": seq, "partial_identity": partial_identity, "captures": captures,
             "command_log": transport.command_log, "status": "success", "error": None,
@@ -772,6 +814,7 @@ def run_hardware_loop(
         manifest = {
             "case_id": config["case_id"], "run_id": run_id, "timestamp": ts, "dry_run": False,
             "ssh_multiplex": is_mux,
+            "ssh_control_path": getattr(transport, "borrowed_control_path", None),
             "hardware_contacted": hardware_contacted, "target": target, "port": port, "effective_case": config,
             "intended_sequence": seq, "partial_identity": partial_identity, "captures": captures,
             "command_log": getattr(transport, "command_log", []), "status": "failed", "error": str(exc) or type(exc).__name__,
