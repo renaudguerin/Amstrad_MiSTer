@@ -33,6 +33,16 @@ struct Program {
         std::copy_n("MV - SNA",8,header.begin());header[0x10]=3;
         emit({0xf3,0x31,0xf0,0xbf}); // DI; SP in base RAM bank 2
         out(0x7f00,0x9e); // mode 2, both ROMs disabled, clear GA interrupt count
+        if(type==1) {
+            // This snapshot fixture requires quiescent PPI.B inputs (SNA
+            // note 7), independently of the reset-time VSYNC history. Block
+            // new starts, then drain any active pulse on two-character lines:
+            // French ACCC v1.11 sections 14.2 p133 / 16.4.2 p171 specify
+            // 16 lines. R0=0 would hold an already active Type1 pulse (B26).
+            out(0xbc00,7);out(0xbd00,127);
+            out(0xbc00,0);out(0xbd00,1);
+            for(unsigned us=0;us<64;++us)emit({0x00}); // >16 two-us lines
+        }
         // Type 1 settles at zero in one-character/one-line frames. Type 0
         // starts at C0=C4=C9=R0=R4=R9=0: its second C0=0 increments C4
         // once and enters adjustment, then freezes. French ACCC v1.11
@@ -83,9 +93,9 @@ struct Program {
         header[0x40]=0x8e;header[0x6b]=model==0?128:64;header[0x6d]=2-model;header[0xa4]=type;
         header[0xb2]=2; // reset hcnt encoded 00 -> two lines until VSYNC
         if(type==0) {header[0xab]=1;header[0xb0]=0x80;}
-        // Type 1 starts VSYNC with reset R7=0. Writing R7=127 prevents
-        // subsequent starts; its fixed 16-line pulse expires with elapsed
-        // count 15 retained (SNA v3 AF, not the inactive pulse's countdown).
+        // Type 1's initial VSYNC was drained by the R0=1 preamble,
+        // before the final R0=0 geometry. Elapsed count 15 is retained
+        // (SNA v3 AF, not the inactive pulse's countdown).
         else header[0xaf]=15;
     }
 };
