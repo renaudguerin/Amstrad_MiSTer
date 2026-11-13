@@ -1,7 +1,7 @@
 // Production motherboard and GHDL-translated T80. External memory is supplied
 // by C++; no SDRAM controller, cartridge mux, firmware, or physical device model.
 module ssm_provider_top #(parameter CRTC_KIND=0) (
- input clk, reset, irq, extra_wait, plus_mode,
+ input clk, reset, irq, nmi, extra_wait, plus_mode,
  input [7:0] cpu_din,
  output [15:0] cpu_addr,
  output [7:0] cpu_dout,
@@ -162,7 +162,7 @@ module ssm_provider_top #(parameter CRTC_KIND=0) (
  .io_bus_byte(),
  .ga_ready(),
  .irq(irq),
- .nmi('0),
+ .nmi(nmi),
  .cursor(),
  .snap_ga_inksel(),
  .snap_ga_border(),

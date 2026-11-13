@@ -63,10 +63,13 @@ module ssm_marker #(
 	// detector can disturb the machine.
 	input             enable,
 
-	// Raw opcode-fetch tap. `m1_fetch` is the motherboard's existing
-	// `~M1_n & ~MREQ_n & ~RD_n` level, the same condition it already uses
-	// for Plus open-bus behaviour, so wait states and T80pa clock enables
-	// are handled identically. It is a level spanning the whole M1 read,
+	// Opcode-fetch tap. The motherboard holds HALT eligibility across its
+	// physical `~M1_n & ~MREQ_n & ~RD_n` read. The initial HALT opcode
+	// completes before HALT_n goes low, preserving it as a marker separator.
+	// Repeated halted reads and the NMI wake dummy read carry bytes the CPU
+	// replaces with internal NOPs, so they are excluded for the entire read.
+	// Normal-running NMI dummy reads remain a provider limit until the CPU
+	// exports accepted-opcode validity. This level spans each qualified M1 read,
 	// so this module takes its falling edge: sampling the level would count
 	// one wait-stated fetch several times. INT acknowledge leaves MREQ_n
 	// high and so produces no fetch at all.
