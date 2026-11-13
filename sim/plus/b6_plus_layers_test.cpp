@@ -79,6 +79,12 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
     uint8_t history=0,even=0,odd=0;
     bool history_valid=false,even_valid=false,odd_valid=false;
     std::deque<unsigned> pens;
+    // Existing output-mask contract: 15 native dots after raw HS. This
+    // emulator-derived alignment predates this fixture repair; it is not a
+    // silicon timing claim. Replay public HS input history independently,
+    // retaining nonuniform palette/scroll/sprite and final transport checks.
+    std::deque<bool> horizontal_blank;
+    constexpr unsigned blank_delay_dots = 15;
     // Expected values advance independently through each documented register.
     // GAMMA=1 disabled still has an input pixel register and output register;
     // mixer then samples gamma RGB each master edge, emitting on prior CE.
@@ -118,13 +124,17 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
             const unsigned delayed=scroll&&delayed_valid?pens[pens.size()-scroll]:pen;
             pens.push_back(pen);
             if(pens.size()>16) pens.pop_front();
-            const bool de=d.b6_plus_de, blank=d.b6_plus_hsync;
+            const bool de=d.b6_plus_de;
+            const bool blank_valid=horizontal_blank.size()==blank_delay_dots;
+            const bool blank=blank_valid&&horizontal_blank.front();
+            horizontal_blank.push_back(d.b6_plus_hsync);
+            if(blank_valid) horizontal_blank.pop_front();
             const unsigned x=d.b6_plus_hp,y=d.b6_plus_line;
             const bool spr=sprites&&y>=40&&y<56&&((x>=100&&x<164)||(x>=700&&x<764));
             // Independent programmed palette/coordinate oracle, never SPR_RGB
             // or the renderer's PEN/PAL_ADDR outputs as expected values.
             expected_pixel=blank?0:!de?border:spr?sprite:delayed?ink1:ink0;
-            pixel_valid=pen_valid&&delayed_valid&&n>128;
+            pixel_valid=pen_valid&&delayed_valid&&blank_valid&&n>128;
             if(pixel_valid) {
                 ++r.dots;
                 if ((d.b6_plus_sprite_en!=spr || (spr&&d.b6_plus_sprite_rgb!=sprite)) && r.sprite_bad<8)

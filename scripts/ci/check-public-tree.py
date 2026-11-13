@@ -32,6 +32,8 @@ PUBLIC_SCRIPTS = {
     "scripts/diagnostics/classic_b25.asm",
     "scripts/diagnostics/classic_b25.py",
     "scripts/diagnostics/classic_b25_sim.py",
+    "scripts/diagnostics/fdc_read_probe.asm",
+    "scripts/diagnostics/fdc_read_probe.py",
     "scripts/diagnostics/pa7_dma_overlap.asm",
     "scripts/diagnostics/pa7_dma_overlap.py",
     "scripts/diagnostics/plus_hw_probes.asm",

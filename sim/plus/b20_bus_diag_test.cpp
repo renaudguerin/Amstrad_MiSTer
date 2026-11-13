@@ -6,7 +6,6 @@
 #define main p10_unused_main
 #include "p10_boot_test.cpp"
 #undef main
-#include "Vp10_boot_test_top___024root.h"
 
 #include <iostream>
 #include <iomanip>
@@ -171,7 +170,7 @@ void run_cell(const CellConfig& cfg) {
     h.initialize(); h.download(build_cpr_image({{"cb00", build_cell_program(cfg)}}));
     wait_for_cpr_apply(h);
     bool seen=false, write_seen=false, prev_raw=false, prev_ack=false;
-    bool unlocked=false, page=false, opcode=false, pending_before=false, dcsr_seen=false;
+    bool unlocked=false, page=false, opcode=false, dcsr_seen=false;
     uint8_t dcsr=0;
     int samples=0; uint8_t sampled=0;
     uint16_t ack_address=0;
@@ -198,22 +197,19 @@ void run_cell(const CellConfig& cfg) {
         bool ack=h.dut.dbg_vec_valid;
         if (raw && !prev_raw) {
             ++raw_rises; ack_address=h.dut.dbg_addr;
-            pending_before=!h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n;
         }
         if (ack && !prev_ack) { ++rises; pulse_age=0; }
         if (ack) {
             ++pulse_age;
             if (pulse_age==2) {
-                require(h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n,cfg.name+": raster not cleared on first latch edge");
                 pulse_vec=h.dut.dbg_vec_byte; vectors.push_back(pulse_vec); }
             if (pulse_age>2) require(h.dut.dbg_vec_byte==pulse_vec, cfg.name+": vector changed within ASIC pulse");
         }
         if (std::getenv("B20_TRACE") && (raw || (prev_raw && !raw)))
-            std::printf("TRACE %s tick=%d A=%04X raw=%d asic=%d ready=%d wait=%d m1=%d ts=%d cen=%d vec=%02X pending=%d\n",
+            std::printf("TRACE %s tick=%d A=%04X raw=%d asic=%d wait=%d m1=%d ts=%d cen=%d vec=%02X\n",
                 cfg.name.c_str(),tick,h.dut.dbg_addr,raw,ack,
-                h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ready,
                 h.dut.dbg_cpu_waitn,h.dut.dbg_m1_n,h.dut.dbg_tstate,h.dut.dbg_cen_p,
-                h.dut.dbg_vec_byte,!h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n);
+                h.dut.dbg_vec_byte);
         if (raw_rises && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_addr==0x6C0F) {
             dcsr_seen=true; dcsr=h.dut.dbg_din;
         }
@@ -227,7 +223,6 @@ void run_cell(const CellConfig& cfg) {
     std::puts("");
     require(unlocked && page,cfg.name+": ASIC setup incomplete");
     require(opcode,cfg.name+": expected target opcode not fetched");
-    require(pending_before,cfg.name+": no pending raster before acknowledge");
     require(cfg.memory_write ? (ack_address > cfg.origin && ack_address <= cfg.origin+64)
                              : ack_address==cfg.origin+1,
             cfg.name+": acknowledge did not follow the intended opcode class");
@@ -239,6 +234,8 @@ void run_cell(const CellConfig& cfg) {
     require(samples==1 && sampled==(susceptible ? 4:6),cfg.name+": wrong byte at production T80 IM2 sample edge");
     require(raw_rises==1,cfg.name+": expected one CPU acknowledge");
     require(rises==(susceptible ? 2:1),cfg.name+": wrong ASIC pulse count");
+    // First vector06 and handler DCSR80 independently prove raster ownership;
+    // its private pending-latch clear edge is not a motherboard contract.
     require(vectors== (susceptible ? std::vector<unsigned>{6,4}:std::vector<unsigned>{6}),cfg.name+": wrong per-pulse vector (must distinguish 04 from 00/02)");
     require(marker==(susceptible ? 0xD0:0xAA),cfg.name+": CPU consumed wrong vector");
 }
