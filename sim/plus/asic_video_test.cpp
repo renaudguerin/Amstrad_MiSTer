@@ -44,6 +44,7 @@ public:
         dut.SPLT = 0;
         dut.SSA = 0;
         dut.SSCR = 0;
+        dut.SNA_LOAD = 0;
         dut.SPR_EN = 0;
         dut.SPR_RGB = 0;
         dut.PAL_EN = 0;      // default: internal [KT] legacy-colour ROM
@@ -61,7 +62,7 @@ public:
     TestBench(const TestBench&) = delete;
     TestBench& operator=(const TestBench&) = delete;
 
-    void reset() {
+    void reset(bool release_at_bus_phase = false) {
         idle_bus();
         dut.nRESET = 0;
         while (tick_in_character_ != kClkEnPhase) {
@@ -70,6 +71,9 @@ public:
         for (unsigned tick = 0; tick < ticks_per_character_; ++tick) {
             clock_tick();
         }
+        // Lifecycle probes can program R7 before the first post-reset
+        // CLKEN, avoiding a legitimate fresh R7=R0=0 event at power-on.
+        if (release_at_bus_phase) run_to_bus_phase();
         dut.nRESET = 1;
         dut.eval();
     }
@@ -79,6 +83,31 @@ public:
         bus_edge(false, address);
         bus_edge(true, value);
         idle_bus();
+        dut.eval();
+    }
+
+    // Apply an inactive SNA through the production snapshot pins. Its
+    // unreachable R7 distinguishes stale pre-load events from new ones.
+    void load_idle_snapshot() {
+        idle_bus();
+        for (unsigned word = 0; word < 5; ++word) dut.SNA_REGS[word] = 0;
+        dut.SNA_REGS[0] = 45;                     // R0
+        dut.SNA_REGS[1] = 38U | (127U << 24);    // R4, R7
+        dut.SNA_REGS[2] = 7U << 8;               // R9
+        dut.SNA_ADDR = 0;
+        dut.SNA_HCC = 0;
+        dut.SNA_LINE = 10;
+        dut.SNA_RASTER = 3;
+        dut.SNA_VTA = 0;
+        dut.SNA_HSW = 0;
+        dut.SNA_VSW = 0;
+        dut.SNA_VS = 0;
+        dut.SNA_HS = 0;
+        dut.SNA_ADJ = 0;
+        dut.SNA_MODE = 0;
+        dut.SNA_LOAD = 1;
+        clock_tick();
+        dut.SNA_LOAD = 0;
         dut.eval();
     }
 
@@ -161,10 +190,11 @@ public:
         }
     }
 
-    // Run until the VSYNC pin is observed low: flushes any pulse that
-    // legitimately persists out of the pinned R0=0 programming phase
-    // (with R7=0 the §16.4.4 condition holds at every line start and the
-    // pulse renews without a gap).
+    // With R0 restored nonzero, wait for moving C0 and a low VSYNC pin.
+    // Low at pinned C0=0 alone is not quiescence: a legitimate power-on
+    // R7=R0=0 event may still be deferred until C0 first moves. No internal
+    // pending state is inspected; the programmed-width assertions below
+    // start only after that observable pulse has drained.
     void run_until_vsync_idle() {
         unsigned guard = 0;
         do {
@@ -172,7 +202,7 @@ public:
             if (++guard > 8192) {
                 throw TestFailure("run_until_vsync_idle did not converge");
             }
-        } while (dut.VSYNC != 0);
+        } while (dut.VSYNC != 0 || dut.HCC == 0);
     }
 
     void run_until_hsync_idle() {
@@ -832,10 +862,17 @@ void t04f_vsync_width(TestBench& test) {
 
     TestBench legacy;
     program_display_frame(legacy);
-    legacy.write_register(7, 1);
+    // A 16-line pulse outlives this 12-line frame. Park R7 while
+    // draining setup, then arm it at frame origin so crossing a target
+    // during alignment cannot start a pulse before the measured frame.
+    legacy.write_register(7, 127);
     legacy.write_register(3, 0x05);  // V width 0 -> 16 lines
     legacy.run_until_vsync_idle();
+    legacy.select_register(7);
     legacy.run_to_frame_start();
+    legacy.selected_write_tick(true, 1);
+    legacy.selected_write_tick(false, 1);
+    legacy.expect_vsync("legacy width starts from a quiescent frame", false);
     for (unsigned k = 1; k <= 170; ++k) {
         legacy.run_characters(1);
         if (k == 33 || k == 150) {
@@ -861,6 +898,99 @@ void t04g_no_reentrancy_continuous_refire(TestBench& test) {
     for (unsigned k = 1; k <= 30; ++k) {
         test.run_characters(1);
         test.expect_vsync("renewed VSYNC whenever inactive", true);
+    }
+}
+
+// Hardware constraint: original 6128 Plus SHAKER AI/008D photograph,
+// https://shaker.logonsystem.eu/images/cpc/CPC/AI_CRTC3_A.webp:
+// each R0=0 group reads VSYNC 0/1/1/1; R0=1 groups read 1/1/1/1.
+// SHAKE27A at 64c7/64d1 writes the short R0 then restores 45, with the
+// first IN near +5 us and second near +23 us (AFTER restoration near
+// +18 us). The final reads follow an R2=28 write, not an R3 rewrite.
+// This owner-level vector preserves that sample ordering; it does not
+// claim CPU/ASIC bus-phase equivalence. FR ACCC v1.11 §13.5 p.123 keeps
+// C4/C9 advancing at R0=0; §14.2 p.133 supplies the 16-line width.
+// MODEL LIMIT (B26): §16.4.4 p.172 does not specify the zero-line onset
+// topology. Holding the ordinary seam event until C0 moves is a narrow
+// model consistent with the photo, not a proven physical latch design.
+void prepare_zero_vsync_event(TestBench& test, unsigned short_r0) {
+    program_display_frame(test);
+    test.write_register(4, 38);
+    test.write_register(9, 7);
+    test.write_register(7, 30);
+    test.write_register(3, 0x0e);  // R3h=0: 16 lines
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.select_register(0);
+    test.run_to_state(29, 7, 0, "AI preceding last raster");
+    test.expect_vsync("AI starts before the VSYNC row", false);
+    test.selected_write_tick(true, short_r0);
+    test.selected_write_tick(false, short_r0);
+    test.expect_hcc("short R0 data lands at C0=0", 0);
+}
+
+void t04o_r0_zero_vsync_event(TestBench& test, unsigned short_r0) {
+    prepare_zero_vsync_event(test, short_r0);
+    for (unsigned us = 1; us <= 18; ++us) {
+        test.run_characters(1);
+        if (short_r0 == 0) {
+            test.expect_hcc("R0=0 pins C0", 0);
+            test.expect_line("R0=0 advances C4 past R7", 30 + (us - 1) / 8);
+            test.expect_row("R0=0 advances C9", (us - 1) % 8);
+            test.expect_vsync("zero-line target remains deferred", false);
+        }
+        if (us == 5) test.expect_vsync("original AI sample 1", short_r0 != 0);
+    }
+    test.selected_write_tick(true, 45);  // BC=BC2D; OUT (C),C at 64d1
+    test.selected_write_tick(false, 45);
+    if (short_r0 == 0) {
+        test.expect_line("release no longer has C4=R7", 32);
+        test.run_characters(1);
+        test.expect_hcc("retained zero terminal completes once", 0);
+        test.expect_vsync("retained zero terminal still defers", false);
+        test.run_characters(1);
+        test.expect_hcc("first moving character releases event", 1);
+        test.expect_vsync("deferred event survives C4 leaving R7", true);
+        test.run_characters(3);  // +23 us sample
+    } else {
+        test.run_characters(5);
+    }
+    test.expect_vsync("original AI sample 2 after widening", true);
+    test.write_register(2, 28);
+    test.run_characters(38);  // approximately original final IN A / IN E
+    test.expect_vsync("original AI sample 3", true);
+    test.run_characters(4);
+    test.expect_vsync("original AI sample 4", true);
+
+    if (short_r0 == 0) {
+        // Keep the live-width owner: sixteen genuine restored line ends
+        // terminate the deferred pulse. Align by observed counters.
+        test.run_to_state(32, 4, 0, "second normal line end");
+        test.run_characters(13 * 46);
+        test.expect_vsync("fifteen restored line ends retain VSYNC", true);
+        test.run_characters(46);
+        test.expect_vsync("sixteenth restored line end expires VSYNC", false);
+        test.run_characters(46);
+        test.expect_vsync("consumed deferred event does not refire", false);
+    }
+}
+
+void t04p_deferred_vsync_lifecycle(TestBench& test, bool snapshot) {
+    prepare_zero_vsync_event(test, 0);
+    test.run_characters(18);  // pending event; current C4 has passed R7
+    test.expect_vsync("zero stretch remains inactive before lifecycle edge", false);
+    if (snapshot) {
+        test.load_idle_snapshot();
+    } else {
+        test.reset(true);
+        test.write_register(7, 127);  // before the first post-reset CLKEN
+        test.write_register(4, 38);
+        test.write_register(9, 7);
+        test.write_register(0, 45);
+    }
+    for (unsigned k = 0; k < 100; ++k) {
+        test.run_characters(1);
+        test.expect_vsync("lifecycle discards the previous zero-line event", false);
     }
 }
 
@@ -2582,6 +2712,7 @@ void t07b_status1_horizontal_events(TestBench& test) {
     test.write_register(12, 0x12);
     test.write_register(13, 0x34);
     test.write_register(0, 7);
+    test.run_until_vsync_idle();  // bit5 must not sample a setup VSYNC
     test.select_register(2);
     test.run_to_frame_start();
 
@@ -3435,7 +3566,7 @@ void t02m_r4_source_window(TestBench& test, unsigned r0,
     test.expect_adj(false, "t02m no adjustment");
 }
 
-constexpr std::array<TestCase, 82> kTests = {{
+constexpr std::array<TestCase, 86> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3486,6 +3617,14 @@ constexpr std::array<TestCase, 82> kTests = {{
     {"t04e VSYNC gate and mid-row R7 write", t04e_vsync_gate_and_r7_write},
     {"t04f VSYNC width incl. legacy 16", t04f_vsync_width},
     {"t04g VSYNC refire without protection", t04g_no_reentrancy_continuous_refire},
+    {"t04o AI R0=0 deferred VSYNC event", [](TestBench& test) {
+         t04o_r0_zero_vsync_event(test, 0); }},
+    {"t04o AI R0=1 VSYNC control", [](TestBench& test) {
+         t04o_r0_zero_vsync_event(test, 1); }},
+    {"t04p reset clears deferred VSYNC", [](TestBench& test) {
+         t04p_deferred_vsync_lifecycle(test, false); }},
+    {"t04p snapshot clears deferred VSYNC", [](TestBench& test) {
+         t04p_deferred_vsync_lifecycle(test, true); }},
     {"t04j IVM MID-VSYNC and odd-frame delay",
      t04j_ivm_mid_vsync_and_odd_frame_delay},
     {"t04k IVM R7=0 outgoing-parity priority",
