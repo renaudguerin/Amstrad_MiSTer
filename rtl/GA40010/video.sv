@@ -49,6 +49,12 @@ reg anchor_valid=0;
 reg [3:0] anchor_cursor=0, anchor_age=0;
 reg [15:0] anchor_byte_id=0;
 reg [4:0] colour=0;
+// French ACCC v1.11 §9.2.2 pp49-50: the GA40010 ink-change position is
+// common to all modes. Mode2's byte stream starts one pixel-M2 earlier,
+// so it takes the new palette on its second dot, not its first. Sample
+// its two inks and border one cen_16 earlier than the colour lookup;
+// delaying the serializer instead would move ordinary static pixels.
+reg [4:0] mode2_ink0=0, mode2_ink1=0, mode2_border=0;
 reg [15:0] token_epoch=0;
 reg token_valid=0, permit=0, await_colour=1;
 reg blank_stage1=1, blank_stage2=1;
@@ -56,6 +62,8 @@ wire mode_is_0=active_mode==0, mode_is_1=active_mode==1, mode_is_2=active_mode==
 wire [7:0] shift_reg=cursor>=8?8'd0:(byte_reg<<cursor);
 wire [3:0] cidx={shift_reg[1],shift_reg[5],shift_reg[3],shift_reg[7]};
 wire [3:0] pen=mode_is_0?cidx:mode_is_2?{3'd0,cidx[0]}:{2'd0,cidx[1:0]};
+wire [4:0] display_ink=mode_is_2?(pen[0]?mode2_ink1:mode2_ink0):INKR[pen];
+wire [4:0] display_border=mode_is_2?mode2_border:BORDER;
 wire [3:0] event_age=load?4'd8:age+4'd1;
 wire refresh=(mode_is_2 || !event_age[0]);
 wire colour_keep=!refresh;
@@ -98,11 +106,15 @@ always @(posedge clk) begin
   byte_id<=0;epoch_id<=0;
   anchor_valid<=0;anchor_cursor<=0;anchor_age<=0;anchor_byte_id<=0;
   colour<=0;
+  mode2_ink0<=0;mode2_ink1<=0;mode2_border<=0;
   token_epoch<=0;token_valid<=0;
   permit<=0;await_colour<=1;blank_stage1<=1;blank_stage2<=1;
   BLUE_OE_N<=0;BLUE<=0;GREEN_OE_N<=0;GREEN<=0;RED_OE_N<=0;RED<=0;
  end else begin
   if(cen_16) begin
+   // Volatile colour samples refill while reset/SNA blanking waits for
+   // the first fresh video byte; they are not serialized snapshot state.
+   mode2_ink0<=INKR[0];mode2_ink1<=INKR[1];mode2_border<=BORDER;
    // Publish preceding colour/blank state; current token generation follows.
    if(blank_stage2) begin
     BLUE_OE_N<=0;BLUE<=0;GREEN_OE_N<=0;GREEN<=0;RED_OE_N<=0;RED<=0;
@@ -115,7 +127,7 @@ always @(posedge clk) begin
    blank_stage2<=blank_stage1;
    if(arrival) begin permit<=1;await_colour<=0;end
    if(refresh) begin
-    colour<=u1005?INKR[pen]:BORDER;
+    colour<=u1005?display_ink:display_border;
     token_epoch<=epoch_id;token_valid<=byte_valid;
    end
    if(load) begin byte_reg<=VIDEO;cursor<=0;age<=0;byte_valid<=VIDEO_VALID;byte_id<=byte_id+16'd1;end

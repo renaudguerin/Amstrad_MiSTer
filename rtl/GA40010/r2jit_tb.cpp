@@ -21,6 +21,7 @@ public:
 struct NjitSample { unsigned tick,rgb,mode,c0,row,raster; bool pixel,logical,raw,black; };
 struct PixelSample { unsigned rgb, mode; };
 struct SourceCapture { std::vector<PixelSample> pixels; unsigned write_phase=0, write_seq=0; };
+struct PaletteSample { unsigned tick,phase,seq,c0,rgb; bool accept,sync,de; };
 
 class Bench {
 public:
@@ -99,6 +100,69 @@ public:
             dut_->IORQ_N = 1; dut_->WR_N = 1;
             clock();
         }
+    }
+
+    // French ACCC v1.11 §9.2.2 pp49-50: GA40010 colour changes land on
+    // byte 1's first Mode0/1/3 pixel, or its second Mode2 pixel. The Mode2
+    // serializer itself starts one M2 dot earlier; palette writes do not.
+    void check_palette_alignment(unsigned mode, bool border, bool high_pen=false) {
+        dut_->RAM_DIN = high_pen ? 0xff : 0;
+        const unsigned ink = high_pen ? (mode == 0 ? 15 : mode == 2 ? 1 : 3) : 0;
+        configure(46, 0x84);
+        write_crtc(1, 40); write_crtc(4, 38);
+        write_crtc(6, 25); write_crtc(7, 30);
+        write_io(0x7fff, ink); write_io(0x7fff, 0x44);
+        write_io(0x7fff, 16); write_io(0x7fff, 0x46);
+        write_io(0x7fff, 0x80 | mode);
+        wait_for("palette settled mode", [&] {
+            return dut_->GA_VIDEO_MODE == (mode == 3 ? 0 : mode) &&
+                   bool(dut_->GA_MODE_IS_0) == (mode == 0);
+        }, 2000000);
+        write_io(0x7fff, border ? 16 : ink);
+        wait_for("palette leave frame origin", [&] { return dut_->CRTC_ROW == 1; }, 2000000);
+        wait_for("palette fresh frame", [&] {
+            return dut_->CRTC_ROW == 0 && dut_->CRTC_RASTER == 0 && dut_->CRTC_C0 == 0;
+        }, 2000000);
+        const unsigned row = border ? 26 : 7;
+        wait_for("palette visible ROI", [&] {
+            return dut_->CRTC_ROW == row && dut_->CRTC_RASTER == 0 && dut_->CRTC_C0 == 12;
+        }, 2000000);
+        palette_samples_.clear(); palette_capture_ = true;
+        wait_for("palette normal bus phase", [&] { return dut_->CRTC_C0 == 20 && dut_->GA_SEQ == 7; });
+        write_io(0x7fff, border ? 0x5f : 0x4c);
+        wait_for("palette ROI end", [&] { return dut_->CRTC_C0 == 33; });
+        palette_capture_ = false;
+        unsigned accept = 0, edges = 0, changed = 0;
+        const unsigned old_rgb = border ? 13 : 1, new_rgb = border ? 62 : 32;
+        bool old_seen = false;
+        for (const auto& p : palette_samples_) {
+            if (p.sync || p.de == border)
+                throw TestFailure("palette ROI sync/display contamination");
+            if (p.accept) {
+                if (!accept) {
+                    if (p.phase != 20 || p.seq != 0xff || p.c0 != 20)
+                        throw TestFailure("palette accepted outside qualified GA phase");
+                    accept = p.tick;
+                }
+                if (p.tick != accept + edges++)
+                    throw TestFailure("palette accept window is not contiguous");
+            }
+            if (!changed && p.rgb == old_rgb) old_seen = true;
+            else if (p.rgb == new_rgb && old_seen) {
+                if (!changed) {
+                    changed = p.tick;
+                    // clock() stores preedge phase: publication is at phase32,
+                    // the byte grid in the French p50 chart, not Mode2 phase28.
+                    if (!accept || p.tick - accept != 11 || p.phase != 31)
+                        throw TestFailure("palette mode" + std::to_string(mode) +
+                            " published at +" + std::to_string(p.tick - accept) +
+                            " master clocks; French §9.2.2 p50 requires +11 / phase32");
+                }
+            } else throw TestFailure("palette ROI has unexpected/non-monotonic colour");
+        }
+        if (!changed || edges != 4) throw TestFailure("palette write/transition was not qualified");
+        std::cout << "PASS  palette_alignment type=" << unsigned(dut_->CRTC_TYPE)
+                  << " mode=" << mode << " border=" << border << " ink=" << ink << " delta=11\n";
     }
 
     void check_jit_cancellation(unsigned kind,unsigned delay) {
@@ -439,9 +503,21 @@ private:
             dut_->RAM_DIN=ram_[addr]; eval();
         }
         const bool njit_pixel_edge=dut_->CEN_16; // old CE actually consumed by GA
+        PaletteSample palette{};
+        if (palette_capture_) palette = {master_ticks_+1, unsigned(dut_->CRTC_PHASE),
+            unsigned(dut_->GA_SEQ), unsigned(dut_->CRTC_C0), 0,
+            dut_->GA_SEQ == 0xff && !dut_->IORQ_N && !dut_->WR_N && dut_->M1_N &&
+                (dut_->A & 0xc000) == 0x4000,
+            bool(dut_->CRTC_HSYNC_RAW || dut_->CRTC_VSYNC_RAW || dut_->GA_VBLANK_RAW),
+            bool(dut_->CRTC_DE_RAW)};
         dut_->clk = 1;
         eval();
         ++master_ticks_;
+        if (palette_capture_) {
+            palette.rgb = rgb();
+            palette.sync |= bool(dut_->HSYNC || dut_->VSYNC || dut_->GA_VBLANK_RAW);
+            palette_samples_.push_back(palette);
+        }
         if(dut_->GA_MODE_SYNC && dut_->GA_MODE_REQUEST==2) ++mode2_sync_receipts_;
         if(njit_capture_) njit_samples_.push_back({master_ticks_,rgb(),unsigned(dut_->GA_VIDEO_MODE),unsigned(dut_->CRTC_C0),unsigned(dut_->CRTC_ROW),unsigned(dut_->CRTC_RASTER),njit_pixel_edge,bool(dut_->CRTC_VSYNC_LOGICAL),bool(dut_->CRTC_VSYNC_RAW),bool(dut_->GA_VBLANK_RAW)});
 
@@ -537,6 +613,8 @@ private:
     std::unique_ptr<Vga40010_test> dut_;
     bool source_memory_=false, capture_=false;
     bool njit_capture_=false;
+    bool palette_capture_=false;
+    std::vector<PaletteSample> palette_samples_;
     unsigned master_ticks_=0;
     std::vector<NjitSample> njit_samples_;
     std::array<std::uint8_t,65536> ram_{};
@@ -792,6 +870,11 @@ int main(int argc, char** argv) {
     try {
         if(argc==2 && std::string(argv[1])=="--publication-only") { publication_width_and_context(); return 0; }
         if(argc==2 && std::string(argv[1])=="--njit-only") { ordinary_njit_words(); return 0; }
+        for (bool type : {false,true}) for (bool border : {false,true}) for (unsigned mode : {0u,1u,2u,3u}) {
+            Bench palette(type); palette.check_palette_alignment(mode,border);
+            if (!border) { Bench high(type); high.check_palette_alignment(mode,false,true); }
+        }
+        if(argc==2 && std::string(argv[1])=="--palette-only") return 0;
         source_byte_windows();
         for(bool type:{false,true}) for(unsigned kind:{0u,1u,2u}) for(unsigned delay:{0u,7u}) {
             Bench cancel(type);cancel.check_jit_cancellation(kind,delay);
