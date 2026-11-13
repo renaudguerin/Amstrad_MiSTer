@@ -235,9 +235,53 @@ static void halt_then_nmi() {
     require(h.d.event_count==1 && h.d.last_code==0xfffe,"NMI cancellation or resumed marker count failed");
     std::puts("PASS HALT NMI dummy-read exclusion, RETN, one executed successor marker");
 }
+static void normal_running_nmi() {
+    Harness h;
+    // Interrupt a running NOP, with ED at its successor. T80.vhd's M1/T2
+    // IR assignment substitutes NOP when NMICycle is set and holds PC,
+    // so the first physical read of 0004:ED is an acknowledge dummy.
+    // RETN then executes that same address as the resumed marker prefix.
+    h.load(0,{0x31,0x00,0x80,0x00,0xed,0xfe,0xed,0xff,
+              0x3e,0x5a,0x32,0x02,0x50,0x76});
+    h.load(0x66,{0xed,0xff,0xed,0x45}); // partial pair, then RETN
+    bool running_nop=false;
+    for(unsigned n=0;n<100000;++n) {
+        h.cycle();
+        if(h.d.m1 && h.d.mreq && h.d.rd && h.d.cpu_addr==3) {
+            running_nop=true;
+            break;
+        }
+    }
+    require(running_nop && h.d.cpu_halt_n,"running NOP fetch missing before NMI");
+    h.d.nmi=1;
+    bool handler_seen=false;
+    for(unsigned n=0;n<100000;++n) {
+        h.cycle();
+        if(!h.fetches.empty() && h.fetches.back().addr==0x66) {
+            handler_seen=true;
+            break;
+        }
+    }
+    require(handler_seen,"normal-running NMI did not enter handler");
+    h.d.nmi=0;
+    h.run();
+    h.sequence({0,3,4,0x66,0x67,0x68,0x69,4,5,6,7,8,10,13},
+               {0x31,0x00,0xed,0xed,0xff,0xed,0x45,0xed,0xfe,0xed,0xff,0x3e,0x32,0x76});
+    require(h.acks==0,"normal-running NMI used maskable interrupt acknowledge");
+    require(h.ram[0x7ffe]==4 && h.ram[0x7fff]==0,"normal-running NMI pushed wrong return address");
+    require(h.ram[0x5002]==0x5a,"normal-running NMI RETN did not execute resumed program");
+    std::printf("running/NMI: dummy=0004:%02x provider-observed=%u return=0004 "
+                "resumed-prefix-observed=%u events=%u code=%04x RAM5002=%02x\n",
+                h.fetches[2].data,h.fetches[2].observed,h.fetches[7].observed,
+                unsigned(h.d.event_count),unsigned(h.d.last_code),h.ram[0x5002]);
+    require(h.fetches[7].observed,"RETN successor prefix missing from SSM provider");
+    require(h.d.event_count==1 && h.d.last_code==0xfffe,"normal-running NMI resumed marker count failed");
+    require(!h.fetches[2].observed,"normal-running NMI dummy byte entered SSM provider");
+    std::puts("PASS running NMI dummy-read exclusion, RETN, one executed successor marker");
+}
 int main(int argc,char**argv) {
     Verilated::commandArgs(argc,argv);
-    try {marker(false,false); marker(true,true); marker(false,false,0xed,0xed); ram_and_io(); interrupt(true); interrupt(false); halt_then_interrupt(); halt_then_nmi();}
+    try {marker(false,false); marker(true,true); marker(false,false,0xed,0xed); ram_and_io(); interrupt(true); interrupt(false); halt_then_interrupt(); halt_then_nmi(); normal_running_nmi();}
     catch(const std::exception&e) {std::fprintf(stderr,"FAIL ssm-provider: %s\n",e.what()); return 1;}
-    std::puts("ssm-provider: PASS 8 production motherboard/T80 cases");
+    std::puts("ssm-provider: PASS 9 production motherboard/T80 cases");
 }

@@ -63,16 +63,13 @@ module ssm_marker #(
 	// detector can disturb the machine.
 	input             enable,
 
-	// Opcode-fetch tap. The motherboard holds HALT eligibility across its
-	// physical `~M1_n & ~MREQ_n & ~RD_n` read. The initial HALT opcode
-	// completes before HALT_n goes low, preserving it as a marker separator.
-	// Repeated halted reads and the NMI wake dummy read carry bytes the CPU
-	// replaces with internal NOPs, so they are excluded for the entire read.
-	// Normal-running NMI dummy reads remain a provider limit until the CPU
-	// exports accepted-opcode validity. This level spans each qualified M1 read,
-	// so this module takes its falling edge: sampling the level would count
-	// one wait-stated fetch several times. INT acknowledge leaves MREQ_n
-	// high and so produces no fetch at all.
+	// Opcode-fetch tap. CPU-owned validity qualifies each physical
+	// `~M1_n & ~MREQ_n & ~RD_n` read throughout its data interval, including
+	// prefixes and the initial HALT opcode as a marker separator. Repeated
+	// halted reads and NMI acknowledge dummy reads carry substituted internal
+	// NOPs and are excluded. This module takes the qualified level's falling
+	// edge to count each wait-stated fetch once. Maskable INT acknowledge
+	// leaves MREQ_n high and produces no memory-opcode fetch.
 	input             m1_fetch,
 	input       [7:0] bus_data,
 	// Passive motherboard state. Sampled with tick/position at HH fetch end.

@@ -120,6 +120,7 @@ entity T80 is
 		IntE       : out std_logic;
 		Stop       : out std_logic;
 		InsnStart  : out std_logic; -- B18: REG is a complete, representable state (see below)
+		OpcodeValid: out std_logic; -- passive memory-opcode eligibility throughout M1
 		R800_mode  : in  std_logic := '0';
 		out0       : in  std_logic := '0';  -- 0 => OUT(C),0, 1 => OUT(C),255
 		REG        : out std_logic_vector(211 downto 0); -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
@@ -1225,6 +1226,14 @@ begin
 	IntE <= IntE_FF1;
 	IORQ <= IORQ_i;
 	Stop <= I_DJNZ;
+
+	-- Passive observers consume memory opcode bytes only when the M1/T2
+	-- IR load uses DInst. HALT and NMI cycles substitute internal NOPs,
+	-- and maskable acknowledgements use their interrupt bus semantics.
+	-- Keep eligibility across the whole physical read, including WAIT and
+	-- prefix bytes. InsnStart below has a narrower snapshot-state contract.
+	OpcodeValid <= '1' when RESET_n = '1' and MCycle = "001" and
+	                        Halt_FF = '0' and IntCycle = '0' and NMICycle = '0' else '0';
 
 	-- B18 snapshot freeze point (the SNA save design, "Freeze point").
 	-- High during T2 of an opcode fetch that starts a new instruction. The T1
