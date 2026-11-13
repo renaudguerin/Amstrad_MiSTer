@@ -311,11 +311,18 @@ crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
 # and for local runs with GHDL=/path/to/ghdl. Kept out of `test` so the
 # default gate still builds without GHDL.
 .PHONY: production-t80-test
-production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test t80-irq-sample-test classic-irq-phase-test classic-mode-boundary-test classic-r3-position-test asic-r3-position-test classic-r2-phase-test b18-snapshot-test asic-r0-terminal-test asic-blank-alignment-test ssm-provider-test plus-d5-cart-timing ascal-field-test
+production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test t80-irq-sample-test classic-irq-phase-test classic-mode-boundary-test classic-r3-position-test asic-r3-position-test classic-r2-phase-test b18-snapshot-test asic-r0-terminal-test asic-blank-alignment-test ssm-provider-test plus-production-t80-test ascal-field-test
 
-# Plus cartridge execution rate on the production T80 (sim/plus d5-cart-timing).
-.PHONY: plus-d5-cart-timing
-plus-d5-cart-timing:
+# Build the netlist in the parent graph before entering Plus, so parallel
+# production/full runs share it with the classic CPU fixtures. Keep both D5
+# CI benches in one Plus sub-make so they also share source preparation.
+plus-full: $(T80_NETLIST)
+.PHONY: plus-production-t80-test plus-d5-cart-timing
+plus-production-t80-test: $(T80_NETLIST)
+	"$(MAKE)" -C plus d5-cart-timing d5-fdc-read
+
+# Retain the focused cartridge timing entry point.
+plus-d5-cart-timing: $(T80_NETLIST)
 	"$(MAKE)" -C plus d5-cart-timing
 
 $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
