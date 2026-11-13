@@ -766,6 +766,7 @@ reg       in_vsync;
 reg [3:0] vsc;
 reg       vsync_mid_pending;
 reg       vsync_delay_pending;
+reg       vsync_r0_zero_pending;
 
 wire       hsync_start               = (hcc_next == R2_h_sync_pos);
 wire [3:0] hsc_next                  = hsc + 4'd1;
@@ -860,11 +861,39 @@ wire        vsync_delay_fire = ivm_active && vsync_delay_pending && hcc_last;
 wire        vsync_seam_fire = vsync_target_seam &&
                                !vsync_mid_schedule &&
                                !vsync_delay_schedule;
-wire        vsync_fire = vsync_seam_fire | vsync_mid_fire |
-                          vsync_delay_fire;
+// MODEL LIMIT (B26), B29 lead 2: the original 6128 Plus SHAKER AI/008D
+// photograph has VSYNC OFF in the R0=0 stretch and ON after R0 is widened
+// (https://shaker.logonsystem.eu/images/cpc/CPC/AI_CRTC3_A.webp).
+// FR ACCC v1.11 §13.5 p.123 keeps C4/C9 running; §16.4.4 p.172 does
+// not define this onset topology. Retain an inactive ordinary seam event
+// until C0 first moves: C4 may already have left R7 by then. This narrow
+// model does not change active-pulse width/renewal or interlace half-line
+// and full-line events. Exact release sub-character phase and register
+// rewrites while pending remain unmeasured hardware boundaries.
+wire        vsync_r0_zero_schedule = vsync_seam_fire && !in_vsync &&
+                                      (R0_h_total == 8'd0);
+wire        vsync_r0_zero_fire = vsync_r0_zero_pending && (hcc_next != 8'd0);
+wire        vsync_fire = (vsync_seam_fire && !vsync_r0_zero_schedule) |
+                          vsync_mid_fire | vsync_delay_fire |
+                          vsync_r0_zero_fire;
 wire [3:0]  vsc_next        = vsc + 4'd1;
 wire        vsync_width_hit = (vsc_next == R3_v_sync_width);
 wire        vsync_count_tick = hcc_last;
+
+// Snapshot headers do not serialize deferred events. Consume this event
+// once, including when another start has already made the pulse active.
+// nRESET is the motherboard video-owner reset; no separate profile state
+// is owned by this module.
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD)
+        vsync_r0_zero_pending <= 1'b0;
+    else if (CLKEN) begin
+        if (in_vsync || vsync_fire)
+            vsync_r0_zero_pending <= 1'b0;
+        else if (vsync_r0_zero_schedule)
+            vsync_r0_zero_pending <= 1'b1;
+    end
+end
 
 // Latch the first-line decision at its seam.  Reading parity only at the
 // later half-line would be wrong for R7=0, because ParityFrame has toggled by
