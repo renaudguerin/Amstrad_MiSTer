@@ -774,6 +774,36 @@ void test_reset_after_write_byte_preserves_fresh_read() {
                        bench.read_data());
 }
 
+void test_normal_seek_keeps_other_drive_idle() {
+    Bench bench;
+    mount_synthetic_edsk(bench);
+    wait_for_track_ready(bench, 0);
+    bench.dut().fast = 0;
+    bench.expect_equal("both drives idle before normal-speed SEEK", 0,
+                       bench.status() & 0x03);
+    // Only drive A receives SEEK. Normal stepping provides a sustained
+    // execution interval for repeated observations through the public MSR.
+    issue_seek(bench, 1);
+    unsigned drive_a_busy_samples = 0;
+    unsigned unexpected_drive_b_busy = 0;
+    for (unsigned sample = 0; sample < 64; ++sample) {
+        const auto msr = bench.status();
+        if (msr & 0x01) ++drive_a_busy_samples;
+        unexpected_drive_b_busy |= msr & 0x02;
+        bench.fdc_step();
+    }
+    bench.expect_equal("normal-speed SEEK supplies sustained drive-A busy samples", 1,
+                       drive_a_busy_samples >= 8);
+    std::cout << "SEEK isolation: command=0F 00 01 fast=0 samples=64 A_busy_samples="
+              << drive_a_busy_samples << " unexpected_B_busy_mask="
+              << unexpected_drive_b_busy << '\n';
+    // NEC µPD765A/µPD765B datasheet, Table 2, Main Status Register:
+    // D0B describes FDD0 Seek mode and D1B describes FDD1 Seek mode.
+    // Drive B has received no SEEK command in this fixture.
+    bench.expect_equal("drive B remains idle throughout drive-A SEEK", 0,
+                       unexpected_drive_b_busy);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -811,6 +841,8 @@ int main(int argc, char** argv) {
             test_write_data_uninterrupted_payload);
         run("u765_reset_after_write_byte_preserves_fresh_read",
             test_reset_after_write_byte_preserves_fresh_read);
+        run("u765_normal_seek_keeps_other_drive_idle",
+            test_normal_seek_keeps_other_drive_idle);
     } catch (...) {
         return 1;
     }
