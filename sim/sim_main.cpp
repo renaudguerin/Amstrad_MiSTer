@@ -1198,6 +1198,95 @@ void test_type0_vsync_qualified_r0_one_counts_two_characters(TestBench& test) {
         "R0=1 increments C3h on 1-to-0 and ends R3h=1 after two characters");
 }
 
+// AI/008D original CRTC1 photograph: all four PPI.B bit-0 samples are 1
+// in both R0=0 and R0=1 groups:
+// https://shaker.logonsystem.eu/images/cpc/CPC/AI_CRTC1_A.webp
+// The caller changes R0 at C0/C4/C9=0/29/7, restores it to 45 after
+// about 18 us, and samples near 5/23/62/66 us. These are representative
+// character-aligned pin samples, not a production-CPU phase replay.
+void configure_type1_ai_vsync(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::uint8_t, 10> registers = {{
+        63, 40, 46, 0x8e, 38, 0, 25, 30, 0, 7,
+    }};
+    for (unsigned address = 0; address < registers.size(); ++address) {
+        test.write_register(address, registers[address]);
+    }
+    test.select_register(0);
+    test.reset();
+    for (unsigned lines = 0;
+         (test.c4_reg() != 29 || test.line_reg() != 7) && lines < 320;
+         ++lines) {
+        test.run_to_c0(63);
+        test.run_to_c0(0);
+    }
+    test.expect_c4("AI caller enters row 29", 29);
+    test.expect_line("AI caller enters raster 7", 7);
+    test.expect_byte("AI caller changes R0 at C0=0", 0, test.c0());
+    test.expect_low("AI pulse has not started before short-line seam", test.raw_vsync());
+}
+
+void test_type1_ai_short_line_vsync_samples(TestBench& test) {
+    for (const unsigned short_r0 : {0u, 1u}) {
+        configure_type1_ai_vsync(test);
+        test.write_selected_register_now(short_r0);
+        test.run_characters(5);
+        test.expect_high("AI S1: original CRTC1 VSYNC sample is high", test.published_vsync());
+        test.run_characters(13);
+        // French ACCC v1.11 section 13.3 p.115: C4/C9 keep advancing
+        // when R0=0. Eighteen 1-us lines advance 29/7 to 32/1;
+        // nine 2-us lines at R0=1 instead advance to 31/0.
+        test.expect_byte("AI short interval ends at C0=0", 0, test.c0());
+        test.expect_c4("AI vertical row advances independently of VSYNC width",
+                       short_r0 == 0 ? 32 : 31);
+        test.expect_line("AI vertical raster advances independently of VSYNC width",
+                         short_r0 == 0 ? 1 : 0);
+        test.write_selected_register_now(45);
+        test.run_characters(5);
+        test.expect_high("AI S2: original CRTC1 VSYNC sample is high after widening",
+                         test.published_vsync());
+        test.run_characters(18);
+        test.write_register(2, 28); // original caller's later HSYNC position
+        test.run_characters(21);
+        test.expect_high("AI S3: original CRTC1 VSYNC sample is high near line end",
+                         test.published_vsync());
+        test.run_characters(4);
+        test.expect_high("AI S4: original CRTC1 VSYNC sample is high", test.published_vsync());
+
+        // MODEL LIMIT (B26): the photo constrains the samples above, not
+        // continuous physical VSYNC or its counter clock. The candidate
+        // holds width only at R0=0, then resumes the fixed 16-line width
+        // (French sections 14.2 p.133 / 16.4.2 p.171). At R0=1 onset
+        // used the first of nine short lines, leaving eight normal counts;
+        // at R0=0 all sixteen remain. Pin expiry guards restoration and
+        // rejects a stuck pulse without asserting the internal hold gate.
+        const unsigned remaining_lines = short_r0 == 0 ? 16 : 8;
+        test.run_characters(18 + (remaining_lines - 1) * 46 - 66);
+        test.expect_high("candidate resumes VSYNC width before its last restored line",
+                         test.raw_vsync());
+        test.run_characters(46);
+        test.expect_low("candidate completes VSYNC after restored line progression",
+                        test.raw_vsync());
+    }
+}
+
+void test_type1_r0_one_vsync_expires(TestBench& test) {
+    configure_type1_ai_vsync(test);
+    test.write_selected_register_now(1);
+    test.run_characters(2); // first two-character line enters C4=R7
+    test.expect_c4("R0=1 negative control reaches VSYNC row", 30);
+    test.expect_high("R0=1 admits VSYNC at the row seam", test.raw_vsync());
+    // French ACCC v1.11 sections 14.2 p.133 and 16.4.2 p.171:
+    // CRTC1 width is 16 lines, irrespective of R3h=8. Unlike R0=0,
+    // fixed R0=1 must keep counting its two-character lines.
+    test.run_characters(31);
+    test.expect_high("R0=1 negative control stays high before line 16 ends",
+                     test.raw_vsync());
+    test.run_characters(1);
+    test.expect_low("R0=1 negative control expires on the 16th line",
+                    test.raw_vsync());
+}
+
 void test_type0_vsync_blocked_comparison_is_consumed(TestBench& test) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -9664,6 +9753,12 @@ int main(int argc, char** argv) {
         {"t02n_type0_vsync_qualified_r0_one_counts_two_characters",
          "ACCC v1.11 English section 16.4.1.2 p.170 (FR §16.4.1.2 p.171); author-confirmed 2026-08-31",
          false, test_type0_vsync_qualified_r0_one_counts_two_characters},
+        {"t02n1_type1_ai_short_line_vsync_samples",
+         "Original CRTC1 AI/008D photo; French ACCC 13.3 p115, 14.2 p133, 16.4.2 p171; B26 candidate",
+         false, test_type1_ai_short_line_vsync_samples},
+        {"t02n2_type1_r0_one_vsync_expires",
+         "French ACCC v1.11 14.2 p133 and 16.4.2 p171; AI/008D negative control",
+         false, test_type1_r0_one_vsync_expires},
         {"t02o_type0_vsync_blocked_comparison_is_consumed",
          "ACCC v1.11 English section 16.4.1.2 pp.169-170 (FR §16.4.1.2 pp.170-171); model inference/hardware discriminator",
          false, test_type0_vsync_blocked_comparison_is_consumed},
