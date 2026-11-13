@@ -34,6 +34,7 @@ module tv80_core #(
   input          out0,
   input          r800_mode,
   output         intcycle_n,
+  output         opcode_valid,
   input          DIRSet,
   input  [211:0] DIR,
   output [211:0] REG
@@ -258,6 +259,9 @@ module tv80_core #(
   assign write      = (mcycle != 3'b001) && mc_write;
   assign noread     = (mcycle != 3'b001) && mc_noread;
   assign intcycle_n = intcycle_n_r;
+  // Passive memory-opcode validity for this reduced fixture. Its model has
+  // no NMI implementation. Production provider/NMI proof uses the GHDL T80.
+  assign opcode_valid = reset_n && (mcycle == 3'b001) && intcycle_n_r && !halted;
   // Production T80 releases ordinary-fetch M1 at the end of T2, before
   // refresh, and starts it again at the next M1/T1 (T80.vhd state machine).
   // Keep the fixture's existing acknowledge pulse until its separate
