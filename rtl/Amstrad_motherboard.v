@@ -145,7 +145,7 @@ module Amstrad_motherboard
 	output  [3:0] green,
 	output  [3:0] blue,
 	// Passive opcode-fetch tap for the SSM marker detector (rtl/ssm_marker.v).
-	// HALT-qualified read level and resolved bus data. The detector owns
+	// CPU-qualified read level and resolved bus data. The detector owns
 	// fetch completion and the byte latch.
 	output        ssm_m1_fetch,
 	output  [7:0] ssm_bus_data,
@@ -314,21 +314,12 @@ always @(posedge clk) begin
 	else if (m1_fetch) io_bus_byte <= cpu_data_bus;
 end
 
-// Passive tap for the SSM marker detector.
-// T80 completes the initial HALT opcode read before asserting HALT_n low.
-// Keep that opcode as a marker separator, but exclude the repeated memory
-// reads while halted: T80 executes internal NOPs instead of those bus bytes.
-// Hold eligibility across the whole physical read: NMI wake clears HALT_n
-// during its dummy M1 read, and must not expose the remaining dummy byte.
-// Normal-running NMI dummy reads remain a provider limit until the CPU
-// exports accepted-opcode validity; HALT_n is already high in that case.
+// Passive tap for the SSM marker detector. The CPU owns validity across
+// the complete memory read, including prefix bytes and initial HALT, while
+// excluding repeated halted reads and both NMI acknowledge dummy cases.
 // Physical m1_fetch continues to drive Plus open-bus handling above.
-reg ssm_fetch_eligible;
-always @(posedge clk) begin
-	if (reset) ssm_fetch_eligible <= 1'b0;
-	else if (!m1_fetch) ssm_fetch_eligible <= cpu_halt_n;
-end
-assign ssm_m1_fetch = m1_fetch & ssm_fetch_eligible;
+wire cpu_opcode_valid;
+assign ssm_m1_fetch = m1_fetch & cpu_opcode_valid;
 assign ssm_bus_data = cpu_data_bus;
 
 // Passive tap for printer data (I/O write with ~A[12], port EFxx).
@@ -377,6 +368,7 @@ assign snap_printer_data = printer_data;
 	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait & ~dma_ppi_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
 	.REG(cpu_reg),
 	.INSN_START(cpu_insn_start),
+	.OPCODE_VALID(cpu_opcode_valid),
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );

@@ -86,6 +86,7 @@ entity T80pa is
         R800_mode   : in  std_logic := '0';
         REG         : out std_logic_vector(211 downto 0); -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
         INSN_START  : out std_logic; -- B18: REG is a representable instruction-boundary state (T80.vhd InsnStart)
+        OPCODE_VALID: out std_logic; -- passive memory-opcode eligibility throughout M1
         DIRSet      : in  std_logic := '0';
         DIR         : in  std_logic_vector(211 downto 0) := (others => '0') -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
     );
@@ -140,6 +141,7 @@ begin
             R800_mode => R800_mode,
             IntCycle_n => IntCycle_n,
             InsnStart => INSN_START,
+            OpcodeValid => OPCODE_VALID,
             DIRSet  => DIRSet,
             DIR     => DIR
         );

@@ -31,6 +31,7 @@ module T80pa (
 	output wire         halt_n,     // B18 halt state (tied inactive)
 	output wire [211:0] REG,        // B18 CPU register vector (tied zero)
 	output wire         INSN_START, // B18 instruction-boundary freeze predicate (tied inactive)
+	output wire         OPCODE_VALID, // scripted bus master has no executed opcodes
 	input  wire         busrq_n,
 	input  wire         int_n,
 	input  wire         nmi_n,
@@ -49,6 +50,7 @@ module T80pa (
 	assign halt_n     = 1'b1;
 	assign REG        = 212'd0;
 	assign INSN_START = 1'b0;
+	assign OPCODE_VALID = 1'b0;
 	wire unused = &{1'b0, reset_n, clk, cen_p, cen_n, di, busrq_n,
 			int_n, nmi_n, wait_n, DIRSet, DIR, 1'b0};
 endmodule
