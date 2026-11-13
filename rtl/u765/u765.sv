@@ -736,7 +736,7 @@ always @(posedge clk_sys) begin : fdc
 						5: sector_st2[sector_search_ds0][sector_search_hds] <= tinfo_data;
 						6: if (image_edsk[sector_search_ds0]) sector_length[sector_search_ds0][sector_search_hds][7:0] <= tinfo_data;
 						7: begin
-								if (image_edsk[ds0]) sector_length[sector_search_ds0][sector_search_hds][15:8] <= tinfo_data;
+								if (image_edsk[sector_search_ds0]) sector_length[sector_search_ds0][sector_search_hds][15:8] <= tinfo_data;
 								sector_search_state <= 4;
 							end
 					endcase

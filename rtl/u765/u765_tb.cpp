@@ -850,6 +850,331 @@ void test_completed_seek_stays_busy_until_sense_interrupt() {
                        before_sis & 0x01);
 }
 
+// Extended DSK Rev. 5 specification: Sector Information List offsets 06-07 store
+// actual data length in bytes in little-endian order; each sector's offset is
+// the 256-byte Track-Info header plus the sum of previous sector sizes; weak
+// sectors store multiple copies with stored length as a multiple of N size.
+// Retained to pin shared command/cache state and host/RAM transport when
+// command selection and the background parser own different disk formats.
+std::vector<std::uint8_t> build_std_dsk_image(const std::string& creator,
+                                              std::uint8_t n_code,
+                                              std::uint8_t xor_mask,
+                                              std::uint8_t mul,
+                                              std::uint8_t add) {
+    const unsigned sec_bytes = 128u << n_code;
+    const unsigned track_units = 1u + ((sec_bytes + 255u) / 256u);
+    std::vector<std::uint8_t> img(0x100u + track_units * 0x100u, 0);
+    const std::string sig = "MV - CPCEMU Disk-File\r\nDisk-Info\r\n";
+    std::copy(sig.begin(), sig.end(), img.begin());
+    std::copy_n(creator.begin(), std::min<std::size_t>(creator.size(), 14), img.begin() + 0x22);
+    img[0x30] = 1; img[0x31] = 1; img[0x33] = static_cast<std::uint8_t>(track_units);
+    const std::string tsig = "Track-Info\r\n";
+    std::copy(tsig.begin(), tsig.end(), img.begin() + 0x100);
+    img[0x114] = n_code; img[0x115] = 1; img[0x116] = 0x1e; img[0x117] = 0xe5;
+    img[0x11a] = 1; img[0x11b] = n_code;
+    for (unsigned i = 0; i < sec_bytes; ++i)
+        img[0x200 + i] = static_cast<std::uint8_t>(xor_mask ^ ((i * mul + add) & 0xff));
+    return img;
+}
+
+std::vector<std::uint8_t> build_edsk_drive_b_image() {
+    // Track 0: Track-Info (0x100) + R1 N=1 stored 0x0200 (two 256B weak copies)
+    // + R2 N=2 stored 0x0200 (512B target at 0x400..0x5ff). Track 1 (0x600..0x8ff)
+    // keeps the legal LBA 3 block-boundary prefetch inside stored file bounds.
+    std::vector<std::uint8_t> img(0x900, 0);
+    const std::string sig = "EXTENDED CPC DSK File\r\nDisk-Info\r\n";
+    const std::string creator = "EDSK-B-PROBE";
+    const std::string tsig = "Track-Info\r\n";
+    std::copy(sig.begin(), sig.end(), img.begin());
+    std::copy(creator.begin(), creator.end(), img.begin() + 0x22);
+    img[0x30] = 2; img[0x31] = 1; img[0x34] = 5; img[0x35] = 3;
+    std::copy(tsig.begin(), tsig.end(), img.begin() + 0x100);
+    img[0x114] = 2; img[0x115] = 2; img[0x116] = 0x1e; img[0x117] = 0xe5;
+    img[0x11a] = 1; img[0x11b] = 1; img[0x11e] = 0x00; img[0x11f] = 0x02;
+    img[0x122] = 2; img[0x123] = 2; img[0x126] = 0x00; img[0x127] = 0x02;
+    for (unsigned i = 0; i < 256; ++i) {
+        img[0x200 + i] = static_cast<std::uint8_t>((i * 29 + 0x11) & 0x7f);
+        img[0x300 + i] = static_cast<std::uint8_t>((i * 31 + 0x41) & 0x7f);
+    }
+    for (unsigned i = 0; i < 512; ++i)
+        img[0x400 + i] = (i == 0) ? 0x80 : static_cast<std::uint8_t>(0x81 + ((i * 37) % 127));
+    std::copy(tsig.begin(), tsig.end(), img.begin() + 0x600);
+    img[0x610] = 1; img[0x614] = 2; img[0x615] = 1; img[0x616] = 0x1e; img[0x617] = 0xe5;
+    img[0x618] = 1; img[0x61a] = 1; img[0x61b] = 2; img[0x61e] = 0x00; img[0x61f] = 0x02;
+    for (unsigned i = 0; i < 512; ++i)
+        img[0x700 + i] = static_cast<std::uint8_t>(0x40 + (i & 0x3f));
+    return img;
+}
+
+struct EdskDriveContextRun {
+    Bench bench;
+    std::vector<std::uint8_t> std_a, std_b, edsk_b;
+    const std::vector<std::uint8_t>* b_active = nullptr;
+    unsigned ce = 0;
+    static constexpr unsigned max_ce = 500000;
+
+    EdskDriveContextRun()
+        : std_a(build_std_dsk_image("STD-A-PRIME", 2, 0xa0, 13, 0x11)),
+          std_b(build_std_dsk_image("STD-B-PRIME", 1, 0x55, 17, 0x23)),
+          edsk_b(build_edsk_drive_b_image()) {
+        check(std_a.size() == 0x400 && std_b.size() == 0x300 && edsk_b.size() == 0x900,
+              "unexpected synthetic image size");
+        const unsigned r1_len = edsk_b[0x11e] | (unsigned(edsk_b[0x11f]) << 8);
+        const unsigned r2_len = edsk_b[0x126] | (unsigned(edsk_b[0x127]) << 8);
+        const unsigned r2_base = 0x100u + 0x100u + r1_len;
+        check(r1_len == 0x200 && r2_len == 0x200 && r2_base == 0x400 &&
+                  r2_base + r2_len <= edsk_b.size(),
+              "EDSK B stored offsets violate expected layout/bounds");
+        for (unsigned i = 0; i < 256; ++i) {
+            check(edsk_b[0x300 + i] != edsk_b[0x400 + i], "R1 copy 1 aliases R2 first half");
+            check(edsk_b[0x400] != edsk_b[0x500 + i], "R2 byte 0 aliases R2 second half");
+        }
+        bench.reset();
+        bench.dut().ready = 3;
+        bench.dut().motor = 0;
+        bench.dut().fast = 0;
+    }
+
+    auto& root() { return *bench.dut().rootp; }
+    unsigned state() { return root().u765_test__DOT__u765__DOT__fdc__DOT__state; }
+    unsigned ds0() { return root().u765_test__DOT__u765__DOT__ds0; }
+    void check(bool ok, const std::string& why) { if (!ok) throw TestFailure(why); }
+    void qualify(bool ok, const std::string& why) { if (!ok) throw TestFailure("inconclusive: " + why); }
+    void step() { qualify(ce < max_ce, "500000 ce budget exceeded"); bench.fdc_step(); ++ce; }
+
+    void wait_status(std::uint8_t mask, std::uint8_t val, unsigned limit, const char* why) {
+        for (unsigned w = 0; w < limit && (bench.status() & mask) != val; ++w) step();
+        check((bench.status() & mask) == val, why);
+    }
+
+    void write(std::uint8_t value) {
+        wait_status(0xc0, 0x80, 2000, "CPU command byte was not RQM/DIO qualified");
+        bench.write_data(value, true);
+        ce += 2;
+    }
+
+    std::uint8_t read() { const auto v = bench.read_data(); ce += 2; return v; }
+
+    void service_host_read(unsigned mask, unsigned lba) {
+        check(mask == 1 || mask == 2, "host request is not one-hot");
+        const auto& image = (mask == 1) ? std_a : *b_active;
+        const std::uint64_t base = static_cast<std::uint64_t>(lba) * 512ULL;
+        check(base < image.size(), "host request LBA exceeds stored file bounds");
+        if (mask == 2 && b_active == &edsk_b)
+            check(base + 512ULL <= image.size(), "EDSK B request block exceeds stored file bounds");
+        auto& d = bench.dut();
+        check(d.sd_ack == 0, "ACK unexpectedly high before host service");
+        for (unsigned i = 0; i < 4; ++i) {
+            check(d.sd_rd == mask && d.sd_lba == lba && !d.sd_wr, "held request changed before ACK");
+            step();
+        }
+        check(d.sd_rd == mask && d.sd_lba == lba && !d.sd_wr, "held request changed on final step");
+        std::cout << "HOST mask=" << mask << " lba=" << lba << " ce=" << ce << " stable_ce=4\n";
+        d.sd_ack = 1; d.sd_buff_wr = 1;
+        for (unsigned i = 0; i < 512; ++i) {
+            d.sd_buff_addr = i;
+            d.sd_buff_dout = (base + i < image.size()) ? image[base + i] : 0;
+            bench.tick();
+        }
+        d.sd_buff_wr = 0; d.sd_ack = 0; bench.tick();
+        step();
+    }
+
+    bool drive_quiescent(unsigned drive) {
+        auto& r = root();
+        return bench.image_ready(drive) && !bench.trackinfo_dirty(drive) &&
+               r.u765_test__DOT__u765__DOT__fdc__DOT__image_scan_state[drive] == 0 &&
+               r.u765_test__DOT__u765__DOT__fdc__DOT__seek_state[drive] == 0 &&
+               r.u765_test__DOT__u765__DOT__fdc__DOT__i_secinfo_valid[drive][0] &&
+               r.u765_test__DOT__u765__DOT__fdc__DOT__i_secinfo_valid[drive][1] &&
+               !r.u765_test__DOT__u765__DOT__tinfo_lock &&
+               r.u765_test__DOT__u765__DOT__fdc__DOT__sector_search_state == 0 &&
+               !bench.mount_busy() && !r.u765_test__DOT__u765__DOT__sd_busy_tinfo &&
+               !r.u765_test__DOT__u765__DOT__sd_busy_sector &&
+               bench.status() == 0x80 && !bench.dut().sd_rd && !bench.dut().sd_wr;
+    }
+
+    void mount_quiesce(unsigned drive, const std::vector<std::uint8_t>& image, const char* tag) {
+        const unsigned mask = 1u << drive;
+        if (drive == 1) b_active = &image;
+        bench.dut().img_size = static_cast<std::uint32_t>(image.size());
+        bench.dut().img_mounted = static_cast<std::uint8_t>(mask);
+        bench.tick();
+        bench.dut().img_mounted = 0;
+        std::cout << "MOUNT mask=" << mask << " tag=" << tag << " ce=" << ce << "\n";
+        unsigned setup_reads = 0;
+        for (unsigned i = 0; i < 6000; ++i) {
+            if (bench.dut().sd_rd) {
+                check(bench.dut().sd_rd == mask && bench.dut().sd_lba == 0,
+                      "setup request mask/LBA differs from header or Track-Info");
+                service_host_read(mask, 0);
+                ++setup_reads;
+            } else {
+                step();
+            }
+            if (drive_quiescent(drive)) {
+                qualify(setup_reads >= 2, "mount reached ready without both header and Track-Info reads");
+                std::cout << "QUIESCENT mask=" << mask << " tag=" << tag
+                          << " reads=" << setup_reads << " ce=" << ce << "\n";
+                return;
+            }
+        }
+        qualify(false, std::string(tag) + " mount/parser did not reach quiescence");
+    }
+
+    void select_drive(unsigned drive) {
+        check((bench.status() & 0xd3) == 0x80, "controller or seek busy before SENSE DRIVE STATUS");
+        write(0x04);
+        wait_status(0xd0, 0x90, 2000, "SENSE DRIVE STATUS parameter phase not reached");
+        write(static_cast<std::uint8_t>(drive & 1));
+        wait_status(0xd0, 0xd0, 2000, "SENSE DRIVE STATUS result phase not reached");
+        const auto st3 = read();
+        check((st3 & 0x3f) == (0x30u | (drive & 1)), "ST3 unexpected after SENSE DRIVE STATUS");
+        wait_status(0xff, 0x80, 64, "controller did not return idle after SENSE DRIVE STATUS");
+        qualify(ds0() == (drive & 1), "command ds0 did not match SENSE DRIVE STATUS selection");
+        std::cout << "SELECT ds0=" << ds0() << " st3=" << unsigned(st3) << " ce=" << ce << "\n";
+    }
+
+    void wait_r2_cache_with_context(unsigned expected_ds0) {
+        auto& r = root();
+        bench.dut().motor = 2; // start only drive B motor
+        for (unsigned i = 0; i < 200000; ++i) {
+            check(!bench.dut().sd_rd && !bench.dut().sd_wr, "unexpected host request during B rotation");
+            qualify(ds0() == expected_ds0, "command ds0 changed during B EDSK R2 cache construction");
+            if (r.u765_test__DOT__u765__DOT__fdc__DOT__i_secinfo_valid[1][0] &&
+                r.u765_test__DOT__u765__DOT__fdc__DOT__i_current_sector_pos[1][0] == 1) {
+                qualify(r.u765_test__DOT__u765__DOT__fdc__DOT__sector_search_state == 0 &&
+                        !r.u765_test__DOT__u765__DOT__tinfo_lock &&
+                        r.u765_test__DOT__u765__DOT__fdc__DOT__sector_r[1][0] == 2 &&
+                        r.u765_test__DOT__u765__DOT__fdc__DOT__sector_byte_pos[1][0] < 10,
+                        "R2 cache precondition missed clean sector-start window");
+                std::cout << "R2_CACHED ce=" << ce << " ds0=" << ds0()
+                          << " cached_len=" << unsigned(r.u765_test__DOT__u765__DOT__fdc__DOT__sector_length[1][0])
+                          << " cached_off=" << unsigned(r.u765_test__DOT__u765__DOT__fdc__DOT__sector_offset[1][0])
+                          << " byte_pos=" << unsigned(r.u765_test__DOT__u765__DOT__fdc__DOT__sector_byte_pos[1][0])
+                          << "\n";
+                return;
+            }
+            step();
+        }
+        qualify(false, "drive B did not reach R2 cache construction within 200000 ce");
+    }
+
+    void issue_b_read_r2_and_verify(const char* variant) {
+        for (auto v : std::array<std::uint8_t, 9>{0x46, 0x01, 0x00, 0x00, 0x02, 0x02, 0x02, 0x1e, 0xff})
+            write(v);
+        bool exec_entered = false;
+        for (unsigned i = 0; i < 64; ++i) {
+            if (state() == 8 || state() == 9) {
+                check((bench.status() & 0xc0) == 0x40, "accepted B read lacks read direction/RQM-low phase");
+                std::cout << "B_ACCEPTED ce=" << ce << " state=" << state()
+                          << " msr=" << unsigned(bench.status()) << "\n";
+                exec_entered = true;
+                break;
+            }
+            step();
+        }
+        qualify(exec_entered, "B READ R2 did not pass EXEC1 within 64 ce");
+
+        bool first_served = false;
+        for (unsigned wait = 0; wait < 20000 && !first_served; ++wait) {
+            auto& d = bench.dut();
+            check(!d.sd_wr, "unexpected media write before B READ payload");
+            if (d.sd_rd) {
+                check(d.sd_rd == 2 && (d.sd_lba == 1 || d.sd_lba == 2),
+                      "initial B READ host request selected unexpected drive/LBA");
+                service_host_read(2, d.sd_lba);
+                first_served = true;
+            } else {
+                qualify((bench.status() & 0xf0) != 0xf0, "B data ready before any host response");
+                step();
+            }
+        }
+        check(first_served, "B READ host request did not arrive");
+
+        unsigned correct = 0, first_bad = 512, first_actual = 0, first_expected = 0;
+        for (unsigned i = 0; i < 512; ++i) {
+            bool ready = false;
+            for (unsigned wait = 0; wait < 2000; ++wait) {
+                auto& d = bench.dut();
+                check(!d.sd_wr, "unexpected media write during B READ payload");
+                if (d.sd_rd) {
+                    check(d.sd_rd == 2 && d.sd_lba == 2, "mid-payload host request selected unexpected drive/LBA");
+                    service_host_read(2, 2);
+                }
+                if ((bench.status() & 0xf0) == 0xf0) { ready = true; break; }
+                step();
+            }
+            check(ready, "timeout waiting for B READ payload byte");
+            const auto got = read();
+            const auto expected = edsk_b[0x400 + i];
+            if (got == expected) ++correct;
+            else if (first_bad == 512) { first_bad = i; first_actual = got; first_expected = expected; }
+        }
+        std::cout << "B_SCORE correct=" << correct << "/512 first_bad=" << first_bad
+                  << " expected=" << first_expected << " actual=" << first_actual << " ce=" << ce << "\n";
+
+        unsigned extra_reads = 0;
+        bool completed = false;
+        for (unsigned wait = 0; wait < 200000; ++wait) {
+            if (bench.dut().sd_rd) {
+                check(bench.dut().sd_rd == 2 && bench.dut().sd_lba == 3 && extra_reads == 0,
+                      "unexpected request during B completion");
+                service_host_read(2, 3);
+                ++extra_reads;
+            }
+            if ((bench.status() & 0xf0) == 0xd0) {
+                std::array<unsigned, 7> results{};
+                for (unsigned i = 0; i < 7; ++i) {
+                    check((bench.status() & 0xf0) == 0xd0, "B result byte lacks result-phase RQM");
+                    results[i] = read();
+                }
+                check((results[1] & 0x10) == 0, "B returned overrun");
+                // Other status/CHRN bytes are recorded, not graded by this
+                // file-format ownership test; automatic EOT remains separate.
+                wait_status(0x10, 0x00, 32, "B did not release command busy");
+                std::cout << "B_COMPLETE ce=" << ce << " eof_prefetches=" << extra_reads << " results";
+                for (auto b : results) std::cout << ' ' << b;
+                std::cout << '\n';
+                completed = true;
+                break;
+            }
+            step();
+        }
+        qualify(completed, "B result wait exceeded 200000 ce");
+        check(correct == 512, std::string(variant) + " B R2 payload differs from independent EDSK 0x0400..0x05ff");
+    }
+};
+
+void run_edsk_drive_context_variant(bool control) {
+    EdskDriveContextRun r;
+    auto& root = r.root();
+    r.mount_quiesce(0, r.std_a, "STD-A");
+    r.mount_quiesce(1, r.std_b, "STD-B");
+    r.qualify(!root.u765_test__DOT__u765__DOT__fdc__DOT__image_edsk[0] &&
+              !root.u765_test__DOT__u765__DOT__fdc__DOT__image_edsk[1] &&
+              root.u765_test__DOT__u765__DOT__fdc__DOT__sector_length[1][0] == 0x0100 &&
+              root.u765_test__DOT__u765__DOT__fdc__DOT__i_current_sector_pos[1][0] == 0,
+              "standard DSK prime did not leave B sector_length=0x0100 via parse");
+
+    const unsigned cache_ds0 = control ? 1u : 0u;
+    r.select_drive(cache_ds0);
+    r.mount_quiesce(1, r.edsk_b, "EDSK-B");
+    r.qualify(!root.u765_test__DOT__u765__DOT__fdc__DOT__image_edsk[0] &&
+              root.u765_test__DOT__u765__DOT__fdc__DOT__image_edsk[1] && r.ds0() == cache_ds0,
+              "EDSK B remount did not preserve expected image_edsk/ds0 precondition");
+
+    r.wait_r2_cache_with_context(cache_ds0);
+    const char* variant = control ? "control" : "suspect";
+    r.issue_b_read_r2_and_verify(variant);
+    std::cout << "PASS " << variant << " B READ R2 payload512\n";
+}
+
+void test_edsk_r2_read_preserves_drive_context_after_sds() {
+    run_edsk_drive_context_variant(true);
+    run_edsk_drive_context_variant(false);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -891,6 +1216,8 @@ int main(int argc, char** argv) {
             test_normal_seek_keeps_other_drive_idle);
         run("u765_completed_seek_stays_busy_until_sense_interrupt",
             test_completed_seek_stays_busy_until_sense_interrupt);
+        run("u765_edsk_r2_read_preserves_drive_context_after_sds",
+            test_edsk_r2_read_preserves_drive_context_after_sds);
     } catch (...) {
         return 1;
     }
