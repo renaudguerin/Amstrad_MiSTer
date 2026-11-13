@@ -780,7 +780,18 @@ wire vsync_line_blocked = (frame_new && !vsync_tick_mid) ?
     (vsync_origin_match && !e0_vsync_c0_2_qualified) : e0_vsync_line_blocked;
 wire vsync_count_tick = CLKEN && (vsync_tick_mid ?
     (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
-wire vsync_holdoff = e0_vsync_holdoff;
+// MODEL LIMIT (B26): original CRTC1 SHAKER AI/008D samples VSYNC high
+// throughout both R0=0 groups, including after R0 is widened. Holding an
+// active pulse's width at stored R0=0 is the bounded candidate matching
+// those samples and peer VSCLK results, not a proven silicon clock topology.
+// French ACCC v1.11 sections 13.3 p.115 and 16.4.2 p.171 preserve C4/C9
+// progression and VSYNC onset; neither specifies this type-1 width hold.
+// Keep the onset tick eligible while VSYNC is low. Mid-line R0 changes,
+// interlace and pre-existing-pulse behavior still need original-CPC probes.
+// Evidence: SHAKER original-CPC photo images/cpc/CPC/AI_CRTC1_A.webp;
+// B26 model-confidence inventory / B28 AI short-line investigation.
+wire vsync_holdoff = CRTC_TYPE ? (VSYNC_r && (R0_h_total == 8'd0)) :
+                               e0_vsync_holdoff;
 wire vsync_type0_mid_fire = ((row == R7_v_sync_pos && !line &&
     e0_vsync_c0_2_qualified && !e0_vsync_delay_suppress) || e0_vsync_delay_half);
 // An old pulse may count at a different phase from the next comparison.
@@ -902,10 +913,10 @@ always @(posedge CLOCK) begin
 			// consumed as blocked even though no VSYNC pulse was produced.
 			if(!CRTC_TYPE && vsync_allow && vsync_line_blocked)
 				vsync_allow <= 0;
-			// A type 0 VSYNC started by an R7=C4 write after C0=1
-			// does not count its partial first line.  Preserve C3h at the
-			// first following type-specific count tick; the engine owns the
-			// holdoff latch and clears it on this tick itself.
+			// Type 0 skips the partial first line after a late R7=C4
+			// write; its engine clears that holdoff on this tick. Type 1
+			// preserves the active width during the R0=0 candidate above,
+			// including the final expiry tick, without stopping C4/C9.
 			if(vsync_holdoff) ;
 			else if(vsc) begin
 				vsc <= vsc - 1'd1;
