@@ -456,13 +456,13 @@ void mount_synthetic_edsk(Bench& bench) {
     bench.expect_equal("EDSK mount completes", 1, bench.image_ready(0));
 }
 
-void issue_read_data(Bench& bench, std::uint8_t cylinder,
-                     std::uint8_t sector) {
+void issue_rw_data(Bench& bench, std::uint8_t opcode,
+                   std::uint8_t cylinder, std::uint8_t sector) {
     // The synthetic EDSK independently defines track 0/head 0/sector 1 as
     // N=2 at byte offset 0x200. READ DATA must therefore request LBA 1 and
     // return the generated 512-byte payload at 0x200..0x3ff.
     const std::uint8_t command[] = {
-        0x46,  // MFM READ DATA
+        opcode,  // MFM READ DATA (46) or WRITE DATA (45)
         0x00,  // drive 0, head 0
         cylinder,
         0x00,  // H
@@ -473,7 +473,7 @@ void issue_read_data(Bench& bench, std::uint8_t cylinder,
         0xff   // DTL ignored for N != 0
     };
     for (const auto byte : command) {
-        bench.wait_until("u765 ready for READ DATA byte", [&] {
+        bench.wait_until("u765 ready for READ/WRITE DATA command byte", [&] {
             return (bench.status() & 0x80) != 0;
         });
         bench.write_data(byte, true);
@@ -593,7 +593,7 @@ void test_reset_after_ack_fall_uses_history() {
 void test_read_data_survives_reset_during_active_request() {
     Bench bench;
     mount_synthetic_edsk(bench);
-    issue_read_data(bench, 0, 1);
+    issue_rw_data(bench, 0x46, 0, 1);
     wait_for_sector_read_request(bench, 1);
     bench.expect_equal("fixture reaches sector LBA", 1, bench.dut().sd_lba);
     const std::uint8_t quarantined_byte = bench.sector_byte(7);
@@ -620,7 +620,7 @@ void test_read_data_survives_reset_during_active_request() {
 
     // Reset invalidates track metadata, so the core must reload it and then
     // complete a fresh real READ DATA command from the same EDSK sector.
-    issue_read_data(bench, 0, 1);
+    issue_rw_data(bench, 0x46, 0, 1);
     wait_for_sector_read_request(bench, 1);
     expect_sector_1_payload(bench);
 }
@@ -630,7 +630,7 @@ void test_short_reset_waits_to_reload_trackinfo() {
     mount_synthetic_edsk(bench);
     issue_seek(bench, 1);
     wait_for_track_ready(bench, 1);
-    issue_read_data(bench, 1, 2);
+    issue_rw_data(bench, 0x46, 1, 2);
     wait_for_sector_read_request(bench, 2);
 
     // Pulse reset, as a keyboard/core reset may do, but deliberately leave the
@@ -650,7 +650,7 @@ void test_short_reset_waits_to_reload_trackinfo() {
 
     // Reset returns the drive to PCN 0. A fresh track-0 READ DATA must force
     // the real LBA-0 Track-Info reload before reading sector 1 from LBA 1.
-    issue_read_data(bench, 0, 1);
+    issue_rw_data(bench, 0x46, 0, 1);
     wait_for_sector_read_request(bench, 1);
     expect_sector_1_payload(bench);
 }
@@ -658,7 +658,7 @@ void test_short_reset_waits_to_reload_trackinfo() {
 void test_read_data_production_shaped_first_byte() {
     Bench bench;
     mount_synthetic_edsk(bench);
-    issue_read_data(bench, 0, 1);
+    issue_rw_data(bench, 0x46, 0, 1);
     wait_for_sector_read_request(bench, 1);
     bench.service_read_request();
     bench.wait_until("READ DATA first payload byte ready", [&] {
@@ -676,6 +676,102 @@ void test_read_data_production_shaped_first_byte() {
     }, 20000);
     bench.expect_equal("production-shaped second payload byte", 0x7f,
                        bench.read_data_production());
+}
+
+void test_write_data_uninterrupted_payload() {
+    Bench bench;
+    mount_synthetic_edsk(bench);
+    issue_rw_data(bench, 0x45, 0, 1);
+    wait_for_sector_read_request(bench, 1);
+    bench.service_read_request();
+    const std::uint8_t changed = bench.image_byte(0x200) ^ 0xff;
+    for (unsigned address = 0; address < 512; ++address) {
+        bench.wait_until("WRITE DATA payload byte ready", [&] {
+            return (bench.status() & 0xf0) == 0xb0;
+        }, 20000);
+        const auto byte = address == 0 ? changed : bench.image_byte(0x200 + address);
+        bench.write_data(byte, true);
+    }
+    bench.wait_until("completed WRITE DATA media request", [&] {
+        return bench.dut().sd_wr == 1;
+    }, 20000);
+    bench.expect_equal("uninterrupted WRITE DATA target LBA", 1,
+                       bench.dut().sd_lba);
+    // The host consumes this write through the existing synchronous buffer
+    // read port. All other bytes retain the independent EDSK input payload.
+    bench.dut().sd_ack = 1;
+    for (unsigned address = 0; address < 512; ++address) {
+        bench.dut().sd_buff_addr = address;
+        bench.tick();
+        const auto expected = address == 0 ? changed : bench.image_byte(0x200 + address);
+        bench.expect_equal("uninterrupted WRITE DATA host byte " + std::to_string(address),
+                           expected, bench.dut().sd_buff_din);
+    }
+    bench.dut().sd_ack = 0;
+    bench.tick();
+    std::cout << "WRITE control: payload512 host_lba=1 first=" << unsigned(changed)
+              << " remaining511 match EDSK input\n";
+}
+
+void test_reset_after_write_byte_preserves_fresh_read() {
+    Bench bench;
+    mount_synthetic_edsk(bench);
+    issue_rw_data(bench, 0x45, 0, 1);
+    wait_for_sector_read_request(bench, 1);
+    bench.service_read_request();
+    bench.wait_until("WRITE DATA first payload byte ready before reset", [&] {
+        return (bench.status() & 0xf0) == 0xb0;
+    }, 20000);
+    const auto original = bench.image_byte(0x200);
+    const std::uint8_t changed = original ^ 0xff;
+    // Accept the CPU byte on ce, then reset between ce pulses. The next
+    // ce would normally finish that write. Memory still clocks throughout.
+    bench.dut().a0 = 1;
+    bench.dut().din = changed;
+    bench.dut().nWR = 0;
+    bench.tick(true);
+    bench.dut().nWR = 1;
+    bench.tick();
+    bench.expect_equal("accepted WRITE DATA byte reaches buffer", changed,
+                       bench.sector_byte(0));
+    bench.dut().reset = 1;
+    for (unsigned clock = 2; clock < 8; ++clock) {
+        if (clock == 4) bench.dut().reset = 0;
+        bench.tick();
+        bench.expect_equal("aborted WRITE has no media write before fresh READ", 0,
+                           bench.dut().sd_wr);
+    }
+    // Let the released CPU write level retire on ce before a new command.
+    bench.fdc_step();
+    bench.expect_equal("reset-aborted command returns idle", 0x80, bench.status());
+    bench.expect_equal("aborted WRITE has no queued media write", 0,
+                       bench.dut().sd_wr);
+    issue_rw_data(bench, 0x46, 0, 1);
+    wait_for_sector_read_request(bench, 1);
+    bench.service_read_request();
+    // Observe after the complete host fill, with its write port inactive.
+    // Run one normal 8-clock fdc_step() (rather than ce=0 tick()s) so the FDC
+    // sees a ce pulse to clear sd_rd_sector before sdcontrol retires ACK and
+    // sees sd_arbiter_idle, while still separating the RAM check by 8 clk_sys
+    // edges from any dual-port collision on the earlier host write to byte zero.
+    bench.fdc_step();
+    bench.expect_equal("fresh READ neighbor byte 1 after aborted WRITE",
+                       bench.image_byte(0x201), bench.sector_byte(1));
+    bench.expect_equal("fresh READ neighbor byte 511 after aborted WRITE",
+                       bench.image_byte(0x3ff), bench.sector_byte(511));
+    std::cout << "WRITE/reset/fresh READ: accepted=" << unsigned(changed)
+              << " original=" << unsigned(original)
+              << " refreshed=" << unsigned(bench.sector_byte(0))
+              << " neighbor1=" << unsigned(bench.sector_byte(1))
+              << " neighbor511=" << unsigned(bench.sector_byte(511))
+              << " host_write_inactive_clocks=8\n";
+    bench.expect_equal("reset-aborted WRITE cannot overwrite fresh host-filled byte 0",
+                       original, bench.sector_byte(0));
+    bench.wait_until("fresh READ first payload byte ready after aborted WRITE", [&] {
+        return (bench.status() & 0xf0) == 0xf0;
+    }, 20000);
+    bench.expect_equal("fresh READ returns original first payload byte", original,
+                       bench.read_data());
 }
 
 }  // namespace
@@ -711,6 +807,10 @@ int main(int argc, char** argv) {
             test_short_reset_waits_to_reload_trackinfo);
         run("u765_read_data_production_shaped_first_byte",
             test_read_data_production_shaped_first_byte);
+        run("u765_write_data_uninterrupted_payload",
+            test_write_data_uninterrupted_payload);
+        run("u765_reset_after_write_byte_preserves_fresh_read",
+            test_reset_after_write_byte_preserves_fresh_read);
     } catch (...) {
         return 1;
     }

@@ -536,6 +536,8 @@ always @(posedge clk_sys) begin : fdc
 		sd_rd_tinfo <= 0;
 		sd_rd_sector <= 0;
 		sd_wr_sector <= 0;
+		// Clear the EXEC6->EXEC7 sector_ram write strobe if reset aborts WRITE before its next ce.
+		buff_wr <= 0;
 		m_status <= 8'h80;
 		state <= COMMAND_IDLE;
 		status[0] <= 0;
