@@ -407,7 +407,9 @@ sna_hw_header save_hw_header
 );
 
     assign plus_hcc = PLUS_MODE ? motherboard.asic_vid.hcc : 8'd0;
-    assign plus_r0 = PLUS_MODE ? motherboard.asic_vid.R0_h_total : 8'd0;
+    // The R0 value the C0 comparisons see. It changes from the first clock
+    // of the write strobe; the stored R0_h_total changes when it ends.
+    assign plus_r0 = PLUS_MODE ? motherboard.asic_vid.r0_live : 8'd0;
     assign plus_row = PLUS_MODE ? motherboard.asic_vid.charline : 7'd0;
     assign plus_raster = PLUS_MODE ? motherboard.asic_vid.raster : 5'd0;
     assign plus_cclk = PLUS_MODE ? motherboard.plus_cclk_en_n : 1'b0;

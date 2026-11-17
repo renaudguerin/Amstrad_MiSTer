@@ -3513,7 +3513,8 @@ enum class R4WriteWindow { Early, Late, FragmentedRom };
 // French ACCC §12.5 p103 and original SHAKER E0406: the ordinary early
 // 3C/38 cases overflow C4 and set the PPI VS witness; late 3D/39 cases wrap
 // without VS. The ROM 0D/1D cases retain the overflow witness. These source
-// outcomes are independent of the retained-match implementation.
+// outcomes do not depend on how the RTL produces them (since the B31
+// write-edge change, by storing R4 when the write strobe ends).
 //
 // Replay the production-T80/READY caller's measured board ENABLE windows,
 // relative to the terminal CLKEN at t=0, with 64 CLOCK ticks per character:

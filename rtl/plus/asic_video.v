@@ -352,8 +352,23 @@ end
 
 reg [7:0] hcc;
 
+// The C0 comparisons see an R0 write from the first clock of its strobe,
+// unlike the other registers, which store when the strobe ends (wr_commit).
+// The §13.6.3 p.125 deadline chart (OUT(C) 3C extends, 3D misses) needs R0
+// at this earlier instant; the fourth-µs store needed by R8 (§4.4.3 p.26)
+// would miss 3C. Same-shape question as classic B6/S: horizontal
+// comparisons see a straddling write, vertical ones do not (backlog B31).
+reg  [7:0]  r0_live;
+// An index committing on this clock is the select in force for the data.
+wire [4:0]  r0_addr_now = (wr_commit & ~wr_rs_q) ? wr_d_q[4:0] : addr;
+always @(posedge CLOCK) begin
+    if (!nRESET) r0_live <= 8'd0;
+    else if (SNA_LOAD) r0_live <= SNA_REGS[0 +: 8];
+    else if (wr_now & RS & (r0_addr_now == 5'd0)) r0_live <= DI;
+end
+
 reg         entered_terminal_match;
-wire        hcc_equal = (hcc == R0_h_total);
+wire        hcc_equal = (hcc == r0_live);
 wire        hcc_last = hcc_equal | entered_terminal_match;
 wire [7:0]  hcc_next = hcc_last ? 8'h00 : hcc + 8'd1;
 
@@ -361,7 +376,7 @@ always @(posedge CLOCK) begin
     if (!nRESET) entered_terminal_match <= 1'b1; // reset HCC=R0=0
     // Standard SNA carries counters/registers, not in-flight match history.
     else if (SNA_LOAD) entered_terminal_match <= (SNA_HCC == SNA_REGS[0 +: 8]);
-    else if (CLKEN) entered_terminal_match <= (hcc_next == R0_h_total);
+    else if (CLKEN) entered_terminal_match <= (hcc_next == r0_live);
 end
 
 always @(posedge CLOCK) begin
@@ -520,8 +535,8 @@ always @(posedge CLOCK) begin
 		end
 
 		// §19.8.4 p.237: changing R8 to either interlace mode seeds
-		// ParityC9 immediately from the current C9.  Decode the live bus
-		// write so this does not wait for the stored R8 NBA update.
+		// ParityC9 from the current C9 when the R8 write commits (the
+		// same instant R8 itself stores), not one clock later.
 		if (wr_commit & wr_rs_q & (addr == 5'd8) &
 		    ((wr_d_q[1:0] == 2'b01) | (wr_d_q[1:0] == 2'b11)) &
 		    (wr_d_q[1:0] != R8_interlace)) begin
