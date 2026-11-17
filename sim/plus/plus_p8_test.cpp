@@ -1059,6 +1059,12 @@ uint8_t b8_crtc_read(Vplus_p8_test_top& dut,
 	dut.video_crtc_rd = 0;
 	dut.video_crtc_din = sel;
 	tick();
+	// End the select strobe for one clock before reading: the CRTC stores
+	// a register write when its strobe ends, and a Z80 OUT/IN pair always
+	// leaves such a gap.
+	dut.video_crtc_cs = 0;
+	tick();
+	dut.video_crtc_cs = 1;
 	dut.video_crtc_rs = 1;
 	dut.video_crtc_rd = 1;
 	dut.eval();

@@ -30,10 +30,9 @@
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) and
 //     seedable from an SNA header (B8-5), but nothing at runtime ever writes
 //     them (named assumption at the readback section).
-//   - R4 deadline outcomes use board-shaped ENABLE timing (French §12.5
-//     p.103). There is no explicit ROM-select decode here; READY/A13
-//     qualification remains upstream. The selected-write outcome model
-//     and its generalization beyond R4->0 are implementation inferences.
+//   - R4 deadline outcomes (French §12.5 p.103) follow from registers
+//     storing when the board-shaped write strobe ends. There is no explicit
+//     ROM-select decode here; READY/A13 qualification remains upstream.
 //
 //  P5 scope landed here: the mod-8 read map with stored R14/R15, the
 //  R10/R11 status group, and the full readback contract (section at the
@@ -240,6 +239,25 @@ reg [5:0] R16_pen_h;
 reg [7:0] R17_pen_l;
 /* verilator lint_on UNUSEDSIGNAL */
 
+// Registers and the index store on the first clock after the board-shaped
+// write strobe ends, or when RS changes within one continuous strobe.
+// French ACCC v1.11 §4.4.3 p.26 places the Plus OUT (C),r update in the
+// fourth microsecond, not at the start of the strobe. A13=0 fragmented
+// strobes (§12.5 p.103) therefore store at the end of their first fragment.
+// Hardware observation: original Plus SHAKER A2/C 0009 (R8 live skew).
+reg       wr_q, wr_rs_q;
+reg [7:0] wr_d_q;
+wire      wr_now = ENABLE & ~nCS & ~R_nW;
+// A select change inside one continuous strobe ends the previous write.
+wire      wr_commit = wr_q & (~wr_now | (RS != wr_rs_q));
+always @(posedge CLOCK) begin
+	if (!nRESET || SNA_LOAD) wr_q <= 1'b0;
+	else begin
+		wr_q <= wr_now;
+		if (wr_now) begin wr_rs_q <= RS; wr_d_q <= DI; end
+	end
+end
+
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		addr             <= 5'd0;
@@ -284,29 +302,29 @@ always @(posedge CLOCK) begin
 		R16_pen_h        <= SNA_REGS[128 +: 6];
 		R17_pen_l        <= SNA_REGS[136 +: 8];
 	end
-	else if (ENABLE & ~nCS & ~R_nW) begin
-		if (~RS) begin
-			addr <= DI[4:0];
+	else if (wr_commit) begin
+		if (~wr_rs_q) begin
+			addr <= wr_d_q[4:0];
 		end
 		else begin
 			case (addr)
 			// Writes keep the full five-bit decode (§21.2.3 truncates
 			// READS to three bits only): aliased selects 4/20 must
 			// program R4/R12 distinctly, exactly as software assumes.
-			5'd00: R0_h_total     <= DI;
-			5'd01: R1_h_displayed <= DI;
-			5'd02: R2_h_sync_pos  <= DI;
-			5'd03: {R3_v_sync_width, R3_h_sync_width} <= DI;
-			5'd04: R4_v_total     <= DI[6:0];
-			5'd05: R5_v_total_adj <= DI[4:0];
-			5'd06: R6_v_displayed <= DI[6:0];
-			5'd07: R7_v_sync_pos  <= DI[6:0];
-			5'd08: {R8_skew, R8_interlace} <= {DI[5:4], DI[1:0]};
-			5'd09: R9_v_max_line  <= DI[4:0];
-			5'd12: R12_start_addr_h <= DI;
-			5'd13: R13_start_addr_l <= DI;
-			5'd14: R14_cursor_h   <= DI[5:0];
-			5'd15: R15_cursor_l   <= DI;
+			5'd00: R0_h_total     <= wr_d_q;
+			5'd01: R1_h_displayed <= wr_d_q;
+			5'd02: R2_h_sync_pos  <= wr_d_q;
+			5'd03: {R3_v_sync_width, R3_h_sync_width} <= wr_d_q;
+			5'd04: R4_v_total     <= wr_d_q[6:0];
+			5'd05: R5_v_total_adj <= wr_d_q[4:0];
+			5'd06: R6_v_displayed <= wr_d_q[6:0];
+			5'd07: R7_v_sync_pos  <= wr_d_q[6:0];
+			5'd08: {R8_skew, R8_interlace} <= {wr_d_q[5:4], wr_d_q[1:0]};
+			5'd09: R9_v_max_line  <= wr_d_q[4:0];
+			5'd12: R12_start_addr_h <= wr_d_q;
+			5'd13: R13_start_addr_l <= wr_d_q;
+			5'd14: R14_cursor_h   <= wr_d_q[5:0];
+			5'd15: R15_cursor_l   <= wr_d_q;
 			default: ;  // 10/11 status group is read-only (§21.2.3);
 			            // 16/17 light pen has no strobe source (header)
 			endcase
@@ -356,8 +374,7 @@ end
 // Vertical counters: C9 (raster line within the character row) and C4
 // (character row within the frame), plus the vertical-adjustment state.
 //
-// Vertical decisions use live registers at the line-end edge, except for
-// the retained R4 match described by MODEL LIMIT (B26) below. A write on
+// Vertical decisions use live registers at the line-end edge. A write on
 // the decision edge itself is seen by the next decision in this model.
 //
 // C9/R9 completion uses ">=" not equality: on types 3/4 an R9 lowered
@@ -388,18 +405,11 @@ reg        parity_c9;
 wire       ivm_active    = (R8_interlace == 2'b11);
 wire       sync_interlace_active = (R8_interlace == 2'b01);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
-// MODEL LIMIT (B26): FR §12.5 p103 and original E's 3C/3D, 38/39 and
-// ROM-shaped windows require different deadline outcomes. Retaining an
-// entered match only during a selected R4 write at consuming CLKEN is an
-// active-write inference, not a proven silicon latch. Board-shaped ENABLE
-// supplies the timing distinction; no explicit ROM decode is added here.
-// Late false-to-true matches remain live as an unverified compatibility
-// choice; generalization beyond R4->0 remains unresolved. See B26 and
-// hardware observations.
-reg        entered_r4_match;
-wire       r4_write_active = ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd4);
-wire       last_charline = (charline == R4_v_total) |
-                           (hcc_last & entered_r4_match & r4_write_active);
+// The R4 deadline outcomes of French ACCC v1.11 §12.5 p.103 (ordinary
+// early, ordinary late, ROM-shaped fragmented windows) follow from registers
+// storing when the board-shaped write strobe ends (see wr_commit); no
+// separate match retention is needed.
+wire       last_charline = (charline == R4_v_total);
 // The additional line follows the completed R5 block and exits directly at
 // the real frame origin (§19.6.4 p.218).  Its forced C9=0 must not re-enter
 // adjustment when R9 is also zero.
@@ -467,12 +477,6 @@ wire       interlace_line_n = interlace_line ? 1'b0 :
                               enter_interlace_line;
 
 always @(posedge CLOCK) begin
-    if (!nRESET || SNA_LOAD) entered_r4_match <= 1'b0;
-    else if (CLKEN) entered_r4_match <=
-        ((hcc_last ? charline_n : charline) == R4_v_total);
-end
-
-always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		charline <= 7'd0;
 		raster   <= 5'd0;
@@ -518,9 +522,9 @@ always @(posedge CLOCK) begin
 		// §19.8.4 p.237: changing R8 to either interlace mode seeds
 		// ParityC9 immediately from the current C9.  Decode the live bus
 		// write so this does not wait for the stored R8 NBA update.
-		if (ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd8) &
-		    ((DI[1:0] == 2'b01) | (DI[1:0] == 2'b11)) &
-		    (DI[1:0] != R8_interlace)) begin
+		if (wr_commit & wr_rs_q & (addr == 5'd8) &
+		    ((wr_d_q[1:0] == 2'b01) | (wr_d_q[1:0] == 2'b11)) &
+		    (wr_d_q[1:0] != R8_interlace)) begin
 			parity_c9 <= raster[0];
 		end
 	end

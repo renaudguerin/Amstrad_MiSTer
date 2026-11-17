@@ -115,7 +115,9 @@ public:
         run_to_bus_phase();
         bus_edge(false, address);
         idle_bus();
-        dut.eval();
+        // The index stores when its strobe ends; give it that clock, as
+        // any following Z80 IN/OUT does, before a dependent access.
+        clock_tick();
     }
 
     // Replay a board-qualified data-write window at the existing bus pins.
@@ -3564,7 +3566,49 @@ void t02m_r4_source_window(TestBench& test, unsigned r0,
     test.expect_adj(false, "t02m no adjustment");
 }
 
-constexpr std::array<TestCase, 86> kTests = {{
+// Registers store on the first clock after the board-shaped write strobe
+// ends (French ACCC v1.11 §4.4.3 p.26: the Plus OUT (C),r update lands in
+// the fourth microsecond). A13=0 fragmented strobes (§12.5 p.103) store at
+// the end of their first fragment. R12 reads back through mod-8 slot 4
+// (§21.2.3), so the stored value is observed at the bus, not inferred.
+void t02n_write_stores_at_strobe_end(TestBench& test) {
+    const auto expect_r12 = [&](const char* what, unsigned expected) {
+        const unsigned got = test.sample_selected();
+        if (got != expected) {
+            throw TestFailure(std::string(what) + ": R12 readback " +
+                              std::to_string(got) + " expected " +
+                              std::to_string(expected));
+        }
+    };
+    test.write_register(12, 0x11);
+    test.select_register(12);
+    expect_r12("t02n initial R12", 0x11);
+
+    for (unsigned tick = 0; tick < 88; ++tick) {
+        test.selected_write_tick(true, 0x22);
+    }
+    expect_r12("t02n R12 unchanged on the last clock of an 88-clock strobe",
+               0x11);
+    test.selected_write_tick(false, 0x22);
+    expect_r12("t02n R12 stored one clock after the strobe ends", 0x22);
+
+    for (unsigned tick = 0; tick < 16; ++tick) {
+        test.selected_write_tick(true, 0x33);
+    }
+    expect_r12("t02n R12 unchanged at the end of the first fragment", 0x22);
+    test.selected_write_tick(false, 0x33);
+    expect_r12("t02n R12 stored one clock after the first fragment", 0x33);
+    for (unsigned tick = 1; tick < 44; ++tick) {
+        test.selected_write_tick(false, 0x33);
+    }
+    for (unsigned tick = 0; tick < 20; ++tick) {
+        test.selected_write_tick(true, 0x33);
+    }
+    test.selected_write_tick(false, 0x33);
+    expect_r12("t02n second fragment of the same value keeps R12", 0x33);
+}
+
+constexpr std::array<TestCase, 87> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3595,6 +3639,8 @@ constexpr std::array<TestCase, 86> kTests = {{
          t02m_r4_source_window(test, 59, R4WriteWindow::Late); }},
     {"t02m R0=59 fragmented ROM R4 window", [](TestBench& test) {
          t02m_r4_source_window(test, 59, R4WriteWindow::FragmentedRom); }},
+    {"t02n register write stores when the strobe ends",
+     t02n_write_stores_at_strobe_end},
     {"t03a VMA reload and row advance", t03a_ma_reload_and_row_advance},
     {"t03b R1 border edges", t03b_r1_border_edges},
     {"t03c R1==R0 single-character blip", t03c_r1_eq_r0_blip},
