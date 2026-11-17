@@ -341,7 +341,8 @@ end
 // cancel the already entered terminal character. Retain that opportunity
 // until the next character edge, while still accepting live new equality.
 // This match lifetime is a model of the observed deadline, not a claim
-// about the ASIC's physical latch/storage clock. Register writes stay live.
+// about the ASIC's physical latch/storage clock. The C0 comparisons use
+// r0_live, which sees an R0 write from the first clock of its strobe.
 //
 // Outside that terminal opportunity, lowering R0 below current C0 retains
 // the equality-based eight-bit overflow assumption protected by t01e. A
@@ -611,15 +612,15 @@ wire split_adj_end = in_adj && adj_end_n &&
 wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
                     !in_adj && (R5_v_total_adj == 5'd0)) ||
                    split_adj_end;
-// last_charline retains R4 only in the terminal character; split_at_r0
-// can also be consumed outside that character. This shared use of the
-// inferred R4 deadline is not independently evidenced for screen split.
-// This capture still uses live R0. Its overlap with a late R0 rewrite
-// that ends the line through a retained terminal opportunity is unverified.
+// split_at_r0 shares the R4 deadline with the vertical counters; that
+// sharing is not independently evidenced for screen split. The capture
+// compares C0 with r0_live, like the C0 terminal comparisons. Its overlap
+// with a late R0 rewrite that ends the line through a retained terminal
+// opportunity is unverified.
 // Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1
 // and 8 (the low-three-bit alias); adjustment must not mask the comparator.
 wire split_latch_event = CLKEN && split_match &&
-                         (hcc == (split_at_r0 ? R0_h_total : R1_h_displayed));
+                         (hcc == (split_at_r0 ? r0_live : R1_h_displayed));
 
 // A split captured on the terminal line of a frame survives the frame
 // origin in VMA' while VMA still reloads from R12/R13 (original Plus probe
@@ -871,7 +872,7 @@ wire        vsync_mid_schedule = vsync_target_seam &&
 wire        vsync_delay_schedule = vsync_new_c4_target && ivm_active &&
                                     parity_frame && R9_v_max_line[0] &&
                                     R7_v_sync_pos[0];
-wire [7:0]  vsync_half_hcc = {1'b0, R0_h_total[7:1]};
+wire [7:0]  vsync_half_hcc = {1'b0, r0_live[7:1]};
 wire        vsync_half_tick = (hcc_next == vsync_half_hcc);
 wire        vsync_mid_fire = (ivm_active || sync_interlace_active) &&
                               (vsync_mid_pending | vsync_mid_schedule) &&
@@ -890,7 +891,7 @@ wire        vsync_seam_fire = vsync_target_seam &&
 // and full-line events. Exact release sub-character phase and register
 // rewrites while pending remain unmeasured hardware boundaries.
 wire        vsync_r0_zero_schedule = vsync_seam_fire && !in_vsync &&
-                                      (R0_h_total == 8'd0);
+                                      (r0_live == 8'd0);
 wire        vsync_r0_zero_fire = vsync_r0_zero_pending && (hcc_next != 8'd0);
 wire        vsync_fire = (vsync_seam_fire && !vsync_r0_zero_schedule) |
                           vsync_mid_fire | vsync_delay_fire |
