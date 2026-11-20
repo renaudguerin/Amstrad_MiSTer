@@ -208,8 +208,10 @@ bool live_hsync_deadline(const HsyncCase& test) {
     Bench bench;
     bench.load(snapshot);
     auto& dut = bench.d;
-    bool calibrated = false, issued = false, previous_start = false, target_line_seen = false;
+    bool calibrated = false, issued = false, previous_start = false;
+    bool target_line_seen = false, target_line_finished = false;
     std::optional<unsigned> rise_c0;
+    unsigned rises = 0;
     uint64_t rise = 0, fall = 0;
     for (unsigned n = 0; n < 30000000; ++n) {
         if (!dut.owner_reset && !dut.sna_hold) {
@@ -226,24 +228,31 @@ bool live_hsync_deadline(const HsyncCase& test) {
         }
         const bool previous_hsync = dut.video_hs;
         bench.tick();
-        const bool target_line = calibrated && dut.plus_row == 30 && dut.plus_raster == 0;
+        const bool target_line = calibrated && !target_line_finished &&
+                                 dut.plus_row == 30 && dut.plus_raster == 0;
+        if (target_line && !target_line_seen)
+            require(!previous_hsync, "calibrated line began inside an existing HSYNC pulse");
         target_line_seen |= target_line;
-        if (!rise && target_line && !previous_hsync && dut.video_hs) {
-            rise = bench.ticks;
-            rise_c0 = dut.plus_hcc;
+        target_line_finished |= target_line_seen && !target_line;
+        if (target_line && !previous_hsync && dut.video_hs) {
+            if (++rises == 1) {
+                rise = bench.ticks;
+                rise_c0 = dut.plus_hcc;
+            }
         }
         if (rise && !fall && previous_hsync && !dut.video_hs) fall = bench.ticks;
-        const bool target_line_finished = target_line_seen && !target_line;
-        if (!dut.cpu_halt_n && (fall || (target_line_finished && !rise))) break;
+        if (!dut.cpu_halt_n && target_line_finished && (!rise || fall)) break;
     }
-    require(issued && target_line_seen && !dut.cpu_halt_n && (!rise || fall > rise),
+    require(issued && target_line_finished && !dut.cpu_halt_n && (!rise || fall > rise),
             "live OUT or complete target line measurement was not observed");
     const auto width = rise ? fall - rise : 0;
     const auto expected_clocks = test.pulse_characters * 64u;
-    const bool pass = rise_c0 == test.rise_c0 && width == expected_clocks;
+    const unsigned expected_rises = test.rise_c0.has_value();
+    const bool pass = rises == expected_rises && rise_c0 == test.rise_c0 && width == expected_clocks;
     const auto position = [](auto c0) { return c0 ? std::to_string(*c0) : "none"; };
     std::cout << (pass ? "PASS " : "FAIL ") << test.name << " C0vs=" << test.issue_c0
-              << ": HSYNC start C0=" << position(rise_c0) << " (expected " << position(test.rise_c0)
+              << ": HSYNC rises=" << rises << " (expected " << expected_rises << "), start C0="
+              << position(rise_c0) << " (expected " << position(test.rise_c0)
               << "), width=" << width << " master clocks (expected " << expected_clocks << ")\n";
     return pass;
 }
