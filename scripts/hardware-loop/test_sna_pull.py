@@ -310,67 +310,85 @@ class TestTornReadHandling(unittest.TestCase):
 
 class TestWaitFlow(unittest.TestCase):
     def test_wait_ignores_starting_generation_and_pulls_next(self):
-        img_g1 = make_slot_image(generation=1, len_words=LEN_WORDS_128K)
-        img_g2 = make_slot_image(generation=2, len_words=LEN_WORDS_128K)
-        responses = [
-            img_g1[:16],  # baseline check: sees gen 1
-            img_g1[:16],  # poll 1: still gen 1 -> wait
-            img_g2[:16],  # poll 2: sees gen 2 -> detected!
-            img_g2[:16],  # pull hdr1
-            img_g2,       # pull image
-            img_g2[:16],  # pull hdr2
-        ]
-        fake = FakeTransport(responses=responses)
-        hdr, payload = wait_and_pull(
-            fake,
-            wait_seconds=5.0,
-            poll_interval=0.001,
-            retry_delay=0,
-        )
+        old = make_slot_image(generation=1, len_words=LEN_WORDS_128K)
+        new = make_slot_image(generation=2, len_words=LEN_WORDS_128K)
+        fake = FakeTransport(slot_image=old)
+        with patch("sna_pull.time.sleep", side_effect=lambda _: setattr(fake, "slot_image", new)):
+            hdr, payload = wait_and_pull(fake, wait_seconds=5.0, poll_interval=0.001, retry_delay=0)
         self.assertEqual(hdr.generation, 2)
-        self.assertEqual(payload, img_g2[16:])
+        self.assertEqual(payload, new[16:])
 
     def test_wait_from_none_pulls_first_generation(self):
-        invalid_hdr = b"\xFF" * 16
-        img_g1 = make_slot_image(generation=1, len_words=LEN_WORDS_64K)
-        responses = [
-            invalid_hdr,  # baseline check: invalid -> baseline is None
-            invalid_hdr,  # poll 1: still invalid -> wait
-            img_g1[:16],  # poll 2: valid gen 1 appears -> detected!
-            img_g1[:16],  # pull hdr1
-            img_g1,       # pull image
-            img_g1[:16],  # pull hdr2
-        ]
-        fake = FakeTransport(responses=responses)
-        hdr, payload = wait_and_pull(
-            fake,
-            wait_seconds=5.0,
-            poll_interval=0.001,
-            retry_delay=0,
-        )
+        new = make_slot_image(generation=1, len_words=LEN_WORDS_64K)
+        fake = FakeTransport(slot_image=b"\xFF" * 16)
+        with patch("sna_pull.time.sleep", side_effect=lambda _: setattr(fake, "slot_image", new)):
+            hdr, payload = wait_and_pull(fake, wait_seconds=5.0, poll_interval=0.001, retry_delay=0)
         self.assertEqual(hdr.generation, 1)
-        self.assertEqual(payload, img_g1[16:])
+        self.assertEqual(payload, new[16:])
 
     def test_wait_with_explicit_after_generation(self):
-        img_g3 = make_slot_image(generation=3, len_words=LEN_WORDS_128K)
-        img_g4 = make_slot_image(generation=4, len_words=LEN_WORDS_128K)
-        responses = [
-            img_g3[:16],  # poll 1: gen 3 matches after_generation -> wait
-            img_g4[:16],  # poll 2: gen 4 differs -> detected!
-            img_g4[:16],  # pull hdr1
-            img_g4,       # pull image
-            img_g4[:16],  # pull hdr2
-        ]
-        fake = FakeTransport(responses=responses)
-        hdr, payload = wait_and_pull(
-            fake,
-            wait_seconds=5.0,
-            after_generation=3,
-            poll_interval=0.001,
-            retry_delay=0,
-        )
+        old = make_slot_image(generation=3, len_words=LEN_WORDS_128K)
+        new = make_slot_image(generation=4, len_words=LEN_WORDS_128K)
+        fake = FakeTransport(slot_image=old)
+        with patch("sna_pull.time.sleep", side_effect=lambda _: setattr(fake, "slot_image", new)):
+            hdr, payload = wait_and_pull(
+                fake, wait_seconds=5.0, after_generation=3, poll_interval=0.001, retry_delay=0,
+            )
         self.assertEqual(hdr.generation, 4)
-        self.assertEqual(payload, img_g4[16:])
+        self.assertEqual(payload, new[16:])
+
+    def test_explicit_wait_rechecks_generation_after_core_reload(self):
+        baseline = make_slot_image(generation=1, len_words=LEN_WORDS_64K)
+        newer = make_slot_image(generation=2, len_words=LEN_WORDS_64K, fill_byte=0x11)
+        fake = FakeTransport(
+            slot_image=newer,
+            responses=[newer[:16], baseline[:16], baseline, baseline[:16]],
+        )
+        with patch("sna_pull.time.sleep"):
+            hdr, payload = wait_and_pull(fake, wait_seconds=2.0, after_generation=1)
+
+        self.assertEqual(hdr.generation, 2)
+        self.assertEqual(payload, newer[16:])
+
+    def test_wait_observes_changed_ram_after_generation_restarts(self):
+        prior = make_slot_image(generation=1, len_words=LEN_WORDS_64K)
+        current = prior[:-1] + bytes([prior[-1] ^ 1])
+        fake = FakeTransport(slot_image=prior)
+        now = 0.0
+
+        def publish_during_poll(delay):
+            nonlocal now
+            now += delay
+            # The replacement core restarts at generation 1. Its invalid
+            # marker appears and disappears between two host polls.
+            fake.slot_image = current
+
+        with patch("sna_pull.time.monotonic", side_effect=lambda: now):
+            with patch("sna_pull.time.sleep", side_effect=publish_during_poll):
+                hdr, payload = wait_and_pull(fake, wait_seconds=2.0, poll_interval=0.5)
+
+        self.assertEqual(hdr.generation, 1)
+        self.assertEqual(payload, current[16:])
+
+    def test_same_generation_wait_confirms_payload_after_overlapping_publication(self):
+        prior = make_slot_image(generation=1, len_words=LEN_WORDS_64K)
+        current = make_slot_image(generation=1, len_words=LEN_WORDS_64K, fill_byte=0x5A)
+        torn = prior[:1024] + current[1024:]
+        fake = FakeTransport(slot_image=prior)
+        header = prior[:16]
+
+        def publish_once(_):
+            if fake.slot_image == prior:
+                # The headers agree while the first transfer races the writer
+                # and contains a mix of the two RAM images.
+                fake.responses.extend([header, torn, header])
+                fake.slot_image = current
+
+        with patch("sna_pull.time.sleep", side_effect=publish_once):
+            hdr, payload = wait_and_pull(fake, wait_seconds=2.0, poll_interval=0.001)
+
+        self.assertEqual(hdr.generation, 1)
+        self.assertEqual(payload, current[16:])
 
     def test_wait_times_out_cleanly(self):
         img = make_slot_image(generation=1, len_words=LEN_WORDS_128K)
