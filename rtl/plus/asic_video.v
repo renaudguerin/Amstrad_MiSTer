@@ -250,6 +250,15 @@ reg [7:0] wr_d_q;
 wire      wr_now = ENABLE & ~nCS & ~R_nW;
 // A select change inside one continuous strobe ends the previous write.
 wire      wr_commit = wr_q & (~wr_now | (RS != wr_rs_q));
+// Private discriminator: FIELD's R8 bit follows the write strobe while the
+// stored register and all CRTC sequencing remain on the source revision.
+reg r8_field_live;
+wire [4:0] r8_field_addr_now = (wr_commit & ~wr_rs_q) ? wr_d_q[4:0] : addr;
+always @(posedge CLOCK) begin
+    if (!nRESET) r8_field_live <= 1'b0;
+    else if (SNA_LOAD) r8_field_live <= SNA_REGS[64];
+    else if (wr_now & RS & (r8_field_addr_now == 5'd8)) r8_field_live <= DI[0];
+end
 always @(posedge CLOCK) begin
 	if (!nRESET || SNA_LOAD) wr_q <= 1'b0;
 	else begin
@@ -1025,7 +1034,7 @@ assign ADJ  = in_adj;
 // FR §19.5.5 p.214: FIELD follows frame parity, not raster parity.
 // Combinational from the frame-origin flop, so it is stable across the
 // mid-frame C4=R7 VSYNC it qualifies.
-assign FIELD = ~parity_frame & R8_interlace[0];
+assign FIELD = ~parity_frame & r8_field_live;
 assign MA   = vma;
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 assign RA   = ra_eff;
