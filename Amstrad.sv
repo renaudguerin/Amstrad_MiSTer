@@ -1303,7 +1303,7 @@ wire plus_gx4000 = (plus_model == 2'b01);
 // CPC Plus BASIC configuration: /EXP low selects BASIC at logical ROM 0;
 // ROM 7 remains disc firmware. High requests the ROM-0 disc auto-boot route.
 // GX4000 ignores /EXP in the MMU. Keep its live decoder polarity unchanged.
-// Source rationale and production-T80 boot evidence: the Plus architecture contract D5.
+// sim/plus/plus_mmu_test.cpp exercises both /EXP levels for ROM 0.
 wire plus_exp_n = 1'b0;
 
 plus_mmu plus_mmu

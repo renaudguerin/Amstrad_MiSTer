@@ -607,12 +607,13 @@ void pr08_pending_classic_mode_switch() {
 }
 
 // A changed PRI matching the delayed nine-bit line while delayed HSYNC is
-// high requests an interrupt: the comparator term rises on the write
-// (Plus timing observations, "PRI delayed-comparator candidate").
+// high requests an interrupt because the comparator term rises on the
+// write. Test pr11 covers the original Plus phase window measured with
+// scripts/diagnostics/plus_hw_probes.py (init_phase, probe 04/B).
 // FF2's production-T80 replay writes 46->48 on line 48 at C0=52, after the
 // ordinary request and before raw HSYNC ends at C0=57; its palette/music
-// chain otherwise waits a whole frame (runtime observation of
-// 2026-09-27; CPCEC c025aab cpcec.c:2106-2114 has the same rule).
+// chain otherwise waits a whole frame. CPCEC c025aab cpcec.c:2106-2114
+// has the same rule.
 // On this bench raw HSYNC covers C0 0..6 of each 8-character line, so
 // HSYNC_d covers C0 1..7 and is low at C0 0 with line_d still the previous
 // line. Phase 480 is C0 7, one character after raw HSYNC ends: original
@@ -939,9 +940,9 @@ void pr14_delivery_before_next_end(PriBench& b, const char* who,
                                    uint64_t eligible_tick = 0) {
     // Strictly after the eligible producer end, before the next end.
     // Ordinary wraps additionally retain a coarse <=2-character regression
-    // envelope: V5's original-Plus markers constrain the ordinary software
-    // acceptance phase after the CPU sampling fix (pa7-interrupt-phase-
-    // followup.md), and the MRER program constrains the HS-end anchor.
+    // envelope. The original Plus V5 PA7 probes in
+    // scripts/diagnostics/plus_hw_probes.py constrain software acceptance.
+    // The 128-phase MRER hardware check in d30be17 grounds the HS-end anchor.
     // A whole extra character would cross a NOP acceptance slot. This is
     // a conservative model policy, NOT an ACCC electrical INT-delay bound;
     // VS rephase keeps only its independently sourced line window.

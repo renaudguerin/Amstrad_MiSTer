@@ -3114,8 +3114,10 @@ void t08k_split_on_terminal_line(TestBench& test) {
     test.run_characters(8);
     test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
 
-    // PA5b: original Plus V3 screen 23, asic-reference §8: a line-0
-    // effective RA reaching R9 replaces the held terminal split at C0=R1.
+    // PA5b: original Plus V3 screen 23 shows red through line 55.
+    // scripts/diagnostics/plus_hw_probes.asm (init_split55s7) reproduces
+    // that setup. Effective RA reaching R9 on line 0 replaces the held
+    // terminal split at C0=R1.
     // Here R9=7, R1=4: offset7 reaches R9; line1 must be 0x1234+4,
     // not SSA=0x2400. The frame origin still displays R12/R13 itself.
     test.write_register(9, 7);
