@@ -11,6 +11,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -59,7 +60,8 @@ constexpr Case cases[] = {
 struct Program {
     std::vector<uint8_t> bytes{0xf3,0x31,0xf0,0xbf,0x01,0,0xbc,0xed,0x49,0xcd,0,0x90};
     unsigned critical;
-    explicit Program(const Case& c) {
+    explicit Program(const Case& c, uint8_t selected_register = 0) {
+        bytes[5] = selected_register; // LD BC,BCxx before OUT (C),C.
         auto emit=[&](std::initializer_list<uint8_t> b){bytes.insert(bytes.end(),b);};
         if (c.kind == Kind::live_match) {
             emit({0x01,127,0xbd}); // 3us, then52 NOPs: early OUT at55.
@@ -190,6 +192,47 @@ bool zero_exit_transport() {
              <<", after="<<post[0]<<'/'<<post[1]<<'/'<<post[2]<<" R0="<<post[3]<<'\n';
     return pass;
 }
+
+bool live_r3_width_deadline(unsigned nominal_c0, unsigned expected_width) {
+    const Program p({"R3 width deadline", Kind::out, nominal_c0, 0, 5}, 3);
+    auto snapshot = p.snapshot();
+    snapshot[0x45] = 11;
+    snapshot[0x46] = 10;
+    Bench bench;
+    bench.load(snapshot);
+    auto& dut = bench.d;
+    bool calibrated = false, issued = false, previous_start = false;
+    uint64_t rise = 0, fall = 0;
+    for (unsigned n = 0; n < 30000000; ++n) {
+        if (!dut.owner_reset && !dut.sna_hold) {
+            const bool start = dut.cpu_insn_start;
+            if (start && !previous_start) {
+                if (dut.cpu_addr == 0x800c) calibrated = true;
+                if (dut.cpu_addr == p.critical) {
+                    require(calibrated && dut.plus_row == 30 && dut.plus_raster == 0,
+                            "live R3 OUT missed the calibrated VSYNC line");
+                    issued = true;
+                }
+            }
+            previous_start = start;
+        }
+        const bool previous_hsync = dut.video_hs;
+        bench.tick();
+        if (!rise && calibrated && dut.plus_row == 30 && dut.plus_raster == 0 &&
+            !previous_hsync && dut.video_hs) rise = bench.ticks;
+        if (rise && !fall && previous_hsync && !dut.video_hs) fall = bench.ticks;
+        if (fall && !dut.cpu_halt_n) break;
+    }
+    require(issued && rise && fall > rise && !dut.cpu_halt_n,
+            "live R3 OUT or complete target HSYNC was not observed");
+    const auto width = fall - rise;
+    const auto expected_clocks = expected_width * 64u;
+    const bool pass = width == expected_clocks;
+    std::cout << (pass ? "PASS " : "FAIL ") << "live R3 width deadline C0vs="
+              << nominal_c0 << ": HSYNC=" << width << " master clocks, expected="
+              << expected_clocks << '\n';
+    return pass;
+}
 }
 int main(int argc,char** argv) {
     Verilated::commandArgs(argc,argv);unsigned passed=0,failed=0;
@@ -197,6 +240,16 @@ int main(int argc,char** argv) {
         catch(const std::exception& e){++failed;std::cerr<<"FAIL "<<c.name<<": "<<e.what()<<'\n';}
     try {zero_exit_transport()?++passed:++failed;}
         catch(const std::exception& e){++failed;std::cerr<<"FAIL zero exit: "<<e.what()<<'\n';}
+    // French ACCC v1.11 §14.5.3 p139 and original Plus SHAKER AY/F (00C9):
+    // R3l=5 at C0vs=13 catches the terminal comparator. A one-NOP delay
+    // misses the equality, so the four-bit width counter wraps to it.
+    for (const auto& [c0, width] : {std::pair{13u, 5u}, std::pair{14u, 21u}}) {
+        try { live_r3_width_deadline(c0, width) ? ++passed : ++failed; }
+        catch (const std::exception& e) {
+            ++failed;
+            std::cerr << "FAIL live R3 width deadline C0vs=" << c0 << ": " << e.what() << '\n';
+        }
+    }
     std::cout<<"asic-r0-terminal: "<<passed<<" passed, "<<failed<<" failed\n";
     return failed?1:0;
 }

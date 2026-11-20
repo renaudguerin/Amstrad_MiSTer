@@ -790,10 +790,18 @@ reg       vsync_r0_zero_pending;
 
 wire       hsync_start               = (hcc_next == R2_h_sync_pos);
 wire [3:0] hsc_next                  = hsc + 4'd1;
-wire       hsync_end_hit             = (hsc_next == R3_h_sync_width);
+// MODEL LIMIT (B26): The HSYNC comparator sees the captured low nibble
+// during an R3 data write. French ACCC v1.11 §14.5.3 p139 and Plus SHAKER
+// AY/F (00C9) end the pulse at C3=5 for the OUT(C) at C0vs=13. Waiting for
+// wr_commit misses that equality on the production bus and adds 16 clocks
+// of C3 (one full nibble wrap). The physical comparator aperture remains
+// unmeasured. Keep the register's strobe-end store for other consumers.
+wire       hsync_width_pending       = wr_q & wr_rs_q & (addr == 5'd3);
+wire [3:0] hsync_width               = hsync_width_pending ? wr_d_q[3:0] : R3_h_sync_width;
+wire       hsync_end_hit             = (hsc_next == hsync_width);
 // See the unverified R3l=0 boundary assumption above: collision extension
 // is enabled only for explicit nonzero widths.
-wire       hsync_end_start_collision = (R3_h_sync_width != 4'd0) &&
+wire       hsync_end_start_collision = (hsync_width != 4'd0) &&
                                         hsync_start;
 
 always @(posedge CLOCK) begin
