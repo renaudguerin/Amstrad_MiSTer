@@ -788,7 +788,13 @@ reg       vsync_mid_pending;
 reg       vsync_delay_pending;
 reg       vsync_r0_zero_pending;
 
-wire       hsync_start               = (hcc_next == R2_h_sync_pos);
+// During a selected R2 write, HSYNC starts on the comparator edge even
+// when storage commits later. The original Plus SHAKER AR B1/B2 and A3
+// A1/A2 callers lose that edge if they use only stored R2. The same start
+// comparison participates in the live collision of French §15.3.5 p.152.
+wire       hsync_position_pending    = wr_q & wr_rs_q & (addr == 5'd2);
+wire [7:0] hsync_position            = hsync_position_pending ? wr_d_q : R2_h_sync_pos;
+wire       hsync_start               = (hcc_next == hsync_position);
 wire [3:0] hsc_next                  = hsc + 4'd1;
 // MODEL LIMIT (B26): The HSYNC comparator sees the captured low nibble
 // during an R3 data write. French ACCC v1.11 §14.5.3 p139 and Plus SHAKER

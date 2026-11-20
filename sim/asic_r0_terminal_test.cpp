@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace {
@@ -193,15 +193,23 @@ bool zero_exit_transport() {
     return pass;
 }
 
-bool live_r3_width_deadline(unsigned nominal_c0, unsigned expected_width) {
-    const Program p({"R3 width deadline", Kind::out, nominal_c0, 0, 5}, 3);
+struct HsyncCase {
+    const char* name;
+    uint8_t target_register, initial_position, initial_width, value;
+    unsigned issue_c0, pulse_characters;
+    std::optional<unsigned> rise_c0;
+};
+
+bool live_hsync_deadline(const HsyncCase& test) {
+    const Program p({test.name, Kind::out, test.issue_c0, 0, test.value}, test.target_register);
     auto snapshot = p.snapshot();
-    snapshot[0x45] = 11;
-    snapshot[0x46] = 10;
+    snapshot[0x45] = test.initial_position;
+    snapshot[0x46] = test.initial_width;
     Bench bench;
     bench.load(snapshot);
     auto& dut = bench.d;
-    bool calibrated = false, issued = false, previous_start = false;
+    bool calibrated = false, issued = false, previous_start = false, target_line_seen = false;
+    std::optional<unsigned> rise_c0;
     uint64_t rise = 0, fall = 0;
     for (unsigned n = 0; n < 30000000; ++n) {
         if (!dut.owner_reset && !dut.sna_hold) {
@@ -210,7 +218,7 @@ bool live_r3_width_deadline(unsigned nominal_c0, unsigned expected_width) {
                 if (dut.cpu_addr == 0x800c) calibrated = true;
                 if (dut.cpu_addr == p.critical) {
                     require(calibrated && dut.plus_row == 30 && dut.plus_raster == 0,
-                            "live R3 OUT missed the calibrated VSYNC line");
+                            "live HSYNC OUT missed the calibrated VSYNC line");
                     issued = true;
                 }
             }
@@ -218,19 +226,25 @@ bool live_r3_width_deadline(unsigned nominal_c0, unsigned expected_width) {
         }
         const bool previous_hsync = dut.video_hs;
         bench.tick();
-        if (!rise && calibrated && dut.plus_row == 30 && dut.plus_raster == 0 &&
-            !previous_hsync && dut.video_hs) rise = bench.ticks;
+        const bool target_line = calibrated && dut.plus_row == 30 && dut.plus_raster == 0;
+        target_line_seen |= target_line;
+        if (!rise && target_line && !previous_hsync && dut.video_hs) {
+            rise = bench.ticks;
+            rise_c0 = dut.plus_hcc;
+        }
         if (rise && !fall && previous_hsync && !dut.video_hs) fall = bench.ticks;
-        if (fall && !dut.cpu_halt_n) break;
+        const bool target_line_finished = target_line_seen && !target_line;
+        if (!dut.cpu_halt_n && (fall || (target_line_finished && !rise))) break;
     }
-    require(issued && rise && fall > rise && !dut.cpu_halt_n,
-            "live R3 OUT or complete target HSYNC was not observed");
-    const auto width = fall - rise;
-    const auto expected_clocks = expected_width * 64u;
-    const bool pass = width == expected_clocks;
-    std::cout << (pass ? "PASS " : "FAIL ") << "live R3 width deadline C0vs="
-              << nominal_c0 << ": HSYNC=" << width << " master clocks, expected="
-              << expected_clocks << '\n';
+    require(issued && target_line_seen && !dut.cpu_halt_n && (!rise || fall > rise),
+            "live OUT or complete target line measurement was not observed");
+    const auto width = rise ? fall - rise : 0;
+    const auto expected_clocks = test.pulse_characters * 64u;
+    const bool pass = rise_c0 == test.rise_c0 && width == expected_clocks;
+    const auto position = [](auto c0) { return c0 ? std::to_string(*c0) : "none"; };
+    std::cout << (pass ? "PASS " : "FAIL ") << test.name << " C0vs=" << test.issue_c0
+              << ": HSYNC start C0=" << position(rise_c0) << " (expected " << position(test.rise_c0)
+              << "), width=" << width << " master clocks (expected " << expected_clocks << ")\n";
     return pass;
 }
 }
@@ -240,14 +254,22 @@ int main(int argc,char** argv) {
         catch(const std::exception& e){++failed;std::cerr<<"FAIL "<<c.name<<": "<<e.what()<<'\n';}
     try {zero_exit_transport()?++passed:++failed;}
         catch(const std::exception& e){++failed;std::cerr<<"FAIL zero exit: "<<e.what()<<'\n';}
-    // French ACCC v1.11 §14.5.3 p139 and original Plus SHAKER AY/F (00C9):
-    // R3l=5 at C0vs=13 catches the terminal comparator. A one-NOP delay
-    // misses the equality, so the four-bit width counter wraps to it.
-    for (const auto& [c0, width] : {std::pair{13u, 5u}, std::pair{14u, 21u}}) {
-        try { live_r3_width_deadline(c0, width) ? ++passed : ++failed; }
+    const HsyncCase hsync_cases[] = {
+        // Original Plus SHAKER AR B1/B2 (00B5/00B6) issues R2=10 while
+        // the strobe straddles the edge entering C0=10. Adjacent late OUT
+        // misses that equality and the old position is overwritten too.
+        {"live R2 start deadline", 2, 46, 14, 10, 7, 14, 10},
+        {"late R2 start control", 2, 46, 14, 10, 8, 0, std::nullopt},
+        // French ACCC v1.11 §14.5.3 p139 and original Plus SHAKER AY/F
+        // (00C9). One NOP of delay makes the width counter wrap to 5.
+        {"live R3 width deadline", 3, 11, 10, 5, 13, 5, 11},
+        {"late R3 width control", 3, 11, 10, 5, 14, 21, 11},
+    };
+    for (const auto& test : hsync_cases) {
+        try { live_hsync_deadline(test) ? ++passed : ++failed; }
         catch (const std::exception& e) {
             ++failed;
-            std::cerr << "FAIL live R3 width deadline C0vs=" << c0 << ": " << e.what() << '\n';
+            std::cerr << "FAIL " << test.name << " C0vs=" << test.issue_c0 << ": " << e.what() << '\n';
         }
     }
     std::cout<<"asic-r0-terminal: "<<passed<<" passed, "<<failed<<" failed\n";
