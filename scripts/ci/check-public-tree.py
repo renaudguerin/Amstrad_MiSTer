@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_DOCS = {
     "docs/README.md", "docs/building.md", "docs/roadmap.md",
-    "docs/known-issues.md", "docs/images/banner.jpg",
+    "docs/known-issues.md", "docs/video-output.md", "docs/images/banner.jpg",
 }
 TOP = {
     ".gitignore", ".worktreeinclude", "AGENTS.md", "README.md", "CREDITS.md",
