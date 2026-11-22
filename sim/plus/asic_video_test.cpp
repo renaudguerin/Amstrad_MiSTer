@@ -531,23 +531,18 @@ void t01a_reset_and_r0_zero(TestBench& test) {
     test.expect_hcc("R0=0 keeps C0 pinned at 0 (ACCC §13.5)", 0);
 }
 
-// Separate zero-line write propagation from the steady 64-character period.
-// FR §13.6.3 p125's old-R0=0 chart and the independent real-T80/AmSpirit
-// zero-exit transport (asic_r0_terminal_test.cpp) retain the entered zero
-// terminal once. §13.1's inclusive period alone did not justify the old
-// assertion that the very next edge after a mid-character write must be1.
+// Anchor the steady period to the observable origin after programming R0.
+// The production-T80 zero-exit vector owns the actual CPU write timing
+// from FR §13.6.3 p125; the synthetic mid-character bus has its own phase.
 void t01b_r63_period(TestBench& test) {
     test.write_register(0x00, 63);
-    test.run_characters(1);
-    test.expect_hcc("entered zero terminal completes before the nonzero period", 0);
-    test.run_characters(1);
-    test.expect_hcc("nonzero period starts at C0=1 after zero handoff", 1);
-    for (unsigned step = 2; step <= 63; ++step) {
+    test.run_to_frame_start();
+    for (unsigned step = 1; step <= 63; ++step) {
         test.run_characters(1);
         test.expect_hcc("C0 climb to R0", step);
     }
     test.run_characters(1);
-    test.expect_hcc("C0 wraps at live C0=R0 equality (ACCC §13.1)", 0);
+    test.expect_hcc("C0 wraps at C0=R0 equality (ACCC §13.1)", 0);
     test.run_characters(1);
     test.expect_hcc("next line restarts from 1", 1);
 }
@@ -557,9 +552,7 @@ void t01b_r63_period(TestBench& test) {
 // further, which is P5 scope). Behaviour here proves the select landed.
 void t01c_register_select_alias(TestBench& test) {
     test.write_register(0xE0, 3);  // select alias for index 0
-    // Complete the entered reset-zero character before checking the alias's
-    // steady four-character period (zero propagation is covered by t01b).
-    test.run_characters(1);
+    test.run_to_frame_start();
     test.run_characters(1);
     test.expect_hcc("select 0xE0 addressed R0: line is 4 characters", 1);
     test.run_characters(2);
@@ -577,7 +570,7 @@ void t01c_register_select_alias(TestBench& test) {
 // C0=6 internally, and each following character climbs one step from 6.
 void t01d_r0_widen_midline(TestBench& test) {
     test.write_register(0x00, 10);
-    test.run_characters(1);  // finish the entered reset-zero character
+    test.run_to_frame_start();
     test.run_characters(5);  // C0 now 5
     test.expect_hcc("precondition C0=5", 5);
     test.write_register(0x00, 63);
@@ -599,7 +592,7 @@ void t01d_r0_widen_midline(TestBench& test) {
 // C4/C9 identification overflow, not this C0 case.
 void t01e_r0_shrink_overflow(TestBench& test) {
     test.write_register(0x00, 63);
-    test.run_characters(1);  // finish the entered reset-zero character
+    test.run_to_frame_start();
     test.run_characters(20);  // C0 now 20
     test.expect_hcc("precondition C0=20", 20);
     test.write_register(0x00, 10);
@@ -926,14 +919,17 @@ void prepare_zero_vsync_event(TestBench& test, unsigned short_r0) {
     test.select_register(0);
     test.run_to_state(29, 7, 0, "AI preceding last raster");
     test.expect_vsync("AI starts before the VSYNC row", false);
+    // SHAKE27A's straddling write begins at C0=0. Hold the strobe
+    // across the first character edge, then inspect the settled short
+    // line and the VSYNC samples at the original sampling offsets.
     test.selected_write_tick(true, short_r0);
+    test.run_characters(1);
     test.selected_write_tick(false, short_r0);
-    test.expect_hcc("short R0 data lands at C0=0", 0);
 }
 
 void t04o_r0_zero_vsync_event(TestBench& test, unsigned short_r0) {
     prepare_zero_vsync_event(test, short_r0);
-    for (unsigned us = 1; us <= 18; ++us) {
+    for (unsigned us = 2; us <= 18; ++us) {
         test.run_characters(1);
         if (short_r0 == 0) {
             test.expect_hcc("R0=0 pins C0", 0);
@@ -947,13 +943,11 @@ void t04o_r0_zero_vsync_event(TestBench& test, unsigned short_r0) {
     test.selected_write_tick(false, 45);
     if (short_r0 == 0) {
         test.expect_line("release no longer has C4=R7", 32);
-        test.run_characters(1);
-        test.expect_hcc("retained zero terminal completes once", 0);
-        test.expect_vsync("retained zero terminal still defers", false);
+        // This synthetic strobe finishes before the next character edge.
         test.run_characters(1);
         test.expect_hcc("first moving character releases event", 1);
         test.expect_vsync("deferred event survives C4 leaving R7", true);
-        test.run_characters(3);  // +23 us sample
+        test.run_characters(4);  // +23 us sample
     } else {
         test.run_characters(5);
     }
@@ -967,7 +961,7 @@ void t04o_r0_zero_vsync_event(TestBench& test, unsigned short_r0) {
     if (short_r0 == 0) {
         // Keep the live-width owner: sixteen genuine restored line ends
         // terminate the deferred pulse. Align by observed counters.
-        test.run_to_state(32, 4, 0, "second normal line end");
+        test.run_to_state(32, 3, 0, "second normal line end");
         test.run_characters(13 * 46);
         test.expect_vsync("fifteen restored line ends retain VSYNC", true);
         test.run_characters(46);
@@ -979,7 +973,7 @@ void t04o_r0_zero_vsync_event(TestBench& test, unsigned short_r0) {
 
 void t04p_deferred_vsync_lifecycle(TestBench& test, bool snapshot) {
     prepare_zero_vsync_event(test, 0);
-    test.run_characters(18);  // pending event; current C4 has passed R7
+    test.run_characters(17);  // pending event; current C4 has passed R7
     test.expect_vsync("zero stretch remains inactive before lifecycle edge", false);
     if (snapshot) {
         test.load_idle_snapshot();
@@ -1886,6 +1880,9 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     // sampling phase. No reset-rollover parity is assumed.
     const auto enter_short_field = [](TestBench& bench, bool even,
                                       const std::string& context) {
+        // Start observing FIELD after the synthetic R8 write commits,
+        // so mode entry is outside the frame-origin sample window.
+        bench.run_characters(1);
         bool previous=bench.field();
         unsigned transitions=0;
         for (unsigned guard=0;guard<128;++guard) {

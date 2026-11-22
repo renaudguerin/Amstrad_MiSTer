@@ -119,9 +119,8 @@ module asic_video
 	output reg [4:0]    PEN,       // observability for later raster consumers:
 	                               // {showing_border, decoded ink nibble}
 
-	// Sprite-plane interface (P4). HWRAP strobes the line seam (CLKEN
-	// edge with a live or retained terminal opportunity) for the sprite
-	// engine's horizontal scale; SPR_* is the composited sprite pixel,
+	// Sprite-plane interface (P4). HWRAP strobes the line seam for the
+	// sprite engine's horizontal scale. SPR_* is the composited sprite pixel,
 	// shown between the screen and the border (asic-reference §5
 	// priority: border > sprites > screen), under HSYNC force-blank.
 	output           HWRAP,
@@ -335,30 +334,22 @@ end
 //----------------------------------------------------------------------
 // Horizontal character counter C0 ("HCC")
 //
-// C0 counts 0..R0 inclusive (ACCC FR v1.11 §13.1 p.104). The rendered
-// type-3/4 deadline chart (§13.6.3 p.125), corroborated by real Plus SHAKER
-// A4's OUT(C) 3C/3D and OUTI 3C results, requires a late R0 rewrite not to
-// cancel the already entered terminal character. Retain that opportunity
-// until the next character edge, while still accepting live new equality.
-// This match lifetime is a model of the observed deadline, not a claim
-// about the ASIC's physical latch/storage clock. The C0 comparisons use
-// r0_live, which sees an R0 write from the first clock of its strobe.
+// C0 counts 0..R0 inclusive (ACCC FR v1.11 §13.1 p.104). Use the
+// stored R0 for the terminal comparison. This preserves the ordinary
+// OUT(C)/OUTI deadlines (§13.6.3 p.125 and original Plus SHAKER A4).
+// Original Plus B31R0.CPR and R0REST.CPR (22 November 2026) distinguish
+// the ordinary and ROM-select alias deadlines and show that a late
+// restore to the current C0 can miss the wrap. The stored comparison
+// models these outcomes; the physical comparator phase is unmeasured.
 //
-// Outside that terminal opportunity, lowering R0 below current C0 retains
-// the equality-based eight-bit overflow assumption protected by t01e. A
-// direct type-3 lowering chronogram/hardware result is still absent; the
-// terminal-lowering control instead cites the original DSC4 AmSpirit trace.
-// §28.1.1 is not support for overflow: it concerns C4/C9 identification.
+// If stored R0 is below C0 outside a terminal match, C0 increments
+// through eight-bit overflow (unverified lowering model, t01e).
 //----------------------------------------------------------------------
 
 reg [7:0] hcc;
 
-// The C0 comparisons see an R0 write from the first clock of its strobe,
-// unlike the other registers, which store when the strobe ends (wr_commit).
-// The §13.6.3 p.125 deadline chart (OUT(C) 3C extends, 3D misses) needs R0
-// at this earlier instant; the fourth-µs store needed by R8 (§4.4.3 p.26)
-// would miss 3C. Same-shape question as classic B6/S: horizontal
-// comparisons see a straddling write, vertical ones do not (backlog B31).
+// The live R0 sees a data write from its first strobe clock. It feeds
+// status readback, split capture, VSYNC phase and zero-line entry.
 reg  [7:0]  r0_live;
 // An index committing on this clock is the select in force for the data.
 wire [4:0]  r0_addr_now = (wr_commit & ~wr_rs_q) ? wr_d_q[4:0] : addr;
@@ -368,17 +359,15 @@ always @(posedge CLOCK) begin
     else if (wr_now & RS & (r0_addr_now == 5'd0)) r0_live <= DI;
 end
 
-reg         entered_terminal_match;
 wire        hcc_equal = (hcc == r0_live);
-wire        hcc_last = hcc_equal | entered_terminal_match;
+// Original Plus SHAKER AI/008D needs the zero stretch when an R0=0
+// write starts at C0=0 and straddles the next character edge. Count
+// that seam so C4/C9 keep running (§13.5 p.123) and the deferred VSYNC
+// can be armed. This models the photographed PPI samples; the ASIC's
+// zero-entry phase is unmeasured.
+wire        hcc_zero_entry = (hcc == 8'd0) && (r0_live == 8'd0);
+wire        hcc_last = (hcc == R0_h_total) || hcc_zero_entry;
 wire [7:0]  hcc_next = hcc_last ? 8'h00 : hcc + 8'd1;
-
-always @(posedge CLOCK) begin
-    if (!nRESET) entered_terminal_match <= 1'b1; // reset HCC=R0=0
-    // Standard SNA carries counters/registers, not in-flight match history.
-    else if (SNA_LOAD) entered_terminal_match <= (SNA_HCC == SNA_REGS[0 +: 8]);
-    else if (CLKEN) entered_terminal_match <= (hcc_next == r0_live);
-end
 
 always @(posedge CLOCK) begin
 	if (!nRESET) hcc <= 8'h00;
@@ -614,9 +603,8 @@ wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
                    split_adj_end;
 // split_at_r0 shares the R4 deadline with the vertical counters; that
 // sharing is not independently evidenced for screen split. The capture
-// compares C0 with r0_live, like the C0 terminal comparisons. Its overlap
-// with a late R0 rewrite that ends the line through a retained terminal
-// opportunity is unverified.
+// compares C0 with r0_live. Ordering against the stored-R0 terminal when
+// an R0 write straddles line end remains unmeasured.
 // Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1
 // and 8 (the low-three-bit alias); adjustment must not mask the comparator.
 wire split_latch_event = CLKEN && split_match &&
@@ -1052,8 +1040,8 @@ assign RA   = ra_eff;
 // readback while the VMA reload consumes R12[5:0] only.
 //
 // Status comparisons remain live: FR §21.3.4.1–2 pp.248–249 and
-// §28.1.10 p.293 (S1.0 is zero otherwise). They are distinct from the
-// retained terminal opportunity used by the counter/event consumers.
+// §28.1.10 p.293 (S1.0 is zero otherwise). The counter and line events
+// use the stored terminal comparison with the zero-entry exception.
 // STATUS 1 (slot 2) and STATUS 2 (slot 3) are live combinational levels
 // of the counter/pointer state — several bits hold for one character
 // only (§21.3.4 "requires great precision"). The HSYNC/VSYNC boundary

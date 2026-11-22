@@ -37,8 +37,14 @@ constexpr uint8_t calibration[] = {
     0x00, 0x00, 0x00, 0xc9,
 };
 
-enum class Kind { out, outi, live_match, lower_terminal };
-struct Case { const char* name; Kind kind; unsigned nominal_c0, terminal_c0; uint8_t payload; };
+enum class Kind { out, outi, late_restore, lower_terminal };
+struct Case {
+    const char* name;
+    Kind kind;
+    unsigned nominal_c0, terminal_c0;
+    uint8_t payload;
+    uint8_t port_high = 0xbd;
+};
 // FR §13.6.3 p125, rendered type3/4 chart: with old R0=3F, OUT(C)3C
 // and OUTI3B extend the line (3F->40); OUT(C)3D and OUTI3C miss it
 // (3F->00). Original Plus A4 photos corroborate the deadline and OUTI3C.
@@ -47,11 +53,14 @@ constexpr Case cases[] = {
     {"OUT(C) 3D late", Kind::out, 61, 0, 127},
     {"OUTI 3B early", Kind::outi, 59, 64, 127},
     {"OUTI 3C late", Kind::outi, 60, 0, 127},
-    // Parent-selected model control: preserve live new equality too.
-    // Unverified against the alternative of delaying register admission;
-    // the inclusive-period rule alone does not settle this late write.
-    // Enlarge early to127, then write63 while C0=63 (not previously terminal).
-    {"live equality at C0=63", Kind::live_match, 61, 0, 63},
+    // Original Plus B31R0.CPR, 22 November 2026: BD 1100, 9D 1110.
+    // The ROM-select alias extends at 3D and misses one slot later.
+    {"OUT(C) 3D ROM alias", Kind::out, 61, 64, 127, 0x9d},
+    {"OUT(C) 3E ROM alias misses", Kind::out, 62, 0, 127, 0x9d},
+    // Original Plus R0REST.CPR, 22 November 2026: both 3D restores read
+    // PPI VSYNC 0/1 (after the nominal wrap / later), with all controls OK.
+    // Widen to 127 first, then restore 63. C0 advances at the nominal seam.
+    {"late R0=63 restore misses the C0=63 wrap", Kind::late_restore, 61, 64, 63},
     // Software-reference control, NOT a French/hardware lowering golden:
     // authentic DSC4 first E2B has oldR0=63/currentC0=63, writes59 and
     // wraps, as observed in AmSpirit.
@@ -63,13 +72,13 @@ struct Program {
     explicit Program(const Case& c, uint8_t selected_register = 0) {
         bytes[5] = selected_register; // LD BC,BCxx before OUT (C),C.
         auto emit=[&](std::initializer_list<uint8_t> b){bytes.insert(bytes.end(),b);};
-        if (c.kind == Kind::live_match) {
+        if (c.kind == Kind::late_restore) {
             emit({0x01,127,0xbd}); // 3us, then52 NOPs: early OUT at55.
             bytes.insert(bytes.end(),52,0);
             emit({0xed,0x49,0x0e,63}); // OUT4us + LD C,63 2us ->61.
         } else {
             emit({0x01,uint8_t(c.kind==Kind::outi ? 0x3f : c.payload),
-                          uint8_t(c.kind==Kind::outi ? 0xbe : 0xbd)});
+                          uint8_t(c.kind==Kind::outi ? 0xbe : c.port_high)});
             const unsigned setup=c.kind==Kind::outi ? 6 : 3;
             if(c.kind==Kind::outi) emit({0x21,0,0xa0}); // own payload at A000.
             bytes.insert(bytes.end(),c.nominal_c0-setup,0);
@@ -149,8 +158,8 @@ bool exercise(const Case& c) {
     // independent deadline oracle; do not fit NOPs to either observer.
     bool pass=aligned&&critical&&edge&&wrote&&!d.cpu_halt_n&&
               d.plus_r0==c.payload&&terminal==c.terminal_c0;
-    if(c.kind==Kind::live_match||c.kind==Kind::lower_terminal)
-        pass &= write_c0==63 && old_r0==(c.kind==Kind::live_match ? 127u : 63u);
+    if(c.kind==Kind::late_restore||c.kind==Kind::lower_terminal)
+        pass &= write_c0==63 && old_r0==(c.kind==Kind::late_restore ? 127u : 63u);
     std::cout<<(pass?"PASS ":"FAIL ")<<c.name<<": terminal="<<terminal
              <<" expected="<<c.terminal_c0<<", R0="<<unsigned(d.plus_r0)
              <<", write C0="<<write_c0<<", critical T2 C0="<<critical_c0
