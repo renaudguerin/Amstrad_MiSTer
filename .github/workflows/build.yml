@@ -232,7 +232,40 @@ jobs:
           esac
           make -C sim lint
 
+  production-t80-policy:
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.classify.outputs.scope }}
+    steps:
+      - name: Check out source and history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test production-T80 policy
+        run: python3 scripts/ci/test-production-t80-policy.py
+
+      - name: Select production-T80 scope
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scope="$(python3 scripts/ci/production-t80-policy.py scope)"
+          printf 'scope=%s\n' "$scope" >> "$GITHUB_OUTPUT"
+          printf 'Production-T80 scope: %s\n' "$scope"
+
   production-t80:
+    needs: production-t80-policy
+    if: needs.production-t80-policy.outputs.scope == 'full' || needs.production-t80-policy.outputs.scope == 'snapshot'
     # Tests that simulate the production VHDL T80 through a GHDL translation
     # instead of the TV80 stand-in. Independent of the simulation job, so the
     # two run in parallel; the required gate enforces both. Hosted only: GHDL
@@ -292,7 +325,12 @@ jobs:
           printf 'GHDL=%s/bin/ghdl\n' "$GHDL_PREFIX" >> "$GITHUB_ENV"
 
       - name: Run production-T80 tests
+        if: needs.production-t80-policy.outputs.scope == 'full'
         run: make -C sim production-t80-test GHDL="$GHDL"
+
+      - name: Run B18 snapshot tests
+        if: needs.production-t80-policy.outputs.scope == 'snapshot'
+        run: make -C sim b18-snapshot-test GHDL="$GHDL"
 
   route:
     # Chooses which runner performs the expensive Quartus compile. The local
@@ -520,6 +558,7 @@ jobs:
     needs:
       - synthesis-policy
       - simulation
+      - production-t80-policy
       - production-t80
       - route
       - synthesis
@@ -533,6 +572,8 @@ jobs:
         env:
           POLICY_RESULT: ${{ needs.synthesis-policy.result }}
           SIMULATION_RESULT: ${{ needs.simulation.result }}
+          PRODUCTION_T80_POLICY_RESULT: ${{ needs.production-t80-policy.result }}
+          PRODUCTION_T80_SCOPE: ${{ needs.production-t80-policy.outputs.scope }}
           PRODUCTION_T80_RESULT: ${{ needs.production-t80.result }}
           SYNTHESIS_REQUIRED: ${{ needs.synthesis-policy.outputs.required }}
           SYNTHESIS_REASON: ${{ needs.synthesis-policy.outputs.reason }}
@@ -552,10 +593,14 @@ jobs:
             printf 'Simulation job did not pass: %s\n' "$SIMULATION_RESULT" >&2
             exit 1
           fi
-          if [[ "$PRODUCTION_T80_RESULT" != "success" ]]; then
-            printf 'Production-T80 job did not pass: %s\n' "$PRODUCTION_T80_RESULT" >&2
-            exit 1
-          fi
+          # Production-T80 gate: only the selected job result is acceptable.
+          case "$PRODUCTION_T80_POLICY_RESULT:$PRODUCTION_T80_SCOPE:$PRODUCTION_T80_RESULT" in
+            success:full:success|success:snapshot:success|success:none:skipped) ;;
+            *) printf 'Production-T80 gate failed: policy=%s scope=%s result=%s\n' \
+                 "$PRODUCTION_T80_POLICY_RESULT" "$PRODUCTION_T80_SCOPE" "$PRODUCTION_T80_RESULT" >&2
+               exit 1 ;;
+          esac
+          # End production-T80 gate.
 
           # Exactly one synthesis route runs; the other must be skipped. The
           # gate checks the routed one so a green result can never come from
