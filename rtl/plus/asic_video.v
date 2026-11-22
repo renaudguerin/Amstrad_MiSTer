@@ -1107,9 +1107,13 @@ wire s2_bit3 = frame16_toggle;
 // R8=3, live R5/R0 writes, and decoder topology remain unmeasured.
 wire s2_bit4 = (R5_v_total_adj == 5'd0) ||
                  ((adj_frame_wrap || interlace_frame_wrap) && hcc_equal);
-wire s2_bit5 = ~(raster == R9_v_max_line);
-wire s2_bit7 = ((raster == R9_v_max_line) && hcc_equal) ||
-               ((raster == 5'd0) && (hcc != R0_h_total));
+// Original Plus STAT2B57.CPR shows both bits low throughout the extra
+// line at R5=7 and R5=8. The last-raster pulse of bit 7 belongs to the
+// ordinary raster counter. Bit 5 still compares C9 and R9 in adjustment.
+wire s2_bit5 = !interlace_line && (raster != R9_v_max_line);
+wire s2_bit7 = !interlace_line &&
+               ((!in_adj && (raster == R9_v_max_line) && hcc_equal) ||
+                ((raster == 5'd0) && (hcc != R0_h_total)));
 
 // Frame-origin strobe: the same edge the video pointers reload from
 // R12/R13 (C4=C9=C0, §20.3.4 p.244, FR p.243).

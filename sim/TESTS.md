@@ -57,7 +57,7 @@ Mac, including the Verilator build.
 | `sim u765-test` | fast | `rtl/u765/*` | u765 floppy controller |
 | `sim/plus run/asic_unlock_tests` | fast | `rtl/plus/asic_unlock.v` | ASIC unlock sequence detector |
 | `sim/plus run/asic_mode_latch_tests` | fast | `rtl/plus/asic_ga_timing.v` `rtl/plus/asic_video.v` `sim/plus/asic_mode_latch_test*` | Actual GA RMR writes to decoded pens: short/exact-two-us HSYNC, request during valid pulse, ASIC six-to-seven-us deadline, late and absent pulse controls |
-| `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC (type 3) counters and register bus, including original Plus STATUS2 bit 4 at the short and long interlaced field boundaries |
+| `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC (type 3) counters and register bus, including original Plus STATUS2 bit 4 at interlaced field boundaries and bits 5 and 7 in adjustment and on the extra line |
 | `sim/plus run/b6_menu_mask_tests` | fast | `rtl/plus/plus_menu_capability_mask.v` `rtl/plus/plus_model_select.v` | OSD capability mask and RAM size per machine model |
 | `sim/plus run/dandanator_loader_bounds_tests` | fast | `rtl/dandanator/*` | Dandanator loader address bounds |
 | `sim/plus run/rom_loader_route_tests` | fast | `rtl/rom_loader_route.v` | ROM download routing against a frozen model of the old Amstrad.sv decoder |
