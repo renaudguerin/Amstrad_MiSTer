@@ -407,7 +407,9 @@ sna_hw_header save_hw_header
 );
 
     assign plus_hcc = PLUS_MODE ? motherboard.asic_vid.hcc : 8'd0;
-    assign plus_r0 = PLUS_MODE ? motherboard.asic_vid.R0_h_total : 8'd0;
+    // R0 write observer at the start of the strobe. The terminal normally
+    // compares against R0_h_total, which stores at the end of the strobe.
+    assign plus_r0 = PLUS_MODE ? motherboard.asic_vid.r0_live : 8'd0;
     assign plus_row = PLUS_MODE ? motherboard.asic_vid.charline : 7'd0;
     assign plus_raster = PLUS_MODE ? motherboard.asic_vid.raster : 5'd0;
     assign plus_cclk = PLUS_MODE ? motherboard.plus_cclk_en_n : 1'b0;

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -36,8 +37,14 @@ constexpr uint8_t calibration[] = {
     0x00, 0x00, 0x00, 0xc9,
 };
 
-enum class Kind { out, outi, live_match, lower_terminal };
-struct Case { const char* name; Kind kind; unsigned nominal_c0, terminal_c0; uint8_t payload; };
+enum class Kind { out, outi, late_restore, lower_terminal };
+struct Case {
+    const char* name;
+    Kind kind;
+    unsigned nominal_c0, terminal_c0;
+    uint8_t payload;
+    uint8_t port_high = 0xbd;
+};
 // FR §13.6.3 p125, rendered type3/4 chart: with old R0=3F, OUT(C)3C
 // and OUTI3B extend the line (3F->40); OUT(C)3D and OUTI3C miss it
 // (3F->00). Original Plus A4 photos corroborate the deadline and OUTI3C.
@@ -46,11 +53,14 @@ constexpr Case cases[] = {
     {"OUT(C) 3D late", Kind::out, 61, 0, 127},
     {"OUTI 3B early", Kind::outi, 59, 64, 127},
     {"OUTI 3C late", Kind::outi, 60, 0, 127},
-    // Parent-selected model control: preserve live new equality too.
-    // Unverified against the alternative of delaying register admission;
-    // the inclusive-period rule alone does not settle this late write.
-    // Enlarge early to127, then write63 while C0=63 (not previously terminal).
-    {"live equality at C0=63", Kind::live_match, 61, 0, 63},
+    // Original Plus B31R0.CPR, 22 November 2026: BD 1100, 9D 1110.
+    // The ROM-select alias extends at 3D and misses one slot later.
+    {"OUT(C) 3D ROM alias", Kind::out, 61, 64, 127, 0x9d},
+    {"OUT(C) 3E ROM alias misses", Kind::out, 62, 0, 127, 0x9d},
+    // Original Plus R0REST.CPR, 22 November 2026: both 3D restores read
+    // PPI VSYNC 0/1 (after the nominal wrap / later), with all controls OK.
+    // Widen to 127 first, then restore 63. C0 advances at the nominal seam.
+    {"late R0=63 restore misses the C0=63 wrap", Kind::late_restore, 61, 64, 63},
     // Software-reference control, NOT a French/hardware lowering golden:
     // authentic DSC4 first E2B has oldR0=63/currentC0=63, writes59 and
     // wraps, as observed in AmSpirit.
@@ -59,15 +69,16 @@ constexpr Case cases[] = {
 struct Program {
     std::vector<uint8_t> bytes{0xf3,0x31,0xf0,0xbf,0x01,0,0xbc,0xed,0x49,0xcd,0,0x90};
     unsigned critical;
-    explicit Program(const Case& c) {
+    explicit Program(const Case& c, uint8_t selected_register = 0) {
+        bytes[5] = selected_register; // LD BC,BCxx before OUT (C),C.
         auto emit=[&](std::initializer_list<uint8_t> b){bytes.insert(bytes.end(),b);};
-        if (c.kind == Kind::live_match) {
+        if (c.kind == Kind::late_restore) {
             emit({0x01,127,0xbd}); // 3us, then52 NOPs: early OUT at55.
             bytes.insert(bytes.end(),52,0);
             emit({0xed,0x49,0x0e,63}); // OUT4us + LD C,63 2us ->61.
         } else {
             emit({0x01,uint8_t(c.kind==Kind::outi ? 0x3f : c.payload),
-                          uint8_t(c.kind==Kind::outi ? 0xbe : 0xbd)});
+                          uint8_t(c.kind==Kind::outi ? 0xbe : c.port_high)});
             const unsigned setup=c.kind==Kind::outi ? 6 : 3;
             if(c.kind==Kind::outi) emit({0x21,0,0xa0}); // own payload at A000.
             bytes.insert(bytes.end(),c.nominal_c0-setup,0);
@@ -147,8 +158,8 @@ bool exercise(const Case& c) {
     // independent deadline oracle; do not fit NOPs to either observer.
     bool pass=aligned&&critical&&edge&&wrote&&!d.cpu_halt_n&&
               d.plus_r0==c.payload&&terminal==c.terminal_c0;
-    if(c.kind==Kind::live_match||c.kind==Kind::lower_terminal)
-        pass &= write_c0==63 && old_r0==(c.kind==Kind::live_match ? 127u : 63u);
+    if(c.kind==Kind::late_restore||c.kind==Kind::lower_terminal)
+        pass &= write_c0==63 && old_r0==(c.kind==Kind::late_restore ? 127u : 63u);
     std::cout<<(pass?"PASS ":"FAIL ")<<c.name<<": terminal="<<terminal
              <<" expected="<<c.terminal_c0<<", R0="<<unsigned(d.plus_r0)
              <<", write C0="<<write_c0<<", critical T2 C0="<<critical_c0
@@ -190,6 +201,70 @@ bool zero_exit_transport() {
              <<", after="<<post[0]<<'/'<<post[1]<<'/'<<post[2]<<" R0="<<post[3]<<'\n';
     return pass;
 }
+
+struct HsyncCase {
+    const char* name;
+    uint8_t target_register, initial_position, initial_width, value;
+    unsigned issue_c0, pulse_characters;
+    std::optional<unsigned> rise_c0;
+};
+
+bool live_hsync_deadline(const HsyncCase& test) {
+    const Program p({test.name, Kind::out, test.issue_c0, 0, test.value}, test.target_register);
+    auto snapshot = p.snapshot();
+    snapshot[0x45] = test.initial_position;
+    snapshot[0x46] = test.initial_width;
+    Bench bench;
+    bench.load(snapshot);
+    auto& dut = bench.d;
+    bool calibrated = false, issued = false, previous_start = false;
+    bool target_line_seen = false, target_line_finished = false;
+    std::optional<unsigned> rise_c0;
+    unsigned rises = 0;
+    uint64_t rise = 0, fall = 0;
+    for (unsigned n = 0; n < 30000000; ++n) {
+        if (!dut.owner_reset && !dut.sna_hold) {
+            const bool start = dut.cpu_insn_start;
+            if (start && !previous_start) {
+                if (dut.cpu_addr == 0x800c) calibrated = true;
+                if (dut.cpu_addr == p.critical) {
+                    require(calibrated && dut.plus_row == 30 && dut.plus_raster == 0,
+                            "live HSYNC OUT missed the calibrated VSYNC line");
+                    issued = true;
+                }
+            }
+            previous_start = start;
+        }
+        const bool previous_hsync = dut.video_hs;
+        bench.tick();
+        const bool target_line = calibrated && !target_line_finished &&
+                                 dut.plus_row == 30 && dut.plus_raster == 0;
+        if (target_line && !target_line_seen)
+            require(!previous_hsync, "calibrated line began inside an existing HSYNC pulse");
+        target_line_seen |= target_line;
+        target_line_finished |= target_line_seen && !target_line;
+        if (target_line && !previous_hsync && dut.video_hs) {
+            if (++rises == 1) {
+                rise = bench.ticks;
+                rise_c0 = dut.plus_hcc;
+            }
+        }
+        if (rise && !fall && previous_hsync && !dut.video_hs) fall = bench.ticks;
+        if (!dut.cpu_halt_n && target_line_finished && (!rise || fall)) break;
+    }
+    require(issued && target_line_finished && !dut.cpu_halt_n && (!rise || fall > rise),
+            "live OUT or complete target line measurement was not observed");
+    const auto width = rise ? fall - rise : 0;
+    const auto expected_clocks = test.pulse_characters * 64u;
+    const unsigned expected_rises = test.rise_c0.has_value();
+    const bool pass = rises == expected_rises && rise_c0 == test.rise_c0 && width == expected_clocks;
+    const auto position = [](auto c0) { return c0 ? std::to_string(*c0) : "none"; };
+    std::cout << (pass ? "PASS " : "FAIL ") << test.name << " C0vs=" << test.issue_c0
+              << ": HSYNC rises=" << rises << " (expected " << expected_rises << "), start C0="
+              << position(rise_c0) << " (expected " << position(test.rise_c0)
+              << "), width=" << width << " master clocks (expected " << expected_clocks << ")\n";
+    return pass;
+}
 }
 int main(int argc,char** argv) {
     Verilated::commandArgs(argc,argv);unsigned passed=0,failed=0;
@@ -197,6 +272,24 @@ int main(int argc,char** argv) {
         catch(const std::exception& e){++failed;std::cerr<<"FAIL "<<c.name<<": "<<e.what()<<'\n';}
     try {zero_exit_transport()?++passed:++failed;}
         catch(const std::exception& e){++failed;std::cerr<<"FAIL zero exit: "<<e.what()<<'\n';}
+    const HsyncCase hsync_cases[] = {
+        // Original Plus SHAKER AR B1/B2 (00B5/00B6) issues R2=10 while
+        // the strobe straddles the edge entering C0=10. Adjacent late OUT
+        // misses that equality and the old position is overwritten too.
+        {"live R2 start deadline", 2, 46, 14, 10, 7, 14, 10},
+        {"late R2 start control", 2, 46, 14, 10, 8, 0, std::nullopt},
+        // French ACCC v1.11 §14.5.3 p139 and original Plus SHAKER AY/F
+        // (00C9). One NOP of delay makes the width counter wrap to 5.
+        {"live R3 width deadline", 3, 11, 10, 5, 13, 5, 11},
+        {"late R3 width control", 3, 11, 10, 5, 14, 21, 11},
+    };
+    for (const auto& test : hsync_cases) {
+        try { live_hsync_deadline(test) ? ++passed : ++failed; }
+        catch (const std::exception& e) {
+            ++failed;
+            std::cerr << "FAIL " << test.name << " C0vs=" << test.issue_c0 << ": " << e.what() << '\n';
+        }
+    }
     std::cout<<"asic-r0-terminal: "<<passed<<" passed, "<<failed<<" failed\n";
     return failed?1:0;
 }

@@ -30,10 +30,9 @@
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) and
 //     seedable from an SNA header (B8-5), but nothing at runtime ever writes
 //     them (named assumption at the readback section).
-//   - R4 deadline outcomes use board-shaped ENABLE timing (French §12.5
-//     p.103). There is no explicit ROM-select decode here; READY/A13
-//     qualification remains upstream. The selected-write outcome model
-//     and its generalization beyond R4->0 are implementation inferences.
+//   - R4 deadline outcomes (French §12.5 p.103) follow from registers
+//     storing when the board-shaped write strobe ends. There is no explicit
+//     ROM-select decode here; READY/A13 qualification remains upstream.
 //
 //  P5 scope landed here: the mod-8 read map with stored R14/R15, the
 //  R10/R11 status group, and the full readback contract (section at the
@@ -120,9 +119,8 @@ module asic_video
 	output reg [4:0]    PEN,       // observability for later raster consumers:
 	                               // {showing_border, decoded ink nibble}
 
-	// Sprite-plane interface (P4). HWRAP strobes the line seam (CLKEN
-	// edge with a live or retained terminal opportunity) for the sprite
-	// engine's horizontal scale; SPR_* is the composited sprite pixel,
+	// Sprite-plane interface (P4). HWRAP strobes the line seam for the
+	// sprite engine's horizontal scale. SPR_* is the composited sprite pixel,
 	// shown between the screen and the border (asic-reference §5
 	// priority: border > sprites > screen), under HSYNC force-blank.
 	output           HWRAP,
@@ -240,6 +238,25 @@ reg [5:0] R16_pen_h;
 reg [7:0] R17_pen_l;
 /* verilator lint_on UNUSEDSIGNAL */
 
+// Registers and the index store on the first clock after the board-shaped
+// write strobe ends, or when RS changes within one continuous strobe.
+// French ACCC v1.11 §4.4.3 p.26 places the Plus OUT (C),r update in the
+// fourth microsecond, not at the start of the strobe. A13=0 fragmented
+// strobes (§12.5 p.103) therefore store at the end of their first fragment.
+// Hardware observation: original Plus SHAKER A2/C 0009 (R8 live skew).
+reg       wr_q, wr_rs_q;
+reg [7:0] wr_d_q;
+wire      wr_now = ENABLE & ~nCS & ~R_nW;
+// A select change inside one continuous strobe ends the previous write.
+wire      wr_commit = wr_q & (~wr_now | (RS != wr_rs_q));
+always @(posedge CLOCK) begin
+	if (!nRESET || SNA_LOAD) wr_q <= 1'b0;
+	else begin
+		wr_q <= wr_now;
+		if (wr_now) begin wr_rs_q <= RS; wr_d_q <= DI; end
+	end
+end
+
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		addr             <= 5'd0;
@@ -284,29 +301,29 @@ always @(posedge CLOCK) begin
 		R16_pen_h        <= SNA_REGS[128 +: 6];
 		R17_pen_l        <= SNA_REGS[136 +: 8];
 	end
-	else if (ENABLE & ~nCS & ~R_nW) begin
-		if (~RS) begin
-			addr <= DI[4:0];
+	else if (wr_commit) begin
+		if (~wr_rs_q) begin
+			addr <= wr_d_q[4:0];
 		end
 		else begin
 			case (addr)
 			// Writes keep the full five-bit decode (§21.2.3 truncates
 			// READS to three bits only): aliased selects 4/20 must
 			// program R4/R12 distinctly, exactly as software assumes.
-			5'd00: R0_h_total     <= DI;
-			5'd01: R1_h_displayed <= DI;
-			5'd02: R2_h_sync_pos  <= DI;
-			5'd03: {R3_v_sync_width, R3_h_sync_width} <= DI;
-			5'd04: R4_v_total     <= DI[6:0];
-			5'd05: R5_v_total_adj <= DI[4:0];
-			5'd06: R6_v_displayed <= DI[6:0];
-			5'd07: R7_v_sync_pos  <= DI[6:0];
-			5'd08: {R8_skew, R8_interlace} <= {DI[5:4], DI[1:0]};
-			5'd09: R9_v_max_line  <= DI[4:0];
-			5'd12: R12_start_addr_h <= DI;
-			5'd13: R13_start_addr_l <= DI;
-			5'd14: R14_cursor_h   <= DI[5:0];
-			5'd15: R15_cursor_l   <= DI;
+			5'd00: R0_h_total     <= wr_d_q;
+			5'd01: R1_h_displayed <= wr_d_q;
+			5'd02: R2_h_sync_pos  <= wr_d_q;
+			5'd03: {R3_v_sync_width, R3_h_sync_width} <= wr_d_q;
+			5'd04: R4_v_total     <= wr_d_q[6:0];
+			5'd05: R5_v_total_adj <= wr_d_q[4:0];
+			5'd06: R6_v_displayed <= wr_d_q[6:0];
+			5'd07: R7_v_sync_pos  <= wr_d_q[6:0];
+			5'd08: {R8_skew, R8_interlace} <= {wr_d_q[5:4], wr_d_q[1:0]};
+			5'd09: R9_v_max_line  <= wr_d_q[4:0];
+			5'd12: R12_start_addr_h <= wr_d_q;
+			5'd13: R13_start_addr_l <= wr_d_q;
+			5'd14: R14_cursor_h   <= wr_d_q[5:0];
+			5'd15: R15_cursor_l   <= wr_d_q;
 			default: ;  // 10/11 status group is read-only (§21.2.3);
 			            // 16/17 light pen has no strobe source (header)
 			endcase
@@ -317,34 +334,40 @@ end
 //----------------------------------------------------------------------
 // Horizontal character counter C0 ("HCC")
 //
-// C0 counts 0..R0 inclusive (ACCC FR v1.11 §13.1 p.104). The rendered
-// type-3/4 deadline chart (§13.6.3 p.125), corroborated by real Plus SHAKER
-// A4's OUT(C) 3C/3D and OUTI 3C results, requires a late R0 rewrite not to
-// cancel the already entered terminal character. Retain that opportunity
-// until the next character edge, while still accepting live new equality.
-// This match lifetime is a model of the observed deadline, not a claim
-// about the ASIC's physical latch/storage clock. Register writes stay live.
+// C0 counts 0..R0 inclusive (ACCC FR v1.11 §13.1 p.104). Use the
+// stored R0 for the terminal comparison. This preserves the ordinary
+// OUT(C)/OUTI deadlines (§13.6.3 p.125 and original Plus SHAKER A4).
+// Original Plus B31R0.CPR and R0REST.CPR (22 November 2026) distinguish
+// the ordinary and ROM-select alias deadlines and show that a late
+// restore to the current C0 can miss the wrap. The stored comparison
+// models these outcomes; the physical comparator phase is unmeasured.
 //
-// Outside that terminal opportunity, lowering R0 below current C0 retains
-// the equality-based eight-bit overflow assumption protected by t01e. A
-// direct type-3 lowering chronogram/hardware result is still absent; the
-// terminal-lowering control instead cites the original DSC4 AmSpirit trace.
-// §28.1.1 is not support for overflow: it concerns C4/C9 identification.
+// If stored R0 is below C0 outside a terminal match, C0 increments
+// through eight-bit overflow (unverified lowering model, t01e).
 //----------------------------------------------------------------------
 
 reg [7:0] hcc;
 
-reg         entered_terminal_match;
-wire        hcc_equal = (hcc == R0_h_total);
-wire        hcc_last = hcc_equal | entered_terminal_match;
-wire [7:0]  hcc_next = hcc_last ? 8'h00 : hcc + 8'd1;
-
+// The live R0 sees a data write from its first strobe clock. It feeds
+// status readback, split capture, VSYNC phase and zero-line entry.
+reg  [7:0]  r0_live;
+// An index committing on this clock is the select in force for the data.
+wire [4:0]  r0_addr_now = (wr_commit & ~wr_rs_q) ? wr_d_q[4:0] : addr;
 always @(posedge CLOCK) begin
-    if (!nRESET) entered_terminal_match <= 1'b1; // reset HCC=R0=0
-    // Standard SNA carries counters/registers, not in-flight match history.
-    else if (SNA_LOAD) entered_terminal_match <= (SNA_HCC == SNA_REGS[0 +: 8]);
-    else if (CLKEN) entered_terminal_match <= (hcc_next == R0_h_total);
+    if (!nRESET) r0_live <= 8'd0;
+    else if (SNA_LOAD) r0_live <= SNA_REGS[0 +: 8];
+    else if (wr_now & RS & (r0_addr_now == 5'd0)) r0_live <= DI;
 end
+
+wire        hcc_equal = (hcc == r0_live);
+// Original Plus SHAKER AI/008D needs the zero stretch when an R0=0
+// write starts at C0=0 and straddles the next character edge. Count
+// that seam so C4/C9 keep running (§13.5 p.123) and the deferred VSYNC
+// can be armed. This models the photographed PPI samples; the ASIC's
+// zero-entry phase is unmeasured.
+wire        hcc_zero_entry = (hcc == 8'd0) && (r0_live == 8'd0);
+wire        hcc_last = (hcc == R0_h_total) || hcc_zero_entry;
+wire [7:0]  hcc_next = hcc_last ? 8'h00 : hcc + 8'd1;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) hcc <= 8'h00;
@@ -356,8 +379,7 @@ end
 // Vertical counters: C9 (raster line within the character row) and C4
 // (character row within the frame), plus the vertical-adjustment state.
 //
-// Vertical decisions use live registers at the line-end edge, except for
-// the retained R4 match described by MODEL LIMIT (B26) below. A write on
+// Vertical decisions use live registers at the line-end edge. A write on
 // the decision edge itself is seen by the next decision in this model.
 //
 // C9/R9 completion uses ">=" not equality: on types 3/4 an R9 lowered
@@ -388,18 +410,11 @@ reg        parity_c9;
 wire       ivm_active    = (R8_interlace == 2'b11);
 wire       sync_interlace_active = (R8_interlace == 2'b01);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
-// MODEL LIMIT (B26): FR §12.5 p103 and original E's 3C/3D, 38/39 and
-// ROM-shaped windows require different deadline outcomes. Retaining an
-// entered match only during a selected R4 write at consuming CLKEN is an
-// active-write inference, not a proven silicon latch. Board-shaped ENABLE
-// supplies the timing distinction; no explicit ROM decode is added here.
-// Late false-to-true matches remain live as an unverified compatibility
-// choice; generalization beyond R4->0 remains unresolved. See B26 and
-// hardware observations.
-reg        entered_r4_match;
-wire       r4_write_active = ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd4);
-wire       last_charline = (charline == R4_v_total) |
-                           (hcc_last & entered_r4_match & r4_write_active);
+// The R4 deadline outcomes of French ACCC v1.11 §12.5 p.103 (ordinary
+// early, ordinary late, ROM-shaped fragmented windows) follow from registers
+// storing when the board-shaped write strobe ends (see wr_commit); no
+// separate match retention is needed.
+wire       last_charline = (charline == R4_v_total);
 // The additional line follows the completed R5 block and exits directly at
 // the real frame origin (§19.6.4 p.218).  Its forced C9=0 must not re-enter
 // adjustment when R9 is also zero.
@@ -467,12 +482,6 @@ wire       interlace_line_n = interlace_line ? 1'b0 :
                               enter_interlace_line;
 
 always @(posedge CLOCK) begin
-    if (!nRESET || SNA_LOAD) entered_r4_match <= 1'b0;
-    else if (CLKEN) entered_r4_match <=
-        ((hcc_last ? charline_n : charline) == R4_v_total);
-end
-
-always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		charline <= 7'd0;
 		raster   <= 5'd0;
@@ -516,11 +525,11 @@ always @(posedge CLOCK) begin
 		end
 
 		// §19.8.4 p.237: changing R8 to either interlace mode seeds
-		// ParityC9 immediately from the current C9.  Decode the live bus
-		// write so this does not wait for the stored R8 NBA update.
-		if (ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd8) &
-		    ((DI[1:0] == 2'b01) | (DI[1:0] == 2'b11)) &
-		    (DI[1:0] != R8_interlace)) begin
+		// ParityC9 from the current C9 when the R8 write commits (the
+		// same instant R8 itself stores), not one clock later.
+		if (wr_commit & wr_rs_q & (addr == 5'd8) &
+		    ((wr_d_q[1:0] == 2'b01) | (wr_d_q[1:0] == 2'b11)) &
+		    (wr_d_q[1:0] != R8_interlace)) begin
 			parity_c9 <= raster[0];
 		end
 	end
@@ -592,15 +601,14 @@ wire split_adj_end = in_adj && adj_end_n &&
 wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
                     !in_adj && (R5_v_total_adj == 5'd0)) ||
                    split_adj_end;
-// last_charline retains R4 only in the terminal character; split_at_r0
-// can also be consumed outside that character. This shared use of the
-// inferred R4 deadline is not independently evidenced for screen split.
-// This capture still uses live R0. Its overlap with a late R0 rewrite
-// that ends the line through a retained terminal opportunity is unverified.
+// split_at_r0 shares the R4 deadline with the vertical counters; that
+// sharing is not independently evidenced for screen split. The capture
+// compares C0 with r0_live. Ordering against the stored-R0 terminal when
+// an R0 write straddles line end remains unmeasured.
 // Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1
 // and 8 (the low-three-bit alias); adjustment must not mask the comparator.
 wire split_latch_event = CLKEN && split_match &&
-                         (hcc == (split_at_r0 ? R0_h_total : R1_h_displayed));
+                         (hcc == (split_at_r0 ? r0_live : R1_h_displayed));
 
 // A split captured on the terminal line of a frame survives the frame
 // origin in VMA' while VMA still reloads from R12/R13 (original Plus probe
@@ -768,12 +776,26 @@ reg       vsync_mid_pending;
 reg       vsync_delay_pending;
 reg       vsync_r0_zero_pending;
 
-wire       hsync_start               = (hcc_next == R2_h_sync_pos);
+// During a selected R2 write, HSYNC starts on the comparator edge even
+// when storage commits later. The original Plus SHAKER AR B1/B2 and A3
+// A1/A2 callers lose that edge if they use only stored R2. The same start
+// comparison participates in the live collision of French §15.3.5 p.152.
+wire       hsync_position_pending    = wr_q & wr_rs_q & (addr == 5'd2);
+wire [7:0] hsync_position            = hsync_position_pending ? wr_d_q : R2_h_sync_pos;
+wire       hsync_start               = (hcc_next == hsync_position);
 wire [3:0] hsc_next                  = hsc + 4'd1;
-wire       hsync_end_hit             = (hsc_next == R3_h_sync_width);
+// MODEL LIMIT (B26): The HSYNC comparator sees the captured low nibble
+// during an R3 data write. French ACCC v1.11 §14.5.3 p139 and Plus SHAKER
+// AY/F (00C9) end the pulse at C3=5 for the OUT(C) at C0vs=13. Waiting for
+// wr_commit misses that equality on the production bus and adds 16 clocks
+// of C3 (one full nibble wrap). The physical comparator aperture remains
+// unmeasured. Keep the register's strobe-end store for other consumers.
+wire       hsync_width_pending       = wr_q & wr_rs_q & (addr == 5'd3);
+wire [3:0] hsync_width               = hsync_width_pending ? wr_d_q[3:0] : R3_h_sync_width;
+wire       hsync_end_hit             = (hsc_next == hsync_width);
 // See the unverified R3l=0 boundary assumption above: collision extension
 // is enabled only for explicit nonzero widths.
-wire       hsync_end_start_collision = (R3_h_sync_width != 4'd0) &&
+wire       hsync_end_start_collision = (hsync_width != 4'd0) &&
                                         hsync_start;
 
 always @(posedge CLOCK) begin
@@ -852,7 +874,7 @@ wire        vsync_mid_schedule = vsync_target_seam &&
 wire        vsync_delay_schedule = vsync_new_c4_target && ivm_active &&
                                     parity_frame && R9_v_max_line[0] &&
                                     R7_v_sync_pos[0];
-wire [7:0]  vsync_half_hcc = {1'b0, R0_h_total[7:1]};
+wire [7:0]  vsync_half_hcc = {1'b0, r0_live[7:1]};
 wire        vsync_half_tick = (hcc_next == vsync_half_hcc);
 wire        vsync_mid_fire = (ivm_active || sync_interlace_active) &&
                               (vsync_mid_pending | vsync_mid_schedule) &&
@@ -871,7 +893,7 @@ wire        vsync_seam_fire = vsync_target_seam &&
 // and full-line events. Exact release sub-character phase and register
 // rewrites while pending remain unmeasured hardware boundaries.
 wire        vsync_r0_zero_schedule = vsync_seam_fire && !in_vsync &&
-                                      (R0_h_total == 8'd0);
+                                      (r0_live == 8'd0);
 wire        vsync_r0_zero_fire = vsync_r0_zero_pending && (hcc_next != 8'd0);
 wire        vsync_fire = (vsync_seam_fire && !vsync_r0_zero_schedule) |
                           vsync_mid_fire | vsync_delay_fire |
@@ -1018,8 +1040,8 @@ assign RA   = ra_eff;
 // readback while the VMA reload consumes R12[5:0] only.
 //
 // Status comparisons remain live: FR §21.3.4.1–2 pp.248–249 and
-// §28.1.10 p.293 (S1.0 is zero otherwise). They are distinct from the
-// retained terminal opportunity used by the counter/event consumers.
+// §28.1.10 p.293 (S1.0 is zero otherwise). The counter and line events
+// use the stored terminal comparison with the zero-entry exception.
 // STATUS 1 (slot 2) and STATUS 2 (slot 3) are live combinational levels
 // of the counter/pointer state — several bits hold for one character
 // only (§21.3.4 "requires great precision"). The HSYNC/VSYNC boundary
