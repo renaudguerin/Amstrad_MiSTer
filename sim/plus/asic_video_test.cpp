@@ -2921,6 +2921,53 @@ void t07h_status2_bits0_and4_body_and_adjustment(TestBench& test) {
     }
 }
 
+// Original 6128 Plus STAT2EDG.CPR, R8=1 and R5=8, 22 November 2026.
+// Classify fields by STATUS2 bit-0 body-end spacing and read bit 4
+// at the same six offsets as the cartridge.
+void t07i_status2_interlaced_bit4(TestBench& test) {
+    const std::array<std::uint8_t, 10> registers =
+        {{63, 40, 46, 0x8e, 37, 8, 25, 30, 1, 7}};
+    for (unsigned reg = 0; reg < registers.size(); ++reg)
+        test.write_register(reg, registers[reg]);
+    test.select_register(3);
+    constexpr unsigned short_field = 312 * 64;
+    constexpr unsigned long_field = 313 * 64;
+    constexpr std::array<unsigned, 6> offsets = {{511, 512, 513, 575, 576, 577}};
+    test.run_to_frame_start(2 * long_field);
+
+    auto seek_body_end = [&]() -> unsigned {
+        for (unsigned elapsed = 1; elapsed <= long_field; ++elapsed) {
+            test.run_characters(1);
+            if ((test.sample_selected() & 1) == 0) return elapsed;
+        }
+        throw TestFailure("STATUS2 body-end anchor not found");
+    };
+
+    seek_body_end();
+    unsigned long_fields = 0;
+    for (unsigned field = 0; field < 2; ++field) {
+        std::array<std::uint8_t, offsets.size()> samples{};
+        unsigned previous = 0;
+        for (unsigned i = 0; i < offsets.size(); ++i) {
+            test.run_characters(offsets[i] - previous);
+            samples[i] = test.sample_selected();
+            previous = offsets[i];
+        }
+        const unsigned span = previous + seek_body_end();
+        if (span != short_field && span != long_field)
+            throw TestFailure("unexpected STATUS2 body-end spacing");
+        const bool is_long = span == long_field;
+        long_fields += is_long;
+        const unsigned high_offset = is_long ? 576 : 512;
+        const std::string label = is_long ? "long field" : "short field";
+        for (unsigned i = 0; i < offsets.size(); ++i)
+            expect_mask(label + " STATUS2 bit 4 at +" + std::to_string(offsets[i]),
+                        samples[i], 0x10, offsets[i] == high_offset ? 0x10 : 0);
+    }
+    if (long_fields != 1)
+        throw TestFailure("expected one short and one long STATUS2 field");
+}
+
 // ACCC §21.3.4.2 p.250 (FR p.249): bit 3 is stable for a whole frame and toggles
 // every 16 frame origins. With R9=7, R4=0, and R0=1, each frame has eight
 // scanlines and 16 characters. Two 16-frame intervals catch a frame-origin
@@ -3606,7 +3653,7 @@ void t02n_write_stores_at_strobe_end(TestBench& test) {
     expect_r12("t02n second fragment of the same value keeps R12", 0x33);
 }
 
-constexpr std::array<TestCase, 87> kTests = {{
+constexpr std::array<TestCase, 88> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3701,6 +3748,7 @@ constexpr std::array<TestCase, 87> kTests = {{
     {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
     {"t07h STATUS2 bits0/4 normal and adjusted body", t07h_status2_bits0_and4_body_and_adjustment},
+    {"t07i STATUS2 bit 4 in short and long fields", t07i_status2_interlaced_bit4},
     {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
     {"t08a screen split capture and advance", t08a_split_screen_capture_and_advance},
     {"t08b screen split disabled when zero", t08b_split_screen_disabled_when_zero},
