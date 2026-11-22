@@ -1098,15 +1098,15 @@ wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&
 wire s2_bit2 = ~((charline == (R7_v_sync_pos - 7'd1)) &&
                  (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit3 = frame16_toggle;
-// MODEL LIMIT (B26): canonical physical CRTC3 DU OK and unchanged SHAKE26/27
-// predicates support bit4 HIGH throughout normal R4/R5=38/0, but only at the
-// final character of adjusted37/8. This bounded observation overrides FR
-// §21.3.4.2 p.249's "Always 1" row. Reusing adjustment termination matches
-// those samples; it does not prove decoder topology. End of adjustment versus
-// true frame origin, extra interlace lines and live R5/R0 writes are unmeasured.
-// See hardware observations.
+// Original CRTC3 SHAKER DU observes bit 4 high throughout R5=0 and
+// a pulse at the final character with R5=8, qualifying French ACCC
+// v1.11 §21.3.4.2 p.249. Original Plus STAT2EDG.CPR extends this to
+// R8=1: the short field pulses at the end of R5, and the long field
+// at the end of the additional interlace line (§19.6.4 p.218).
+// Use the existing frame-wrap conditions and keep the R0 comparison.
+// R8=3, live R5/R0 writes, and decoder topology remain unmeasured.
 wire s2_bit4 = (R5_v_total_adj == 5'd0) ||
-                 (in_adj && adj_end_n && hcc_equal);
+                 ((adj_frame_wrap || interlace_frame_wrap) && hcc_equal);
 wire s2_bit5 = ~(raster == R9_v_max_line);
 wire s2_bit7 = ((raster == R9_v_max_line) && hcc_equal) ||
                ((raster == 5'd0) && (hcc != R0_h_total));
