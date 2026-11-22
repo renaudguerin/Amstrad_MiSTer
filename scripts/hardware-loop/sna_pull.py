@@ -30,7 +30,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, TextIO, Tuple
 
 # Ensure hardware-loop directory is in sys.path for direct imports
 _hw_loop_dir = str(Path(__file__).resolve().parent)
@@ -77,7 +77,7 @@ class SnaTruncatedError(SnaPullError):
 
 
 class SnaWaitTimeoutError(SnaPullError):
-    """Timed out waiting for a new snapshot generation."""
+    """Timed out waiting for a new snapshot."""
 
 
 class SlotHeader:
@@ -297,22 +297,71 @@ def wait_and_pull(
     max_retries: int = DEFAULT_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     timeout: float = DEFAULT_TIMEOUT,
+    *,
+    progress: Optional[TextIO] = None,
 ) -> Tuple[SlotHeader, bytes]:
-    """Wait for a new snapshot generation and pull it coherently."""
-    wait_for_generation(
-        transport=transport,
-        base=base,
-        wait_seconds=wait_seconds,
-        after_generation=after_generation,
-        poll_interval=poll_interval,
-        timeout=timeout,
-    )
-    return pull_snapshot(
-        transport=transport,
-        base=base,
-        max_retries=max_retries,
-        retry_delay=retry_delay,
-        timeout=timeout,
+    """Wait for a coherent snapshot that differs from the starting slot.
+
+    With an explicit after_generation, only the returned generation matters.
+    Otherwise a different payload also counts, since reconfiguring the FPGA
+    can restart the counter while leaving the old image in DDR. A byte-identical
+    save with a reused generation cannot be distinguished from that old image.
+    """
+    last_read_error = None
+
+    def pull_when_ready() -> Optional[Tuple[SlotHeader, bytes]]:
+        nonlocal last_read_error
+        try:
+            snapshot = pull_snapshot(transport, base, max_retries, retry_delay, timeout)
+        except (NoSnapshotError, TornReadError) as exc:
+            last_read_error = exc
+            return None
+        last_read_error = None
+        return snapshot
+
+    baseline_generation = after_generation
+    baseline_payload = None
+    if after_generation is None:
+        initial = pull_when_ready()
+        if initial is not None:
+            baseline_generation = initial[0].generation
+            baseline_payload = initial[1]
+        if progress is not None:
+            print(f"Ready for a new snapshot (starting generation {baseline_generation})",
+                  file=progress, flush=True)
+
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        if after_generation is not None:
+            try:
+                wait_for_generation(
+                    transport, base, wait_seconds=max(0.0, deadline - time.monotonic()),
+                    after_generation=after_generation, poll_interval=poll_interval, timeout=timeout,
+                )
+            except SnaWaitTimeoutError:
+                break
+
+        current = pull_when_ready()
+        if current is not None:
+            header, payload = current
+            if header.generation != baseline_generation:
+                return current
+            if baseline_payload is not None and payload != baseline_payload:
+                # A publication reusing the same generation and length can
+                # otherwise hide an overlapping write from the header checks.
+                confirmed = pull_when_ready()
+                if confirmed is not None and confirmed[0].raw == header.raw and confirmed[1] == payload:
+                    return confirmed
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(poll_interval, remaining))
+
+    target = f"generation {baseline_generation}" if baseline_generation is not None else "none"
+    detail = f". Last read: {last_read_error}" if last_read_error is not None else ""
+    raise SnaWaitTimeoutError(
+        f"timed out after {wait_seconds:.1f}s waiting for new snapshot (after {target}){detail}"
     )
 
 
@@ -354,14 +403,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         type=float,
         default=None,
         metavar="SECONDS",
-        help="Wait for a new snapshot generation (timeout in seconds)",
+        help="Wait for a changed snapshot generation or contents (timeout in seconds)",
     )
     parser.add_argument(
         "--after-generation",
         type=int,
         default=None,
         metavar="N",
-        help="Wait for generation different from N (used with --wait)",
+        help="Require a generation different from N, comparing generation only",
     )
 
     args = parser.parse_args(argv)
@@ -378,14 +427,12 @@ def main(argv: Optional[List[str]] = None) -> int:
                 base=args.base,
                 wait_seconds=args.wait,
                 after_generation=args.after_generation,
+                progress=sys.stderr,
             )
         else:
-            if args.after_generation is not None:
-                hdr_raw = read_mem(transport, args.base, 16)
-                hdr = parse_slot_header(hdr_raw)
-                if hdr.generation == args.after_generation:
-                    raise NoSnapshotError(f"no snapshot: generation {hdr.generation} matches --after-generation")
             header, payload = pull_snapshot(transport, base=args.base)
+            if header.generation == args.after_generation:
+                raise NoSnapshotError(f"no snapshot: generation {header.generation} matches --after-generation")
 
         write_snapshot_file(out_path, payload)
         print(f"Generation {header.generation}, {header.file_bytes} bytes written to {out_path}")
