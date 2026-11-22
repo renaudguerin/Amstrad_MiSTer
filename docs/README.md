@@ -2,6 +2,7 @@
 
 - [Build the core](building.md)
 - [Roadmap](roadmap.md)
+- [Video output modes](video-output.md)
 - [Known issues](known-issues.md)
 - [Simulation and tests](../sim/README.md)
 - [Credits and attribution](../CREDITS.md)

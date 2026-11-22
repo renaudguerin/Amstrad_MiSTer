@@ -3,7 +3,7 @@
 // Frozen qualitative response contract; observable transport is pinned in
 // sim/crt_response_test.cpp and sim/plus/b6_response_consumer_test.cpp.
 // No CRTC chip rules are implemented here: this is an explicitly qualitative
-// digital monitor, with fixed frozen-preset gains and no producer feedback.
+// digital monitor, with fixed response parameters and no producer feedback.
 //
 // Timing structure. The receiver is split in two so no clock carries the
 // whole event chain:
@@ -301,8 +301,9 @@ module crt_response (
         // Stage 1: target sum and clip bounds around the captured pre-HS origin.
         r1_clr<=r0_clr; r1_prime<=r0_prime; r1_fin<=r0_fin; r1_has<=r0_has;
         r1_hs<=r0_hs; r1_primed<=r0_primed; r1_coord<=r0_coord; r1_tick<=r0_tick;
+        // The extra tips use a provisional 5/8 gain from the D4 comparison.
         r1_sum<=(28'(r0_fcoord)<<<6) + (28'(r0_err)<<<6) +
-            ((28'($signed({1'b0,r0_width}))-28'sd256)<<<5) + 28'(r0_pulls) - 28'(r0_bpull);
+            ((28'($signed({1'b0,r0_width}))-28'sd256)<<<5) + (((28'(r0_pulls) - 28'(r0_bpull)) * 28'sd5) >>> 3);
         r1_lo<=(17'(r0_clipc)<<<6)-17'sd12288; r1_hi<=(17'(r0_clipc)<<<6)+17'sd12288;
         // Stage 2: clip.
         r2_clr<=r1_clr; r2_prime<=r1_prime; r2_fin<=r1_fin; r2_has<=r1_has;
@@ -314,7 +315,8 @@ module crt_response (
         b_latest_ok=latest_valid && $signed(r2_tick-latest_tick)>16'sd0;
         b_previous_ok=previous_valid && $signed(r2_tick-previous_tick)>16'sd0;
         b_delta=17'(r2_target)-17'(absolute_phase);
-        b_abs=r2_has ? absolute_phase+16'(b_delta>>>3) : absolute_phase;
+        // The provisional receiver settles halfway per valid observation.
+        b_abs=r2_has ? absolute_phase+16'(b_delta>>>1) : absolute_phase;
         if(r2_hs && r2_primed) begin
             if(b_latest_ok) line_phase<=latest_phase;
             else if(!r2_fin && b_previous_ok) line_phase<=previous_phase;

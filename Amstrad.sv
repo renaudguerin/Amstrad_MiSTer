@@ -45,8 +45,8 @@ assign HDMI_BOB_DEINT = 0;
 // XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXX   XXX
 
 `include "build_id.v"
-// Explicit private build profile; disabled builds keep the three-choice OSD
-// and reserved mode3=Full behavior byte-for-byte.
+// Build profile for the experimental monitor response. The first three
+// OSD choices retain their mode values; disabled builds map mode 3 to 0.
 `ifdef V1_CRT_RESPONSE_PRIVATE
 localparam ENABLE_CRT_RESPONSE = 1;
 `else
@@ -84,9 +84,9 @@ localparam CONF_STR = {
 	"P1-;",
 	"d3P1O2,CRTC,Type 1,Type 0;",
 `ifdef V1_CRT_RESPONSE_PRIVATE
-	"P1O[36:35],Video output,Full,Raw pixels,Raw CRT,CRT response;",
+	"P1O[36:35],Video output,Filtered,Raw pixels,Raw CRT,CRT response;",
 `else
-	"P1O[36:35],Sync filter,Full,Raw pixels,Raw CRT;",
+	"P1O[36:35],Video output,Filtered,Raw pixels,Raw CRT;",
 `endif
 	"P1OBD,Display,Color(GA),Color(ASIC),Green,Amber,Cyan,White;",
 	"P1-;",
