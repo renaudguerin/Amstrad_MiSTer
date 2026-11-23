@@ -2921,6 +2921,14 @@ void t07h_status2_bits0_and4_body_and_adjustment(TestBench& test) {
     }
 }
 
+unsigned seek_status2_body_end(TestBench& test, unsigned bound) {
+    for (unsigned elapsed = 1; elapsed <= bound; ++elapsed) {
+        test.run_characters(1);
+        if ((test.sample_selected() & 1) == 0) return elapsed;
+    }
+    throw TestFailure("STATUS2 body-end anchor not found");
+}
+
 // Original 6128 Plus STAT2EDG.CPR, R8=1 and R5=8, 22 November 2026.
 // Classify fields by STATUS2 bit-0 body-end spacing and read bit 4
 // at the same six offsets as the cartridge.
@@ -2935,15 +2943,7 @@ void t07i_status2_interlaced_bit4(TestBench& test) {
     constexpr std::array<unsigned, 6> offsets = {{511, 512, 513, 575, 576, 577}};
     test.run_to_frame_start(2 * long_field);
 
-    auto seek_body_end = [&]() -> unsigned {
-        for (unsigned elapsed = 1; elapsed <= long_field; ++elapsed) {
-            test.run_characters(1);
-            if ((test.sample_selected() & 1) == 0) return elapsed;
-        }
-        throw TestFailure("STATUS2 body-end anchor not found");
-    };
-
-    seek_body_end();
+    seek_status2_body_end(test, long_field);
     unsigned long_fields = 0;
     for (unsigned field = 0; field < 2; ++field) {
         std::array<std::uint8_t, offsets.size()> samples{};
@@ -2953,7 +2953,7 @@ void t07i_status2_interlaced_bit4(TestBench& test) {
             samples[i] = test.sample_selected();
             previous = offsets[i];
         }
-        const unsigned span = previous + seek_body_end();
+        const unsigned span = previous + seek_status2_body_end(test, long_field);
         if (span != short_field && span != long_field)
             throw TestFailure("unexpected STATUS2 body-end spacing");
         const bool is_long = span == long_field;
@@ -2966,6 +2966,65 @@ void t07i_status2_interlaced_bit4(TestBench& test) {
     }
     if (long_fields != 1)
         throw TestFailure("expected one short and one long STATUS2 field");
+}
+
+// Original 6128 Plus STAT2B57.CPR, IMG_4257.HEIC, 22 November 2026.
+// Each displayed line has a constant B5/B7 value. The final adjustment
+// and next read distinguish adjustment from the extra interlace line.
+// t07e covers the ordinary last-raster pulse.
+void t07j_status2_bits5_and7_adjustment_and_extra(TestBench& test) {
+    constexpr unsigned line = 64;
+    struct Geometry {
+        std::uint8_t r5, r8, adjustment_bits;
+    };
+    constexpr Geometry cases[] = {{8, 0, 0x00}, {8, 1, 0x00}, {7, 1, 0x20}};
+
+    for (const auto& geometry : cases) {
+        test.reset();
+        const std::array<std::uint8_t, 10> registers =
+            {{63, 40, 46, 0x8e, 37, geometry.r5, 25, 30, geometry.r8, 7}};
+        for (unsigned reg = 0; reg < registers.size(); ++reg)
+            test.write_register(reg, registers[reg]);
+        test.select_register(3);
+
+        const unsigned short_span = (38 * 8 + geometry.r5) * line;
+        const unsigned long_span = short_span + (geometry.r8 ? line : 0);
+        const unsigned fields = geometry.r8 ? 2 : 1;
+        const unsigned last_adjustment = (geometry.r5 - 1) * line + 1;
+        test.run_to_frame_start(2 * long_span);
+        seek_status2_body_end(test, long_span);
+        unsigned long_fields = 0;
+        for (unsigned field = 0; field < fields; ++field) {
+            std::array<std::uint8_t, 2 * line + 1> samples{};
+            test.run_characters(last_adjustment);
+            for (unsigned i = 0; i < samples.size(); ++i) {
+                samples[i] = test.sample_selected();
+                if (i + 1 < samples.size()) test.run_characters(1);
+            }
+            const unsigned span = last_adjustment + samples.size() - 1 +
+                                  seek_status2_body_end(test, long_span);
+            if (span != short_span && span != long_span)
+                throw TestFailure("unexpected STATUS2 body-end spacing");
+            const bool has_extra = geometry.r8 && span == long_span;
+            long_fields += has_extra;
+
+            const std::string label = "R8=" + std::to_string(geometry.r8) +
+                " R5=" + std::to_string(geometry.r5) +
+                (has_extra ? " long" : " ordinary/short");
+            for (unsigned i = 0; i < line; ++i)
+                expect_mask(label + " adjustment C0=" + std::to_string(i),
+                            samples[i], 0xA0, geometry.adjustment_bits);
+            if (has_extra) {
+                for (unsigned i = 0; i < line; ++i)
+                    expect_mask(label + " extra line C0=" + std::to_string(i),
+                                samples[line + i], 0xA0, 0);
+            }
+            expect_mask(label + " first character after restart",
+                        samples[has_extra ? 2 * line : line], 0xA0, 0xA0);
+        }
+        if (long_fields != geometry.r8)
+            throw TestFailure("unexpected number of long STATUS2 fields");
+    }
 }
 
 // ACCC §21.3.4.2 p.250 (FR p.249): bit 3 is stable for a whole frame and toggles
@@ -3653,7 +3712,7 @@ void t02n_write_stores_at_strobe_end(TestBench& test) {
     expect_r12("t02n second fragment of the same value keeps R12", 0x33);
 }
 
-constexpr std::array<TestCase, 88> kTests = {{
+constexpr std::array<TestCase, 89> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3749,6 +3808,8 @@ constexpr std::array<TestCase, 88> kTests = {{
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
     {"t07h STATUS2 bits0/4 normal and adjusted body", t07h_status2_bits0_and4_body_and_adjustment},
     {"t07i STATUS2 bit 4 in short and long fields", t07i_status2_interlaced_bit4},
+    {"t07j STATUS2 bits 5 and 7 in adjustment and extra line",
+     t07j_status2_bits5_and7_adjustment_and_extra},
     {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
     {"t08a screen split capture and advance", t08a_split_screen_capture_and_advance},
     {"t08b screen split disabled when zero", t08b_split_screen_disabled_when_zero},
