@@ -390,16 +390,9 @@ wire [2:0] wk_byte = walk[2:0];
 wire       wk_go   = walk_act &&
                      c_ena[wk_s] &&
                      (walk[7] ? (c_predok[wk_s] && sval[{wk_s[3:0], ~abit[wk_s]}]) : c_lact[wk_s]);
-// Block advance deliberately splits the old 5-bit increment (see the
-// synthesis-cost audit of 2026-08-26): the sprite field wraps
-// with a standalone 4-bit adder and the bank-half flips by pure decode,
-// so no carry crosses the half boundary into the walk register.
-// Measured 2026-08-26 (dispatch 32947815127): this does NOT lift the
-// fitter cliff -- fit stayed at 15:40 against the 15:32-16:19 post-cliff
-// band. The cost tracks the half bit having next-state logic at all
-// (pass-through walk[7] fits in ~9 min), not the carry operator. Kept
-// because the decode states the wrap intent more plainly and is
-// provably cycle-exact; see the audit's remediation-outcome section.
+// Increment the four-bit sprite index and flip the bank half when sprite
+// 15 wraps. The combined index advances modulo 32 in one cycle. A full fit
+// of this split still took 15:40 (90f235a, dispatch 32947815127).
 wire       wk_wrap  = &walk[6:3];
 wire [3:0] wk_s_nxt = walk[6:3] + 4'd1;
 wire       wk_bank = wk_spec ? ~abit[wk_s] : abit[wk_s];

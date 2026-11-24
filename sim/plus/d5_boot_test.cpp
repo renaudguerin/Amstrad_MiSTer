@@ -64,9 +64,9 @@ void model_controls() {
 // the RAM rate:
 //   NOP        4T  -> 1 us =  64 ticks between opcode fetches
 //   LD HL,nn  10T  -> 3 us = 192 ticks between opcode fetches
-// The Sonic rearm trace (hardware observations)
-// shows the model instead taking 128 ticks per cartridge NOP: the cartridge
-// stall covers the only WAIT sample inside the READY window.
+// This production-model fixture measured 128 and 256 ticks before the
+// fix (ae46b4a). The cartridge stall covered the only WAIT sample inside
+// the READY window and cost another microsecond.
 void cart_timing() {
     auto hx = [](unsigned v, int w) {
         char b[16]; std::snprintf(b, sizeof(b), "%0*X", w, v); return std::string(b);

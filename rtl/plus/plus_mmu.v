@@ -23,9 +23,9 @@
 //   RAM show through, as upstream.
 //
 // exp_n is sampled live whenever ROM-select 0 resolves through its rule.
-// Low selects BASIC page 1; high selects disc page 3. The top-level CPC Plus
-// configuration supplies low; this decoder also retains the high auto-boot
-// route for a future externally driven input (see architecture.md D5).
+// Low selects BASIC page 1 and high selects disc page 3. Amstrad.sv ties
+// plus_exp_n low for BASIC. sim/plus/plus_mmu_test.cpp exercises the live
+// decoder with both input levels.
 //
 // Read bridging: a bus read hitting a cartridge window claims the held
 // request/acknowledge CPU port of the memory service, holds the Z80 in WAIT
@@ -39,8 +39,9 @@
 // therefore stay hidden. Holding WAIT until the data itself returned made it
 // visible: a read whose MREQ starts two master clocks into a microsecond
 // still had the stall up at the only WAIT sample inside READY and lost a
-// whole microsecond (a cartridge NOP took 2 us; see
-// hardware observations).
+// whole microsecond. The d5-cart-timing fixture in sim/plus/d5_boot_test.cpp
+// first measured 128 and 256 ticks for cartridge NOP and LD HL,nn (ae46b4a).
+// It now requires 64 and 192 ticks respectively.
 // Admission is early enough: from the grant edge sdram.v returns the byte in
 // six clocks, and it reaches cart_dout three clocks later. cart_granted is
 // seen here one clock after the grant and cart_stall falls the clock after
