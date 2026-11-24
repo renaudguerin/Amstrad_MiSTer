@@ -465,7 +465,17 @@ wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
 // AmSpirit Lite 1.17.1 follows the sampled form for a write within the
 // match line, CPCSyntaxError 0.17.0 has no dual comparator. Open until
 // an original CRTC0 runs the E6C0 rematch disk (backlog B26).
+// MODEL LIMIT (B26): the rematch is also excluded (a) on a line whose
+// comparator an exact-R0 R9 write selected (type0_r9_at_r0_active): its C4
+// step comes from the latched Last Line, so a live C9 reset there would
+// split from the C4 advance or mask its frame end; and (b) while IVM
+// counting or an R8 toggle owns the line: the F15 ParityC9 row-end update
+// (§19.8.1 p220) is defined for ordinary row ends, not this re-entered
+// comparator. Both are unmeasured coverage limits, not chip rules; E6
+// exercises neither. Review of 0c929ce, 2026-11-24.
 wire       type0_adj_r9_rollover = in_adj && !type0_c0_1_adjust_active &&
+                                  !type0_r9_at_r0_active &&
+                                  !ivm_disp_r && !tog_line &&
                                   !type0_r4_switch_active &&
                                   !type0_r9_compare_active &&
                                   (row == R4_v_total) && type0_live_line_last &&

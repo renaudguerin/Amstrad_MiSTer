@@ -609,6 +609,14 @@ public:
         return dut_->RA;
     }
 
+    std::uint8_t c4() const {
+        return dut_->rootp->CRTC__DOT__row;
+    }
+
+    bool adjustment_active() const {
+        return dut_->rootp->CRTC__DOT__in_adj != 0;
+    }
+
     void expect_ma(const std::string& expectation, std::uint16_t expected) const {
         if (dut_->MA != expected) {
             fail(expectation + " == " + std::to_string(expected),
@@ -3498,7 +3506,8 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
 // With R9=21 both comparators match on the C9=21 line; the R5 endpoint
 // keeps priority, so the frame restarts after 22 lines and C4 never
 // reaches R7=40.
-void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9) {
+void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9,
+                                       bool rewrite_r4 = true) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x8E}, {4, 38},
@@ -3513,12 +3522,14 @@ void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9) {
     test.expect_ra("ordinary entry starts additional C9=0", 0);
     test.expect_adjustment_active("ordinary R5=22 entry is active");
     test.run_characters(12);
-    test.write_register(4, 39);
+    if (rewrite_r4) test.write_register(4, 39);
+    else test.run_clock_ticks(2);  // Same phase; R4 stays 38 != C4.
     test.run_characters(14);
     test.write_register(9, new_r9);
     test.run_characters(6);  // Sample each following line at C0=32.
 
-    const bool r9_first = new_r9 < 21;
+    // Without the R4 rewrite C4 != R4, so C9==R9 cannot reset C9 again.
+    const bool r9_first = rewrite_r4 && new_r9 < 21;
     const unsigned c4_39_lines = r9_first ? new_r9 + 1u : 22u;
     for (unsigned c9 = 0; c9 < c4_39_lines; ++c9) {
         test.expect_c4("R4 rematch holds C4=39 until C9==R9", 39);
@@ -3542,9 +3553,110 @@ void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9) {
     if (!r9_first) test.expect_vsync_low("R5 endpoint wins over the coincident R9 match");
 }
 
+// Forced R4-break entry with R5=0 (French §11.2.2 p82, §12.2 p95): C4
+// holds 8 while C9 counts to 31. Restoring R4=C4=8 and writing R9=10
+// lets C9==R9 calculate C9=0, which equals R5=0 and ends management
+// (§11.2.2 p82) right after the C9=10 line instead of at C9=31.
+void check_type0_adjustment_r4_rematch_r5_zero_exit(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 8},
+        {5, 0}, {6, 7}, {7, 63}, {8, 0}, {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(4);
+    test.reset();
+    test.run_characters((8 * 8 + 7) * 64);
+    test.expect_c4("R5=0 rematch source C4=R4", 8);
+    test.expect_ra("R5=0 rematch source C9=R9", 7);
+    test.run_characters(1);
+    test.write_selected_register_at_clken(10);  // C0=1 R4 break.
+    test.run_characters(62);
+    test.expect_c4("forced R4 break holds C4=8", 8);
+    test.expect_ra("forced R4 break counts C9=8", 8);
+    test.expect_adjustment_active("forced R4 break enters adjustment");
+    test.run_characters(12);
+    test.write_register(4, 8);
+    test.run_characters(14);
+    test.write_register(9, 10);
+    test.run_characters(6);
+    for (unsigned c9 = 8; c9 <= 10; ++c9) {
+        test.expect_c4("R5=0 rematch holds C4 before C9==R9", 8);
+        test.expect_ra("R5=0 rematch counts C9 to R9", c9);
+        test.expect_adjustment_active("R5=0 rematch stays additional before C9==R9");
+        test.run_characters(64);
+    }
+    test.expect_c4("R9-generated C9=0 equal to R5=0 restores origin C4", 0);
+    test.expect_ra("R9-generated C9=0 equal to R5=0 restores origin C9", 0);
+    test.expect_adjustment_inactive("R9-generated C9=0 equal to R5=0 ends management");
+}
+
+// Review of 0c929ce: an exact-R0 R9 write (FR §11.2.2 p83) selects the
+// latched Last Line for the next line's C4 step. With R5=22 the straddle
+// gives C4=39, C9=8 (t12). Restoring R4=39 on that line must not reset C9
+// apart from C4: the excluded rematch leaves C9 counting to 9 at C4=39.
+void check_type0_adjustment_r4_rematch_exact_r0_owner(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 25}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(9);
+    test.reset();
+    test.run_characters(kT12CriticalLineCharacters + 63);
+    test.write_selected_register_at_clken(8);
+    test.expect_c4("exact-R0 straddle leaves C4=39", 39);
+    test.expect_ra("exact-R0 straddle leaves C9=8", 8);
+    test.run_characters(12);
+    test.write_register(4, 39);
+    test.run_characters(20);
+    test.expect_c4("exact-R0 owner line keeps C4=39", 39);
+    test.expect_ra("exact-R0 owner line keeps C9=8", 8);
+    test.run_characters(64);
+    test.expect_c4("exact-R0 owner line does not advance C4", 39);
+    test.expect_ra("exact-R0 owner line does not split a C9 reset from C4", 9);
+    test.expect_adjustment_active("exact-R0 owner line stays additional");
+}
+
+// Review of 0c929ce: with IVM (R8=3) the rematch is excluded (MODEL LIMIT
+// in the engine), so restoring R4=C4 during adjustment never reaches C4=40.
+void check_type0_adjustment_r4_rematch_ivm_excluded(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 25}, {7, 63}, {8, 3},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    unsigned lines = 0;
+    while (!(test.adjustment_active() && test.c4() == 39)) {
+        test.run_characters(64);
+        if (++lines > 2000) {
+            test.expect_adjustment_active("IVM frame reaches adjustment");
+            test.expect_c4("IVM frame reaches C4=39", 39);
+        }
+    }
+    test.expect_byte("IVM rematch starts at C0=0", 0, test.c0());
+    test.run_characters(12);
+    test.write_register(4, 39);
+    test.run_characters(14);
+    test.write_register(9, 3);
+    test.run_characters(6);
+    for (unsigned line = 0; line < 23; ++line) {
+        if (test.c4() != 39 && test.c4() != 0)
+            test.expect_c4("IVM adjustment keeps C4=39 until origin", 39);
+        test.run_characters(64);
+    }
+}
+
 void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
     check_type0_adjustment_r4_rematch(test, 3);
     check_type0_adjustment_r4_rematch(test, 21);
+    check_type0_adjustment_r4_rematch(test, 3, false);
+    check_type0_adjustment_r4_rematch_r5_zero_exit(test);
+    check_type0_adjustment_r4_rematch_exact_r0_owner(test);
+    check_type0_adjustment_r4_rematch_ivm_excluded(test);
 }
 
 void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
