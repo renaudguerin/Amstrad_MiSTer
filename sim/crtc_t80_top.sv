@@ -108,6 +108,9 @@ module crtc_t80_top(
   // Classic CRTC write acceptance, as in Amstrad_motherboard.v (French ACCC
   // v1.11 sections 4.4.3 p26 and 4.4.4 p31): a write strobe that starts
   // between nCLKEN and CLKEN reaches the CRTC from the clock after CLKEN.
+  // Bench limit: this is a copy of the board logic, so a wiring error that
+  // exists only in Amstrad_motherboard.v is not caught here; the production
+  // board path is covered by the b18-snapshot-based classic benches.
   reg  crtc_wr_late_phase, crtc_wr_d, crtc_wr_hold;
   wire crtc_wr = io_wr & ~A[14];
   always @(posedge clk) begin

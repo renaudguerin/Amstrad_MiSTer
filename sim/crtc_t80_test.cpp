@@ -214,6 +214,7 @@ void test_outi_r5_rfd() {
   b.check(b.d.r5 == 0, "OUTI write must not store before the straddled CLKEN");
   b.seam();
   b.check(b.d.row == 1 && b.d.line == 0 && b.d.c0 == 15, "OUTI write not accepted at row=1 line=0 c0=15");
+  b.check(b.d.r5 == 0, "OUTI write must not store on the straddled CLKEN itself");
   b.tick();
   b.check(b.d.r5 == 1, "r5 must capture new value 1 on the first clock of C0=R0");
 
@@ -381,7 +382,8 @@ void p124_r0_publication(bool outi, bool earlier) {
   b.tick();b.check(b.d.r0==(outi?63:127),outi?"p124 OUTI must not publish before the straddled CLKEN":"p124 OUT R0 publication must remain immediate");
   b.check(b.d.c0==(earlier?62:63),"p124 storage unexpectedly advanced counter");
   b.seam();
-  if(outi){b.tick();b.check(b.d.r0==127,"p124 OUTI publishes on the first clock after the straddled CLKEN");}
+  if(outi){b.check(b.d.r0==63,"p124 OUTI must not publish on the straddled CLKEN itself");
+    b.tick();b.check(b.d.r0==127,"p124 OUTI publishes on the first clock after the straddled CLKEN");}
   if(earlier){b.check(b.d.c0==63,"p124 OUTI3B first decision");b.seam();}
   const bool wraps=outi&&!earlier;
   b.check(b.d.c0==(wraps?0:64),"p124 instruction-class terminal outcome wrong");
@@ -407,7 +409,8 @@ void p124_zero_outi() {
   // either of these two seams a new line/row event.
   const unsigned frozen_line=b.d.line, frozen_row=b.d.row;
   b.tick();b.check(b.d.r0==0&&b.d.c0==0,"p124 zero OUTI must not publish before the straddled CLKEN");
-  b.seam();b.tick();b.check(b.d.r0==16,"p124 zero OUTI publishes after the straddled CLKEN");
+  b.seam();b.check(b.d.r0==0,"p124 zero OUTI must not publish on the straddled CLKEN itself");
+  b.tick();b.check(b.d.r0==16,"p124 zero OUTI publishes after the straddled CLKEN");
   b.check(b.d.c0==0,"p124 zero OUTI must retain first zero");
   b.check(b.d.line==frozen_line&&b.d.row==frozen_row,
           "p124 zero held seam must preserve C9/C4");

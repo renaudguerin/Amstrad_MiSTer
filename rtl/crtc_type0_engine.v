@@ -755,9 +755,11 @@ wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
 // is inferred from the photo, not stated by p170. When the next row keeps the
 // same C4 (R4=0, held rows) the comparison still matches and the existing
 // immediate start is kept (t02i, write at C0=R0 with R4=R9=0); its onset there
-// is not pinned. The raw C9=R9 test does not model IVM line doubling.
+// is not pinned. The row end is this engine's own C4 commit decision
+// (row_new), so adjustment lines that hold C4 and IVM row ends follow the
+// counters rather than a raw C9=R9 test (t02r3).
 // Evidence: local/dev/docs/investigations/hardware-runs/b6-aperture-sweep-2026-11-24.md
-wire r7_write_row_end_t0 = (hcc == R0_h_total) && (line == R9_v_max_line) && (row_next != row);
+wire r7_write_row_end_t0 = (hcc == R0_h_total) && row_new && (row_next != row);
 wire r7_write_fire_t0 = !VSYNC_r && vsync_allow && (hcc > 1) && !r7_write_row_end_t0;
 assign r7_write_fire = r7_write_fire_t0;
 assign vsync_holdoff = !CRTC_TYPE && type0_vsync_wait_line_start;
