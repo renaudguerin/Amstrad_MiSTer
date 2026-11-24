@@ -105,6 +105,20 @@ module crtc_t80_top(
 
   // GA signals
   wire phi_en_p, phi_en_n, cclk_en_p, cclk_en_n, ready_o;
+  // Classic CRTC write acceptance, as in Amstrad_motherboard.v (French ACCC
+  // v1.11 sections 4.4.3 p26 and 4.4.4 p31): a write strobe that starts
+  // between nCLKEN and CLKEN reaches the CRTC from the clock after CLKEN.
+  reg  crtc_wr_late_phase, crtc_wr_d, crtc_wr_hold;
+  wire crtc_wr = io_wr & ~A[14];
+  always @(posedge clk) begin
+    if (cclk_en_p) crtc_wr_late_phase <= 1'b1;
+    else if (cclk_en_n) crtc_wr_late_phase <= 1'b0;
+    crtc_wr_d <= crtc_wr;
+    if (!crtc_wr) crtc_wr_hold <= 1'b0;
+    else if (!crtc_wr_d && crtc_wr_late_phase) crtc_wr_hold <= 1'b1;
+    else if (cclk_en_n) crtc_wr_hold <= 1'b0;
+  end
+  wire crtc_wr_deferred = crtc_wr & ((!crtc_wr_d && crtc_wr_late_phase) | crtc_wr_hold);
   wire hs, vs, de;
   wire hs_restart;
 
@@ -192,7 +206,7 @@ module crtc_t80_top(
     .nCLKEN(cclk_en_p),
     .nRESET(~reset),
     .CRTC_TYPE(crtc_type),
-    .ENABLE(crtc_enable),
+    .ENABLE(crtc_enable & ~crtc_wr_deferred),
     .nCS(crtc_ncs),
     .R_nW(crtc_rnw),
     .RS(crtc_rs),
