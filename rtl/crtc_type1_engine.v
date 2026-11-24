@@ -498,10 +498,13 @@ wire adj_exit_write_accept = nRESET && !SNA_LOAD && r5_write_hit && !CLKEN &&
 wire adj_exit_terminal_lost = adj_exit_write_capture && CLKEN && hcc_end &&
                               in_adj && adj_exit_progressive &&
                               !(|R5_v_total_adj);
-assign adj_retired_origin = adj_state_retired && adj_exit_progressive &&
+assign adj_retired_origin = nRESET && !SNA_LOAD && adj_state_retired &&
+                            adj_exit_progressive &&
                             crtc1_stuck_r5_row_reset_event;
 always @(posedge CLOCK) begin
     if(!nRESET || SNA_LOAD || !CRTC_TYPE || CLKEN || !adj_exit_progressive)
+        adj_exit_write_capture <= 0;
+    else if(r5_write_hit && (|DI[4:0]))
         adj_exit_write_capture <= 0;
     else if(adj_exit_write_accept)
         adj_exit_write_capture <= 1;

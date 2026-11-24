@@ -4991,22 +4991,42 @@ void test_type1_r5_zero_terminal_write_retires_adjustment_state(TestBench& test)
     test.expect_c5("lost terminal keeps C5 counting", 6);
     test.expect_adjustment_active("lost terminal leaves adjustment counting");
 
-    // C4 wraps through 127 and meets R4=10 with C9=3 on line 511; line 512
-    // is the next frame. A retained Q20 reset would also give C4=C9=0
-    // here, with C5=512%32=0, but adjustment would stay active.
-    test.run_characters(506 * 64);
+    // Section 11.2.3 p.84: an R9 write counts for the current C9. R9=2
+    // ends line 6 (C9=2), so line 7 starts C4=13 and rows take 3 lines.
+    // The rematch then lands at a C5 phase that a missed C5 reset shows.
+    test.write_register(9, 2);
+
+    // Section 11.2.4 p.85: C4 carries 127->0 at line 7+115*3=352 without
+    // ending management; a seven-bit carry is not an R4 match.
+    test.run_characters(346 * 64);
+    test.expect_c4("C4 carry reaches 0 inside management", 0);
+    test.expect_ra("C4 carry line C9", 0);
+    test.expect_c5("C4 carry line C5", 352 % 32);
+    test.expect_adjustment_active("C4 carry alone keeps adjustment active");
+
+    // Line 384 is the C4=R4=10, C9=R9=2 line, still inside management.
+    test.run_characters(32 * 64);
+    test.expect_c4("pre-rematch line C4=R4", 10);
+    test.expect_ra("pre-rematch line C9=R9", 2);
+    test.expect_c5("pre-rematch line C5", 384 % 32);
+    test.expect_adjustment_active("pre-rematch line is still in adjustment");
+
+    // Line 385 is the next frame. A retained Q20 reset would also give
+    // C4=C9=0 but keep adjustment active with C5=385%32=1.
+    test.run_characters(64);
     test.expect_c4("retired state origin C4", 0);
     test.expect_ra("retired state origin C9", 0);
-    test.expect_c5("retired state origin C5", 0);
+    test.expect_c5("retired state origin clears C5", 0);
     test.expect_adjustment_inactive("retired state origin ends adjustment");
 
     // Output consequence: a positive R5 now waits for the frame end. Under
-    // the retained Q20 state C5+1=3 would restart C4/C9 after 3 lines.
+    // the retained Q20 state, C5+1=3 would restart C4/C9 one line later.
     test.write_register(5, 3);
     test.run_characters(3 * 64);
-    test.expect_c4("ordinary frame continues past C5+1=R5", 0);
-    test.expect_ra("ordinary frame reaches C9=3", 3);
-    test.run_characters(41 * 64);
+    test.expect_c4("ordinary frame continues past C5+1=R5", 1);
+    test.expect_ra("ordinary frame second row starts at C9=0", 0);
+    test.expect_adjustment_inactive("ordinary frame is outside adjustment");
+    test.run_characters(30 * 64);
     test.expect_c4("ordinary frame enters R5 adjustment at C4=R4+1", 11);
     test.expect_ra("ordinary adjustment starts at C9=0", 0);
     test.expect_c5("ordinary adjustment starts at C5=0", 0);
