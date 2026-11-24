@@ -745,7 +745,20 @@ wire vsync_count_tick_t0 = CLKEN &&
 assign field_count_tick = !r0_frozen_w && (hcc_next == {1'b0, R0_h_total[7:1]});
 
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
-wire r7_write_fire_t0 = !VSYNC_r && vsync_allow && (hcc > 1);
+// French ACCC v1.11 section 16.4 p170: on a row's last line the R7
+// comparison at C0=R0 already concerns the next row ("si R7 est modifie avec
+// la valeur de C4 sur la ligne C4-1, C9=R9 et C0=R0, alors la VSYNC sera
+// active des que C4=R7"). Writing the current row's C4 there is therefore the
+// next row's C0vs<2 case of section 16.4.1.1 p170 and is blocked (SHAKER 019D
+// CRTC0 photo 1E/1E; CPCSyntaxError v0.17.0 agrees).
+// MODEL LIMIT (B26): blocking (rather than deferring) the current-row value
+// is inferred from the photo, not stated by p170. When the next row keeps the
+// same C4 (R4=0, held rows) the comparison still matches and the existing
+// immediate start is kept (t02i, write at C0=R0 with R4=R9=0); its onset there
+// is not pinned. The raw C9=R9 test does not model IVM line doubling.
+// Evidence: local/dev/docs/investigations/hardware-runs/b6-aperture-sweep-2026-11-24.md
+wire r7_write_row_end_t0 = (hcc == R0_h_total) && (line == R9_v_max_line) && (row_next != row);
+wire r7_write_fire_t0 = !VSYNC_r && vsync_allow && (hcc > 1) && !r7_write_row_end_t0;
 assign r7_write_fire = r7_write_fire_t0;
 assign vsync_holdoff = !CRTC_TYPE && type0_vsync_wait_line_start;
 

@@ -836,6 +836,46 @@ void test_type0_r7_hcc1_blocked(TestBench& test) {
     test_type0_r7_hcc_blocked(test, 1);
 }
 
+// French ACCC v1.11 section 16.4 p170: at C0=R0 of a row's last line the R7
+// comparison already concerns the next row, so writing the current C4 there
+// is the next row's blocked C0vs<2 case (16.4.1.1 p170). SHAKER 019D on CRTC 0
+// photographs this as an inactive PPI read; the same write one line earlier
+// is an ordinary C0vs>1 write and starts VSYNC at once.
+void test_type0_r7_row_end_write(TestBench& test, bool last_line) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x21}, {4, 3},
+        {5, 0}, {6, 3}, {7, 3}, {8, 0},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+    // Row C4=1 spans characters 16..31; its line 1 is the last line (R9=1)
+    // and C0=7 is R0. R7=1 avoids the separate R7=0 frame-origin route.
+    test.run_characters(16 + (last_line ? 8 : 0) + 7);
+    test.expect_c4("row-end fixture reaches C4=1", 1);
+    test.expect_vsync_low("VSYNC before the C0=R0 R7=C4 write");
+    test.write_selected_register_at_clken(1);
+    test.run_clock_ticks(1);
+    if (!last_line) {
+        test.expect_vsync_high("C0=R0 R7=C4 write on a non-last line starts VSYNC");
+        return;
+    }
+    test.expect_vsync_low("C0=R0 R7=C4 write on the row's last line is blocked");
+    test.run_characters(2 * 8);
+    test.expect_vsync_low("row-end R7 write starts no VSYNC on the next row");
+}
+
+void test_type0_r7_row_end_write_blocked(TestBench& test) {
+    test_type0_r7_row_end_write(test, true);
+}
+
+void test_type0_r7_row_end_write_nonlast(TestBench& test) {
+    test_type0_r7_row_end_write(test, false);
+}
+
 void test_type0_r7_midline_duration_extended(TestBench& test) {
     configure_f3_midline_fixture(test, 0);
     write_r7_zero_at_hcc(test, kF3MidlineHcc);
@@ -9723,6 +9763,10 @@ int main(int argc, char** argv) {
          false, test_type0_r7_hcc0_blocked},
         {"t02b_type0_r7_hcc1_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc1_blocked},
+        {"t02r1_type0_r7_row_end_write_blocked", "French ACCC v1.11 sections 16.4 and 16.4.1.1 p170; SHAKER 019D",
+         false, test_type0_r7_row_end_write_blocked},
+        {"t02r2_type0_r7_row_end_write_nonlast", "French ACCC v1.11 section 16.4.1.1 p170",
+         false, test_type0_r7_row_end_write_nonlast},
         {"t02c_type0_r7_midline_extended", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_midline_duration_extended},
         {"t02d_type1_r7_early_hcc_immediate", "ACCC v1.10 section 16.4.2; F3",
