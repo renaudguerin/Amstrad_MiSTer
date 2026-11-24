@@ -3650,7 +3650,44 @@ void check_type0_adjustment_r4_rematch_ivm_excluded(TestBench& test) {
     }
 }
 
+// Re-review of a8f6171: a rematch landing on R6 captures ParityR6
+// (French §19.5.2 p206: ParityR6 := ParityFrame xor 1 when C4 reaches R6).
+// R8=1, R6=40 > R4=38, so the first frame never reaches R6 and ParityR6
+// stays 0 until the rematch advances C4 to 40 (ParityFrame=0 -> 1). With
+// ParityR6 odd and interlace on, §19.6.1 p217 appends one line after the
+// R5 lines, holding C4 and continuing C9 at R5=22 (§11.2 p85), then origin.
+void check_type0_adjustment_r4_rematch_r6_parity(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 40}, {7, 63}, {8, 1},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    test.run_characters(39u * 8u * 64u);
+    test.expect_c4("R6 parity rematch reaches C4=39", 39);
+    test.expect_ra("R6 parity rematch reaches C9=0", 0);
+    test.expect_adjustment_active("R6 parity rematch is in adjustment");
+    test.run_characters(12);
+    test.write_register(4, 39);
+    test.run_characters(14);
+    test.write_register(9, 3);
+    test.run_characters(6);
+    test.run_characters(4u * 64u);
+    for (unsigned c9 = 0; c9 < 22; ++c9) {
+        test.expect_c4("rematch lands C4 on R6=40", 40);
+        test.expect_ra("R5 count at C4=40", c9);
+        test.run_characters(64);
+    }
+    test.expect_c4("ParityR6 odd adds one line holding C4=40", 40);
+    test.expect_ra("added line continues C9 at R5=22", 22);
+    test.run_characters(64);
+    test.expect_c4("added line ends at origin C4", 0);
+    test.expect_ra("added line ends at origin C9", 0);
+}
+
 void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
+    check_type0_adjustment_r4_rematch_r6_parity(test);
     check_type0_adjustment_r4_rematch(test, 3);
     check_type0_adjustment_r4_rematch(test, 21);
     check_type0_adjustment_r4_rematch(test, 3, false);
