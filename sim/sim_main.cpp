@@ -3486,6 +3486,67 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
 
 }
 
+// SHAKER 2.7 E6 page 0409 case 28 recipe (R0=63, R4=38, R9=7, R5=22 before
+// the last line; R4=39 at C0=12 and R9=3 at C0=26 of the first additional
+// line C4=39/C9=0; R7=40; program expectation 000E). French ACCC v1.11
+// §11.2.2 p82: during additional management C9 is compared with R9 and R5,
+// and management ends when the calculated C9 equals R5. p83 example 1 and
+// §13.2.4 p108: C4 increments in additional management only when C4==R4
+// and C9==R9. Restoring R4=C4 therefore lets C9==R9 reset C9 and advance
+// C4 to 40 (R7=40 starts VSYNC) while the R5 count continues from C9=0:
+// 4 lines at C4=39 (C9=0..3), then 22 at C4=40 (C9=0..21), then origin.
+// With R9=21 both comparators match on the C9=21 line; the R5 endpoint
+// keeps priority, so the frame restarts after 22 lines and C4 never
+// reaches R7=40.
+void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x8E}, {4, 38},
+        {5, 22}, {6, 25}, {7, 40}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    // 39 rows x 8 lines reach the first additional line C4=R4+1, C9=0.
+    test.run_characters(39u * 8u * 64u);
+    test.expect_byte("R4 rematch starts at C0=0", 0, test.c0());
+    test.expect_c4("ordinary entry advances C4 to R4+1", 39);
+    test.expect_ra("ordinary entry starts additional C9=0", 0);
+    test.expect_adjustment_active("ordinary R5=22 entry is active");
+    test.run_characters(12);
+    test.write_register(4, 39);
+    test.run_characters(14);
+    test.write_register(9, new_r9);
+    test.run_characters(6);  // Sample each following line at C0=32.
+
+    const bool r9_first = new_r9 < 21;
+    const unsigned c4_39_lines = r9_first ? new_r9 + 1u : 22u;
+    for (unsigned c9 = 0; c9 < c4_39_lines; ++c9) {
+        test.expect_c4("R4 rematch holds C4=39 until C9==R9", 39);
+        test.expect_ra("R4 rematch counts C9 at C4=39", c9);
+        test.expect_adjustment_active("R4 rematch stays in additional management");
+        test.expect_vsync_low("C4 has not reached R7=40");
+        test.run_characters(64);
+    }
+    if (r9_first) {
+        for (unsigned c9 = 0; c9 < 22; ++c9) {
+            test.expect_c4("C9==R9 with C4==R4 advances C4 to 40", 40);
+            test.expect_ra("R5 count continues from the R9 reset", c9);
+            test.expect_adjustment_active("R9 rollover does not end R5 management");
+            if (c9 == 0) test.expect_vsync_high("C4=R7=40 starts VSYNC");
+            test.run_characters(64);
+        }
+    }
+    test.expect_c4("R5 endpoint restores frame origin C4", 0);
+    test.expect_ra("R5 endpoint restores frame origin C9", 0);
+    test.expect_adjustment_inactive("R5 endpoint ends additional management");
+    if (!r9_first) test.expect_vsync_low("R5 endpoint wins over the coincident R9 match");
+}
+
+void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
+    check_type0_adjustment_r4_rematch(test, 3);
+    check_type0_adjustment_r4_rematch(test, 21);
+}
+
 void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
     test.set_crtc_type(0);
 
@@ -9888,6 +9949,9 @@ int main(int argc, char** argv) {
         {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
          "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; pending R9/R5 completion", false,
          test_type0_r9_write_within_c0_1_enters_zero_adjustment},
+        {"t16n2_type0_adjustment_r4_rematch_reenables_r9",
+         "French ACCC v1.11 §11.2.2 pp82–83, §13.2.4 p108; SHAKER E6 0409 case 28 dual comparator", false,
+         test_type0_adjustment_r4_rematch_reenables_r9},
         {"t16o_type0_r4_write_at_c0_0_overrides_last_line",
          "ACCC v1.10 sections 10.3.1 and 12.2; F12 C0=0 guard", false,
          test_type0_r4_write_at_c0_0_overrides_last_line},

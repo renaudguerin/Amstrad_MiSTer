@@ -432,7 +432,7 @@ wire       type0_c0_1_r5_end = type0_c0_1_r5_owner &&
 // write keep their existing distinct rollover priorities.
 wire       type0_c0_1_r9_match = type0_c0_1_adjust && type0_c0_1_r9_owner &&
                                !type0_r9_at_r0_active && type0_live_line_last;
-wire       type0_rollover_line_last = type0_c0_1_adjust_active ?
+wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
                                      (type0_c0_1_r5_end | type0_c0_1_r9_match) :
                                     c1_last_line_validate ? 1'b1 :
 									 type0_r9_at_r0_active ?
@@ -444,6 +444,36 @@ wire       type0_rollover_line_last = type0_c0_1_adjust_active ?
 									 ((line == type0_adjust_line_max) | type0_zero_adj_entry_active) :
 								 (in_adj | type0_last_line_armed) ? line_last_r :
 									 type0_live_line_last;
+// Dual comparator during ordinary additional management. French ACCC v1.11
+// §11.2.2 p82: "En gestion additionnelle, C9 est ainsi comparé avec R9 et
+// R5"; p83 example 1: later additional lines no longer compare C9 with R9
+// to increment C4 "car C4<>R4". §13.2.4 p108: "l'incrémentation de C4 n'a
+// lieu que lorsque C4==R4 et C9==R9 en gestion additionnelle". An R4
+// rewrite to the current C4 (R4+1 at entry) therefore re-enables the C9/R9
+// comparator: C9==R9 resets C9 and increments C4 while management
+// continues. The R5 comparison above keeps priority and remains the only
+// exit, except that an R9-generated C9=0 equal to an R5=0 target ends
+// management (§11.2.2 p82: it ends when the calculated C9 equals R5; same
+// rule as type0_r9_zero_adjust_end). The forced C0=1 line, a pending R9
+// phase and an R4 cancellation keep their own comparators above.
+// MODEL LIMIT (B26): C4==R4 is taken from the live register at the line's
+// last character, so an equal R4 write anywhere in the C9==R9 line
+// qualifies. The alternative samples C4==R4 from C0<2 and requires R4 to
+// stay equal for the whole line (§13.2.1 p106 "R4 est resté égal à C4
+// durant la ligne", stated for adjustment entry). Evidence: SHAKER E6
+// 0409 cases 27/28 (rewrite lines before the match) need either form;
+// AmSpirit Lite 1.17.1 follows the sampled form for a write within the
+// match line, CPCSyntaxError 0.17.0 has no dual comparator. Open until
+// an original CRTC0 runs the E6C0 rematch disk (backlog B26).
+wire       type0_adj_r9_rollover = in_adj && !type0_c0_1_adjust_active &&
+                                  !type0_r4_switch_active &&
+                                  !type0_r9_compare_active &&
+                                  (row == R4_v_total) && type0_live_line_last &&
+                                  !type0_selected_rollover_line_last;
+wire       type0_adj_r9_zero_end = type0_adj_r9_rollover &&
+                                  (type0_adjust_line_max == 5'd31);
+wire       type0_rollover_line_last = type0_selected_rollover_line_last |
+                                     type0_adj_r9_rollover;
 // French ACCC v1.11 §11.2.2 pp82–83 and §13.2.4 p108:
 // while the pending C4=R4 phase still compares R9, its C9 reset already
 // calculates the next line. If that zero reaches the selected R5=0 target,
@@ -472,7 +502,8 @@ wire       row_last_w = (row == R4_v_total);
 // cannot reset a frame after an early R9 write cancelled that decision.
 wire       crtc0_row_frame_last = (type0_last_line_armed | in_adj) &
                                       (~type0_adjustment_selected | type0_adjust_end) &
-                                      (~type0_r9_compare_active | type0_r9_zero_adjust_end);
+                                      (~type0_r9_compare_active | type0_r9_zero_adjust_end) &
+                                      (~type0_adj_r9_rollover | type0_adj_r9_zero_end);
 // F14 (ACCC v1.11 section 19.6.1 p.217; Q10 resolution in
 // accc-author-questions.md item 10): with an interlace mode active (R8=1 or
 // 3) and ParityR6 odd, one additional line is appended after the R5
