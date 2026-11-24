@@ -4954,6 +4954,69 @@ void test_type1_positive_r5_reentry_origin_delay(TestBench& test) {
     test.expect_adjustment_inactive("completion wins over re-entry");
 }
 
+// French ACCC v1.11 section 11.3.2 p.87: R5 written to 0 during additional
+// management keeps C5 counting and the C4/C9 reset is lost. MODEL LIMIT
+// (B26) in rtl/crtc_type1_engine.v: when that write lands on C0==R0 of the
+// line where the old C5+1==R5 matches, the management state is retired
+// from the old match, so the next C4==R4, C9==R9 line end is a true frame
+// origin rather than the author-Q20 row-only reset. The expectation is the
+// original SHAKER CRTC1 E->S history: E 02CA's caller writes R5=0 at
+// C0=R0=63 on its terminal line, and the CS/02D3 photograph prints 4E40,
+// which requires S to start from a cleared adjustment. Counts below are
+// paper-derived from section 11.2.4 p.85 (C4 increments past R4 while
+// management is active) and section 11.2.1 p.82 (R5 lines from C4=R4+1).
+void test_type1_r5_zero_terminal_write_retires_adjustment_state(TestBench& test) {
+    test.set_crtc_type(1);
+    constexpr RegisterProgram kRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 6},  {6, 25}, {7, 30}, {8, 0},    {9, 3},
+    }};
+    program_registers(test, kRegisters);
+    test.reset();
+
+    // Adjustment line k has C4=11+k/4, C9=k%4, C5=k%32. Line 5 is the
+    // terminal one: old C5+1=6=R5.
+    test.run_characters(44 * 64 + 5 * 64);
+    test.expect_c4("terminal adjustment line C4", 12);
+    test.expect_ra("terminal adjustment line C9", 1);
+    test.expect_c5("terminal adjustment line C5", 5);
+    test.run_to_c0(63);
+    test.write_register(5, 0);
+
+    // Section 11.3.2 p.87: the zero stored before the line end loses the
+    // C4/C9 reset; C5 and C4 keep counting (line 6).
+    test.run_to_c0(0);
+    test.expect_c4("lost terminal keeps C4 counting", 12);
+    test.expect_ra("lost terminal keeps C9 counting", 2);
+    test.expect_c5("lost terminal keeps C5 counting", 6);
+    test.expect_adjustment_active("lost terminal leaves adjustment counting");
+
+    // C4 wraps through 127 and meets R4=10 with C9=3 on line 511; line 512
+    // is the next frame. A retained Q20 reset would also give C4=C9=0
+    // here, with C5=512%32=0, but adjustment would stay active.
+    test.run_characters(506 * 64);
+    test.expect_c4("retired state origin C4", 0);
+    test.expect_ra("retired state origin C9", 0);
+    test.expect_c5("retired state origin C5", 0);
+    test.expect_adjustment_inactive("retired state origin ends adjustment");
+
+    // Output consequence: a positive R5 now waits for the frame end. Under
+    // the retained Q20 state C5+1=3 would restart C4/C9 after 3 lines.
+    test.write_register(5, 3);
+    test.run_characters(3 * 64);
+    test.expect_c4("ordinary frame continues past C5+1=R5", 0);
+    test.expect_ra("ordinary frame reaches C9=3", 3);
+    test.run_characters(41 * 64);
+    test.expect_c4("ordinary frame enters R5 adjustment at C4=R4+1", 11);
+    test.expect_ra("ordinary adjustment starts at C9=0", 0);
+    test.expect_c5("ordinary adjustment starts at C5=0", 0);
+    test.expect_adjustment_active("ordinary R5=3 adjustment is active");
+    test.run_characters(3 * 64);
+    test.expect_c4("R5=3 adjustment completes C4", 0);
+    test.expect_ra("R5=3 adjustment completes C9", 0);
+    test.expect_adjustment_inactive("R5=3 adjustment completes");
+}
+
 void run_type1_r5_zero_to_q20_reset(TestBench& test, std::uint8_t r7) {
     constexpr RegisterProgram kRegisters = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
@@ -9996,6 +10059,9 @@ int main(int argc, char** argv) {
         {"t08s_type1_positive_r5_reentry_origin_delay",
          "French §11.3.2 p87 / §11.8 p93; SHAKER CE02C9 photograph0080 restart policy with IVM row eligibility", false,
          test_type1_positive_r5_reentry_origin_delay},
+        {"t08t_type1_r5_zero_terminal_write_retires_adjustment_state",
+         "French §11.3.2 p87 / §11.2.4 p85; MODEL LIMIT (B26) SHAKER CRTC1 E02CA->S02D3 photograph 4E40", false,
+         test_type1_r5_zero_terminal_write_retires_adjustment_state},
         {"t08r_type1_r5_zero_row_origin_reopens_display",
          "French ACCC v1.11 sections 18.1/18.2.1 p.189, 11.3.2 p.87; Q20 and SHAKER C E/P photographs", false,
          test_type1_r5_zero_row_origin_reopens_display},
