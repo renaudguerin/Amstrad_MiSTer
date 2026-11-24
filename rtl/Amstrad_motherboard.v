@@ -506,6 +506,9 @@ wire  [11:0] plus_pal_rdata;
 // Selected raster sources: classic path when Plus model = Off.
 wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
 wire [4:0]  ra_sel = plus_mode ? plus_ra : RA;
+// hs_sel/vs_sel are the selected raw CRTC HSYNC/VSYNC pins. They feed
+// crt_filter directly; GA-shaped monitor sync (hsync_ga/vsync_ga, C-SYNC)
+// is a separate signal.
 wire        hs_sel = plus_mode ? plus_crtc_hs : crtc_hs;
 wire        vs_sel = plus_mode ? plus_crtc_vs : crtc_vs;
 wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;

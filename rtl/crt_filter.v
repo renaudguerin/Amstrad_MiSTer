@@ -69,8 +69,10 @@ assign SHIFT = shift ^ hs4;
 reg hsync, no_hsync;
 assign SOURCE_MISSING = no_hsync;
 
-// Hybrid live blanking diagnostic. HSYNC_I is the selected raw CRTC HS
-// event and therefore owns this live horizontal phase, but the pulse is
+// Hybrid live blanking diagnostic. HSYNC_I is the selected raw CRTC HS pin
+// (motherboard hs_sel), not the Gate Array's shaped HSYNC or C-SYNC. It owns
+// this live horizontal phase, but raw HS is only one contributor to the GA
+// horizontal force blank, not the complete GA blank event, and the pulse is
 // not by itself a complete acquisition blank.  The production ratio is
 // 64 MHz CLK / 4 MHz CE_4, so 1024 master clocks preserve the 64-CE Full
 // blank width without quantising a three-pixel-M2 (12-master-clock) R2.JIT
