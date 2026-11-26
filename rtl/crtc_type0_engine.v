@@ -704,7 +704,9 @@ assign     c1_last_line_validate = !CRTC_TYPE && (hcc == 1) && !in_adj &&
                                   !type0_c0_1_adjust_active &&
                                   type0_c1_line_last && type0_c0_row_last;
 
-wire       type0_adjustment_selected = type0_c0_1_adjust_active |
+// The live break strobe requires C0=1 and frame_adj_r, which already
+// selects this route. Keep that strobe out of the rollover selection.
+wire       type0_adjustment_selected = type0_c0_1_adjust |
 									 ((hcc == 2) ?
 									  frame_adj_r & |type0_effective_r5 : frame_adj_r);
 assign type0_r4_window_write = !CRTC_TYPE && register_write && addr == 5'd04 &&

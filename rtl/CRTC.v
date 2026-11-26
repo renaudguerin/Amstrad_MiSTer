@@ -368,7 +368,8 @@ wire       frame_new      = row_new & row_frame_last;
 wire       type0_widen_row_step = e0_r0_widen_step &&
                                   (frame_adj_r || (hcc == 1 && hcc_next == 2));
 wire       row_commit = row_new || e0_frozen_row_advance || type0_widen_row_step;
-wire [6:0] row_commit_value = row_new ? row_next : row + 7'd1;
+wire [6:0] row_increment = row + 7'd1;
+wire [6:0] row_commit_value = row_new ? row_next : row_increment;
 assign     row_r6_landing = row_commit && (row_commit_value == R6_v_displayed);
 
 wire       crtc0_reload     = e0_reload;
@@ -836,11 +837,12 @@ wire vsync_type0_mid_fire = ((row == R7_v_sync_pos && !line &&
 // existing rules. The physical ordering within the seam is unmeasured.
 // Use the incoming adjustment decisions and the departing raster's
 // latched IVM state to exclude both transitions from ordinary rearm.
+// These guards select an ordinary C4 increment, including 127 to 0.
+// Compare that value before the later frame and adjustment row mux.
 wire type0_vsync_row_entry_rearm = !CRTC_TYPE && !VSYNC_r &&
     (R8_interlace == 2'b00) && !e0_ivm_disp && !vsync_mid && !frame_new &&
     !in_adj && !frame_adj && !e0_in_adj_route &&
-    row_new && (line_next == 0) && (row_next != row) &&
-    (row_next == R7_v_sync_pos) && !r7_write_hit;
+    row_new && (line_next == 0) && (row_increment == R7_v_sync_pos) && !r7_write_hit;
 wire vsync_compare_allowed = vsync_allow || type0_vsync_row_entry_rearm;
 // An old pulse may count at a different phase from the next comparison.
 // Do not consume a seam predicate on that pulse's midpoint tick (or vice versa).
