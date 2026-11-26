@@ -176,7 +176,13 @@ wire hsync_next = hsync_end ? 1'b0 : HSYNC || hsync_start;
 wire [6:0] compare_r4 = write_selected && selected == 5'd4 ? DI[6:0] : v_total;
 wire [4:0] compare_r9 = write_selected && selected == 5'd9 ? DI[4:0] : max_raster;
 wire last_line_match = row == compare_r4 && raster == compare_r9;
-wire timing_write = write_selected && (selected == 5'd4 || selected == 5'd9);
+// A CPU data strobe can remain active into the next character. The
+// opening rule applies to one write, at its first enabled clock.
+reg timing_write_held;
+wire timing_write_level = write_selected && (selected == 5'd4 || selected == 5'd9);
+wire timing_write = timing_write_level && !timing_write_held;
+always @(posedge CLOCK)
+	timing_write_held <= nRESET && timing_write_level;
 
 // FR §16.4.3 p.171: a match during HSYNC consumes the same 16-line
 // interval as a visible VSYNC. Remember the region until C4 leaves R7.

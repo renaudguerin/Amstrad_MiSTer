@@ -264,7 +264,7 @@ module crtc_type2_test;
 			       previous_match, vs, de, ma);
 	endtask
 
-	task automatic verify_last_line_opening(input bit r9_write, opening);
+	task automatic verify_last_line_opening(input bit r9_write, opening, input bit held_strobe = 0);
 		nreset = 0;
 		step(0);
 		nreset = 1;
@@ -283,9 +283,21 @@ module crtc_type2_test;
 		// R9 cannot create one. One character later the terminal
 		// is sticky and a live R9 can create it if it was absent.
 		// FR §12.4.1 p.97.
-		if (r9_write) write_reg(9, 1);
+		if (held_strobe) begin
+			// Production OUT(C),r straddles a CCLK. Treat the whole
+			// strobe as one write in its first character (FR p.97).
+			bus_write(0, 9);
+			enable = 1;
+			rs = 1;
+			di = 1;
+			step(0);
+			step(1);
+			step(0);
+			enable = 0;
+			step(0);
+		end else if (r9_write) write_reg(9, 1);
 		else write_reg(4, 21);
-		repeat (opening ? 32 : 31) step(1);
+		repeat ((opening ? 32 : 31) - int'(held_strobe)) step(1);
 		if (opening ? (!vs || de) : (vs || !de || ma !== 14'h1280))
 			$fatal(1, "%s at C0=%0d: VSYNC=%0b DE=%0b MA=%04x",
 			       r9_write ? "R9" : "R4", !opening, vs, de, ma);
@@ -484,6 +496,8 @@ module crtc_type2_test;
 		verify_last_line_opening(1, 0);
 		verify_last_line_opening(1, 1);
 		verify_last_line_opening(0, 1);
+		verify_last_line_opening(1, 0, 1);
+		verify_last_line_opening(1, 1, 1);
 		verify_line_start_sync(0, 6, 1, 1, 0);
 		verify_line_start_sync(18, 14, 0, 0, 1);
 		verify_line_start_sync(18, 15, 1, 0, 0);
