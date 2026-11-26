@@ -477,6 +477,7 @@ reg   [8:0] page = 0;
 reg         combo = 0;
 reg   [1:0] rom_selected_bank = 0;
 reg   [4:0] rom_selected_slot = 0;
+reg         rom_selected_full = 0;
 
 wire        rom_route_active;
 wire        rom_route_valid;
@@ -491,6 +492,7 @@ rom_loader_route rom_loader_route
 	.page(page),
 	.selected_bank(rom_selected_bank),
 	.selected_slot(rom_selected_slot),
+	.selected_full(rom_selected_full),
 	.rom_active(rom_route_active),
 	.addr_valid(rom_route_valid),
 	.initial_bank(rom_route_initial_bank),
@@ -556,6 +558,8 @@ always @(posedge clk_sys) begin
 			if(rom_download && rom_route_promote && !boot_bank) boot_bank <= 1;
 			else begin
 				{boot_wr, romdl_wait} <= 0;
+				if (rom_download && ioctl_index == 8'd9 && (&boot_a[13:0]))
+					rom_selected_full <= 1; // never accept a wrapped address
 				if(combo && &boot_a[13:0]) begin
 					combo <= 0;
 					page  <= 9'h1FF;
@@ -570,6 +574,7 @@ always @(posedge clk_sys) begin
 			// ROM downloads reset and apply the requested classic model.
 			rom_selected_bank <= menu_model;
 			rom_selected_slot <= status[55:51];
+			rom_selected_full <= 0;
 			combo <= 0;
 		end else if(ioctl_index) begin
 			page <= 9'h1EE; // some unused page for malformed file extension

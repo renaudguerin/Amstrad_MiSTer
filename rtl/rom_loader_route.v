@@ -9,6 +9,7 @@ module rom_loader_route
 	input        [8:0] page,
 	input        [1:0] selected_bank,
 	input        [4:0] selected_slot,
+	input             selected_full,
 	output             rom_active,
 	output             addr_valid,
 	output       [1:0] initial_bank,
@@ -32,7 +33,7 @@ module rom_loader_route
 	always @(*) begin
 		if (numbered_slot) begin
 			// One raw 16 KiB image, isolated from the adjacent slots and banks.
-			valid = ioctl_addr == 0 && selected_bank < 2'd3 && selected_slot <= 5'd16;
+			valid = !selected_full && ioctl_addr == 0 && selected_bank < 2'd3 && selected_slot <= 5'd16;
 			bank = selected_bank;
 			a_hi = selected_slot == 0 ? 9'd0 : {1'b1, 3'd0, upper_slot};
 		end else if (ioctl_index != 8'd0) begin
