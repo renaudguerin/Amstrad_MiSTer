@@ -284,6 +284,7 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_adj_r4_broken);
         // IA-6 / BL-018-BL-020: the one-character R0-widening action is
         // behavior-bearing private state and must be lifecycle-visible.
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_widen_pending);
@@ -608,6 +609,14 @@ public:
 
     std::uint8_t ra() const {
         return dut_->RA;
+    }
+
+    std::uint8_t c4() const {
+        return dut_->rootp->CRTC__DOT__row;
+    }
+
+    bool adjustment_active() const {
+        return dut_->rootp->CRTC__DOT__in_adj != 0;
     }
 
     void expect_ma(const std::string& expectation, std::uint16_t expected) const {
@@ -3580,6 +3589,285 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_c4("C0=1 R9 then R9 write restores frame origin", 0);
     test.expect_adjustment_inactive("C0=1 R9 then R9 write completes adjustment");
 
+}
+
+enum class R4RematchTiming { EarlierLine, MatchLine, NoRematch };
+
+// SHAKER 2.7 E6 page 0409 case 28 recipe (R0=63, R4=38, R9=7, R5=22 before
+// the last line; R4=39 at C0=12 and R9=3 at C0=26 of the first additional
+// line C4=39/C9=0; R7=40; program expectation 000E). French ACCC v1.11
+// §11.2.2 p82: during additional management C9 is compared with R9 and R5,
+// and management ends when the calculated C9 equals R5. p83 example 1 and
+// §13.2.4 p108: C4 increments in additional management only when C4==R4
+// and C9==R9. Restoring R4=C4 therefore lets C9==R9 reset C9 and advance
+// C4 to 40 (R7=40 starts VSYNC) while the R5 count continues from C9=0:
+// 4 lines at C4=39 (C9=0..3), then 22 at C4=40 (C9=0..21), then origin.
+// With R9=21 both comparators match on the C9=21 line; the R5 endpoint
+// keeps priority, so the frame restarts after 22 lines and C4 never
+// reaches R7=40.
+void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9,
+                                      R4RematchTiming timing = R4RematchTiming::EarlierLine) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x8E}, {4, 38},
+        {5, 22}, {6, 25}, {7, 40}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    // 39 rows x 8 lines reach the first additional line C4=R4+1, C9=0.
+    test.run_characters(39u * 8u * 64u);
+    test.expect_byte("R4 rematch starts at C0=0", 0, test.c0());
+    test.expect_c4("ordinary entry advances C4 to R4+1", 39);
+    test.expect_ra("ordinary entry starts additional C9=0", 0);
+    test.expect_adjustment_active("ordinary R5=22 entry is active");
+    test.run_characters(12);
+    if (timing == R4RematchTiming::EarlierLine) test.write_register(4, 39);
+    else test.run_clock_ticks(2);  // Same phase; R4 still 38 != C4.
+    test.run_characters(14);
+    test.write_register(9, new_r9);
+    test.run_characters(6);  // Sample each following line at C0=32.
+
+    if (timing == R4RematchTiming::MatchLine) {
+        // E6C0's discriminator restores R4 at C0=28 of the C9==R9
+        // line. AmSpirit leaves VSYNC low at the seam, unlike a rewrite
+        // in an earlier line. Applying the held equality from French
+        // §13.2.1 p106 to this rematch provisionally reproduces that result.
+        test.run_characters(new_r9 * 64u + 28u - test.c0());
+        test.expect_ra("current-line R4 write starts at C9==R9", new_r9);
+        test.expect_byte("current-line R4 write starts at C0=28", 28, test.c0());
+        test.write_register(4, 39);
+        test.run_characters(68);
+        test.expect_vsync_low("current-line R4 rematch does not reach R7=40");
+        test.expect_c4("current-line R4 rematch holds C4=39", 39);
+        test.expect_ra("current-line R4 rematch keeps counting to R5", new_r9 + 1u);
+        return;
+    }
+
+    // Without the R4 rewrite C4 != R4, so C9==R9 cannot reset C9 again.
+    const bool r9_first = timing == R4RematchTiming::EarlierLine && new_r9 < 21;
+    const unsigned c4_39_lines = r9_first ? new_r9 + 1u : 22u;
+    for (unsigned c9 = 0; c9 < c4_39_lines; ++c9) {
+        test.expect_c4("R4 rematch holds C4=39 until C9==R9", 39);
+        test.expect_ra("R4 rematch counts C9 at C4=39", c9);
+        test.expect_adjustment_active("R4 rematch stays in additional management");
+        test.expect_vsync_low("C4 has not reached R7=40");
+        test.run_characters(64);
+    }
+    if (r9_first) {
+        for (unsigned c9 = 0; c9 < 22; ++c9) {
+            test.expect_c4("C9==R9 with C4==R4 advances C4 to 40", 40);
+            test.expect_ra("R5 count continues from the R9 reset", c9);
+            test.expect_adjustment_active("R9 rollover does not end R5 management");
+            if (c9 == 0) test.expect_vsync_high("C4=R7=40 starts VSYNC");
+            test.run_characters(64);
+        }
+    }
+    test.expect_c4("R5 endpoint restores frame origin C4", 0);
+    test.expect_ra("R5 endpoint restores frame origin C9", 0);
+    test.expect_adjustment_inactive("R5 endpoint ends additional management");
+    if (!r9_first) test.expect_vsync_low("R5 endpoint wins over the coincident R9 match");
+}
+
+// Forced R4-break entry with R5=0 (French §11.2.2 p82, §12.2 p95): C4
+// holds 8 while C9 counts to 31. Restoring R4=C4=8 and writing R9=10
+// lets C9==R9 calculate C9=0, which equals R5=0 and ends management
+// (§11.2.2 p82) right after the C9=10 line instead of at C9=31.
+void check_type0_adjustment_r4_rematch_r5_zero_exit(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 8},
+        {5, 0}, {6, 7}, {7, 63}, {8, 0}, {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(4);
+    test.reset();
+    test.run_characters((8 * 8 + 7) * 64);
+    test.expect_c4("R5=0 rematch source C4=R4", 8);
+    test.expect_ra("R5=0 rematch source C9=R9", 7);
+    test.run_characters(1);
+    test.write_selected_register_at_clken(10);  // C0=1 R4 break.
+    test.run_characters(62);
+    test.expect_c4("forced R4 break holds C4=8", 8);
+    test.expect_ra("forced R4 break counts C9=8", 8);
+    test.expect_adjustment_active("forced R4 break enters adjustment");
+    test.run_characters(12);
+    test.write_register(4, 8);
+    test.run_characters(14);
+    test.write_register(9, 10);
+    test.run_characters(6);
+    for (unsigned c9 = 8; c9 <= 10; ++c9) {
+        test.expect_c4("R5=0 rematch holds C4 before C9==R9", 8);
+        test.expect_ra("R5=0 rematch counts C9 to R9", c9);
+        test.expect_adjustment_active("R5=0 rematch stays additional before C9==R9");
+        test.run_characters(64);
+    }
+    test.expect_c4("R9-generated C9=0 equal to R5=0 restores origin C4", 0);
+    test.expect_ra("R9-generated C9=0 equal to R5=0 restores origin C9", 0);
+    test.expect_adjustment_inactive("R9-generated C9=0 equal to R5=0 ends management");
+}
+
+// Review of 0c929ce: an exact-R0 R9 write (FR §11.2.2 p83) selects the
+// latched Last Line for the next line's C4 step. With R5=22 the straddle
+// gives C4=39, C9=8 (t12). Restoring R4=39 on that line must not reset C9
+// apart from C4: the excluded rematch leaves C9 counting to 9 at C4=39.
+void check_type0_adjustment_r4_rematch_exact_r0_owner(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 25}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(9);
+    test.reset();
+    test.run_characters(kT12CriticalLineCharacters + 63);
+    test.write_selected_register_at_clken(8);
+    test.expect_c4("exact-R0 straddle leaves C4=39", 39);
+    test.expect_ra("exact-R0 straddle leaves C9=8", 8);
+    test.write_register(4, 39);  // Still at C0=0, before held R4 is sampled.
+    test.run_characters(32);
+    test.expect_c4("exact-R0 owner line keeps C4=39", 39);
+    test.expect_ra("exact-R0 owner line keeps C9=8", 8);
+    test.run_characters(64);
+    test.expect_c4("exact-R0 owner line does not advance C4", 39);
+    test.expect_ra("exact-R0 owner line does not split a C9 reset from C4", 9);
+    test.expect_adjustment_active("exact-R0 owner line stays additional");
+}
+
+// Review of 0c929ce: with IVM (R8=3) the rematch is excluded (MODEL LIMIT
+// in the engine), so restoring R4=C4 during adjustment never reaches C4=40.
+void check_type0_adjustment_r4_rematch_ivm_excluded(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 25}, {7, 63}, {8, 3},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    unsigned lines = 0;
+    while (!(test.adjustment_active() && test.c4() == 39)) {
+        test.run_characters(64);
+        if (++lines > 2000) {
+            test.expect_adjustment_active("IVM frame reaches adjustment");
+            test.expect_c4("IVM frame reaches C4=39", 39);
+        }
+    }
+    test.expect_byte("IVM rematch starts at C0=0", 0, test.c0());
+    test.write_register(4, 39);  // R4 is equal before the C0=1 CLKEN sample.
+    test.run_characters(26);
+    test.write_register(9, 3);
+    test.run_characters(6);
+    for (unsigned line = 0; line < 23; ++line) {
+        if (test.c4() != 39 && test.c4() != 0)
+            test.expect_c4("IVM adjustment keeps C4=39 until origin", 39);
+        test.run_characters(64);
+    }
+}
+
+// Re-review of a8f6171: a rematch landing on R6 captures ParityR6
+// (French §19.5.2 p206: ParityR6 := ParityFrame xor 1 when C4 reaches R6).
+// R8=1, R6=40 > R4=38, so the first frame never reaches R6 and ParityR6
+// stays 0 until the rematch advances C4 to 40 (ParityFrame=0 -> 1). With
+// ParityR6 odd and interlace on, §19.6.1 p217 appends one line after the
+// R5 lines, holding C4 and continuing C9 at R5=22 (§11.2 p85), then origin.
+void check_type0_adjustment_r4_rematch_r6_parity(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 40}, {7, 63}, {8, 1},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    test.run_characters(39u * 8u * 64u);
+    test.expect_c4("R6 parity rematch reaches C4=39", 39);
+    test.expect_ra("R6 parity rematch reaches C9=0", 0);
+    test.expect_adjustment_active("R6 parity rematch is in adjustment");
+    test.run_characters(12);
+    test.write_register(4, 39);
+    test.run_characters(14);
+    test.write_register(9, 3);
+    test.run_characters(6);
+    test.run_characters(4u * 64u);
+    for (unsigned c9 = 0; c9 < 22; ++c9) {
+        test.expect_c4("rematch lands C4 on R6=40", 40);
+        test.expect_ra("R5 count at C4=40", c9);
+        test.run_characters(64);
+    }
+    test.expect_c4("ParityR6 odd adds one line holding C4=40", 40);
+    test.expect_ra("added line continues C9 at R5=22", 22);
+    test.run_characters(64);
+    test.expect_c4("added line ends at origin C4", 0);
+    test.expect_ra("added line ends at origin C9", 0);
+}
+
+// French ACCC v1.11 §11.2.2 p82 ends adjustment when the calculated
+// C9 equals R5. §19.6.1 p217 adds one interlace line when ParityR6 is odd.
+// An R5=0 write on the seam where the rematch would reset C9 must produce
+// the added line at that calculated C9=0, followed by the frame origin.
+void check_type0_adjustment_rematch_zero_add_line(TestBench& test,
+                                                 bool r6_on_added_line,
+                                                 std::uint8_t late_r5 = 0) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 22}, {6, 25}, {7, 63}, {8, 1},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.reset();
+    constexpr unsigned normal_lines = 39 * 8;
+    test.run_characters((normal_lines + 22 + 1) * 64);
+    test.expect_c4("first added line has completed", 0);
+    test.expect_parity_frame("first origin after reaching R6 is odd", true);
+    test.run_characters(12);
+    test.write_register(6, 63);  // Freeze odd ParityR6 before C4 reaches R6 again.
+    test.run_characters(normal_lines * 64);
+    test.expect_c4("odd frame reaches additional row", 39);
+    test.expect_ra("odd frame reaches additional line zero", 0);
+    if (r6_on_added_line) test.write_register(6, 39);
+    test.write_register(4, 39);
+    test.write_register(9, 3);
+    test.select_register(5);
+    if (late_r5) {
+        // The C0<=2 write selects R5=0 for this rollover. A later write
+        // supplies the stored R5 used by the separate added-line selector.
+        test.run_characters(3u * 64u + 1u - test.c0());
+        test.expect_byte("early R5=0 write at C0=1", 1, test.c0());
+        test.expect_ra("early R5=0 write on the rematch line", 3);
+        test.write_selected_register_at_clken(0);
+        test.run_characters(12);
+        test.write_selected_register_now(late_r5);
+        test.run_characters(63u - test.c0());
+    } else {
+        test.run_characters(3u * 64u + 63u - test.c0());
+    }
+    test.expect_byte("rollover at R0", 63, test.c0());
+    test.expect_c4("rollover on the rematch row", 39);
+    test.expect_ra("rollover at C9==R9", 3);
+    if (late_r5) test.run_characters(1);
+    else test.write_selected_register_at_clken(0);
+
+    test.expect_c4("zero-end interlace line holds C4", 39);
+    test.expect_ra("zero-end interlace line starts at the effective added-line count", late_r5);
+    test.run_characters(64);
+    test.expect_c4("one interlace line then origin C4", 0);
+    test.expect_ra("one interlace line then origin C9", 0);
+    test.expect_adjustment_inactive("one interlace line completes adjustment");
+    // §19.5.2 p206: the origin inherits odd ParityR6. Writing R6 to the
+    // held row after entry cannot capture even parity at the intercept.
+    test.expect_parity_frame("held adjustment row preserves odd parity", true);
+}
+
+void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
+    check_type0_adjustment_r4_rematch_r6_parity(test);
+    check_type0_adjustment_r4_rematch(test, 3);
+    check_type0_adjustment_r4_rematch(test, 3, R4RematchTiming::MatchLine);
+    check_type0_adjustment_r4_rematch(test, 21);
+    check_type0_adjustment_r4_rematch(test, 3, R4RematchTiming::NoRematch);
+    check_type0_adjustment_r4_rematch_r5_zero_exit(test);
+    check_type0_adjustment_r4_rematch_exact_r0_owner(test);
+    check_type0_adjustment_r4_rematch_ivm_excluded(test);
+    check_type0_adjustment_rematch_zero_add_line(test, false);
+    check_type0_adjustment_rematch_zero_add_line(test, true);
+    check_type0_adjustment_rematch_zero_add_line(test, false, 5);
 }
 
 void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
@@ -10075,6 +10363,9 @@ int main(int argc, char** argv) {
         {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
          "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; pending R9/R5 completion", false,
          test_type0_r9_write_within_c0_1_enters_zero_adjustment},
+        {"t16n2_type0_adjustment_r4_rematch_reenables_r9",
+         "French ACCC v1.11 §11.2.2 pp82–83, §13.2.4 p108; SHAKER E6 0409 case 28 dual comparator", false,
+         test_type0_adjustment_r4_rematch_reenables_r9},
         {"t16o_type0_r4_write_at_c0_0_overrides_last_line",
          "ACCC v1.10 sections 10.3.1 and 12.2; F12 C0=0 guard", false,
          test_type0_r4_write_at_c0_0_overrides_last_line},

@@ -432,7 +432,7 @@ wire       type0_c0_1_r5_end = type0_c0_1_r5_owner &&
 // write keep their existing distinct rollover priorities.
 wire       type0_c0_1_r9_match = type0_c0_1_adjust && type0_c0_1_r9_owner &&
                                !type0_r9_at_r0_active && type0_live_line_last;
-wire       type0_rollover_line_last = type0_c0_1_adjust_active ?
+wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
                                      (type0_c0_1_r5_end | type0_c0_1_r9_match) :
                                     c1_last_line_validate ? 1'b1 :
 									 type0_r9_at_r0_active ?
@@ -444,6 +444,45 @@ wire       type0_rollover_line_last = type0_c0_1_adjust_active ?
 									 ((line == type0_adjust_line_max) | type0_zero_adj_entry_active) :
 								 (in_adj | type0_last_line_armed) ? line_last_r :
 									 type0_live_line_last;
+// Dual comparator during ordinary additional management. French ACCC v1.11
+// §11.2.2 p82: "En gestion additionnelle, C9 est ainsi comparé avec R9 et
+// R5"; p83 example 1: later additional lines no longer compare C9 with R9
+// to increment C4 "car C4<>R4". §13.2.4 p108: "l'incrémentation de C4 n'a
+// lieu que lorsque C4==R4 et C9==R9 en gestion additionnelle". An R4
+// rewrite to the current C4 (R4+1 at entry) therefore re-enables the C9/R9
+// comparator: C9==R9 resets C9 and increments C4 while management
+// continues. The R5 comparison above keeps priority and remains the only
+// exit, except that an R9-generated C9=0 equal to an R5=0 target ends
+// management (§11.2.2 p82: it ends when the calculated C9 equals R5; same
+// rule as type0_r9_zero_adjust_end). The forced C0=1 line, a pending R9
+// phase and an R4 cancellation keep their own comparators above.
+// MODEL LIMIT (B26): require R4 to match C4 at each character sample from
+// C0=1 and at the rollover. This extends the adjustment-entry rule
+// (§13.2.1 p106) to a later adjustment rematch. AmSpirit Lite 1.18.3
+// reproduces the E6C0 probe's previous-line rematch and rejects its
+// current-line rematch. SHAKER E6 0409 cases 27/28 accept either sampling
+// rule. The E6C0 disk on an original CRTC0 remains the discriminator.
+// MODEL LIMIT (B26): the rematch is also excluded (a) on a line whose
+// comparator an exact-R0 R9 write selected (type0_r9_at_r0_active): its C4
+// step comes from the latched Last Line, so a live C9 reset there would
+// split from the C4 advance or mask its frame end; and (b) while IVM
+// counting or an R8 toggle owns the line: the F15 ParityC9 row-end update
+// (§19.8.1 p220) is defined for ordinary row ends, not this re-entered
+// comparator. Both are unmeasured coverage limits, not chip rules; E6
+// exercises neither. Review of 0c929ce, 2026-11-24.
+reg        type0_adj_r4_broken;
+wire       type0_adj_r9_rollover = in_adj && !type0_c0_1_adjust_active &&
+                                  !type0_r9_at_r0_active &&
+                                  !ivm_disp_r && !tog_line &&
+                                  !type0_r4_switch_active &&
+                                  !type0_r9_compare_active &&
+                                  !type0_adj_r4_broken &&
+                                  (row == R4_v_total) && type0_live_line_last &&
+                                  !type0_selected_rollover_line_last;
+wire       type0_adj_r9_zero_end = type0_adj_r9_rollover &&
+                                  (type0_adjust_line_max == 5'd31);
+wire       type0_rollover_line_last = type0_selected_rollover_line_last |
+                                     type0_adj_r9_rollover;
 // French ACCC v1.11 §11.2.2 pp82–83 and §13.2.4 p108:
 // while the pending C4=R4 phase still compares R9, its C9 reset already
 // calculates the next line. If that zero reaches the selected R5=0 target,
@@ -459,7 +498,14 @@ wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
 // its C9 continues the adjustment count to R5 (section 11.2 p.85).
-assign line_next = type0_add_intercept ? R5_v_total_adj :
+// Bypass the stored R5 when a same-edge write selects R5=0 and the
+// R9-derived end calculates C9=0 (§11.2.2 p82). A retained zero target
+// from C0<=2 can coexist with a later positive value in stored R5.
+wire       type0_add_line_write_zero = type0_r5_write && !(|DI[4:0]) &&
+                                      (type0_r9_zero_adjust_end || type0_adj_r9_zero_end);
+wire [4:0] type0_add_line_c9 = type0_add_line_write_zero ?
+                              5'd0 : R5_v_total_adj;
+assign line_next = type0_add_intercept ? type0_add_line_c9 :
                    type0_rollover_line_last ? 5'd0 : line + 5'd1;
 assign c5_next = 5'd0;
 
@@ -472,7 +518,8 @@ wire       row_last_w = (row == R4_v_total);
 // cannot reset a frame after an early R9 write cancelled that decision.
 wire       crtc0_row_frame_last = (type0_last_line_armed | in_adj) &
                                       (~type0_adjustment_selected | type0_adjust_end) &
-                                      (~type0_r9_compare_active | type0_r9_zero_adjust_end);
+                                      (~type0_r9_compare_active | type0_r9_zero_adjust_end) &
+                                      (~type0_adj_r9_rollover | type0_adj_r9_zero_end);
 // F14 (ACCC v1.11 section 19.6.1 p.217; Q10 resolution in
 // accc-author-questions.md item 10): with an interlace mode active (R8=1 or
 // 3) and ParityR6 odd, one additional line is appended after the R5
@@ -499,6 +546,9 @@ assign     frame_adj = ((type0_adjustment_selected | type0_r9_compare_active) &
                        c1_last_line_validate |
                        type0_add_intercept;
 assign     row_frame_last = crtc0_row_frame_last & ~type0_add_intercept;
+// MODEL LIMIT (B26): reuse the ordinary added-line C4 hold (§19.6.1 p217)
+// when an R9-derived rematch exits into the intercept. This collision
+// remains unmeasured on original CRTC0 hardware.
 assign     row_next = type0_add_intercept ? (in_adj ? row : row + 7'd1) :
 									 row_frame_last ? 7'd0 : row + 1'd1;
 assign     row_new = line_new & type0_rollover_row_last;
@@ -519,7 +569,12 @@ assign pf_value  = parity_r6;
 // off-seam zero/zero parity is unmeasured, so preserve its old behavior
 // independently of the display conflict rule. R4/R7 off-seam consumers
 // and adjustment/IVM landing generalization are not resolved by this R6 proof.
-assign pr6_write = row_r6_landing && !frame_new_w && !in_adj &&
+// A rematch that advances C4 (§13.2.4 p108) can land on R6 and capture
+// ParityR6 (§19.5.2 p206). A rematch intercepted by the added line holds C4.
+wire       type0_adj_r9_row_step = row_new && type0_adj_r9_rollover &&
+                                  !type0_add_intercept;
+assign pr6_write = row_r6_landing && !frame_new_w &&
+                   (!in_adj || type0_adj_r9_row_step) &&
                    (row_new || !(R6_v_displayed == 0 && line == 0));
 assign pr6_value = parity_frame ^ 1'd1;
 
@@ -624,6 +679,7 @@ end
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
 		type0_r4_adjust_switch <= 0;
+		type0_adj_r4_broken <= 0;
 		type0_r9_live_compare <= 0;
 		type0_r9_at_r0_pending <= 0;
 		type0_c0_1_adjust <= 0;
@@ -633,6 +689,9 @@ always @(posedge CLOCK) begin
 		type0_r5_adjust_target <= 0;
 	end
 	else begin
+		if(CLKEN && line_new) type0_adj_r4_broken <= 0;
+		else if(CLKEN && hcc >= 1 && R4_v_total != row) type0_adj_r4_broken <= 1;
+
 		// French ACCC v1.11 section 13.2.1 p.106: vertical adjustment with
 		// ordinary C4=R4+1 progression requires R4 to have remained equal to
 		// C4 throughout the line. Any unequal R4 write within C0 in [2, R0]
