@@ -79,10 +79,12 @@ crtc-type4-blank-test: $(CRTC4_BLANK_BIN)
 	$(CRTC4_BLANK_BIN)
 
 $(CRTC2_BIN): crtc_type2_test.sv ../rtl/crtc_type2.v Makefile
+	mkdir -p $(dir $@)
 	$(VERILATOR) --binary --timing --top-module crtc_type2_test \
 		--Mdir $(dir $@) $< ../rtl/crtc_type2.v
 
 $(CRTC4_BLANK_BIN): crtc_type4_blank_test.sv ../rtl/plus/asic_video.v Makefile
+	mkdir -p $(dir $@)
 	$(VERILATOR) --binary --timing --top-module crtc_type4_blank_test \
 		--Mdir $(dir $@) $< ../rtl/plus/asic_video.v
 
