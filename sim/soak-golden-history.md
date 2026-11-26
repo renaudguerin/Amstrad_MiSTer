@@ -4,6 +4,7 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 
 | Hash | Set on | Scope |
 |---|---|---|
+| `0xcdadadb1e6b70a2e` | 2026-11-26 | CRTC0 paired odd-R9/IVM entry (SHAKER B1 R9E57). At sample 1,598,046 the first raster after an even entry compares raw C9=1, advancing C4 and resetting C9 where the former IVM comparison continued. The projection also samples the three pending-comparison latches. |
 | `0xfc229b889c5013ce` | 2026-11-26 | CRTC0 frozen-origin R6 border hold (SHAKER BU `021B`). The earlier pin and state projection matches `0x0bd50d6b801e1607`. The new hash includes the ownership state; the directed pin test covers both restore orders. |
 | `0x0bd50d6b801e1607` | 2026-11-26 | CRTC0 selects the incoming progressive phase at the committed origin (French ACCC §19.7.2 p.219, SHAKER B1). At sample 125,462 the departing field flag remains high while `R8=0`. The corrected path asserts raw VSYNC at the origin and latches the line phase. The sampled counters and input mode agree throughout. |
 | `0x8155f94fb1bf9cd7` | 2026-11-26 | CRTC0 resumes a newly entered R0=0 adjustment with the ordinary C9+1 versus R5 comparison (French ACCC §13.2.6 p.110, SHAKER A7). The fixed-seed soak first changes the obsolete short-line latch at sample 2 while all sampled pins remain identical. |

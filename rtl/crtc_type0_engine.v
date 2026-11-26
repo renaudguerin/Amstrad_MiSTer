@@ -243,6 +243,42 @@ always @(posedge CLOCK) begin
 	end
 end
 
+// French ACCC v1.11 §19.8.1 pp. 220–221 uses raw C9 on the IVM
+// switch raster and C9.VMA thereafter. The worked cases use even R9.
+// MODEL LIMIT (B26): the B1 R9E57 caller writes a changed odd R9 at
+// C0=21 before switching R8 at C0=35. Stock Odd 012B/0133 and Even
+// 0181/0185/0187 constrain which raster admits raw C9 equality.
+// The C0=2 lower bound and behavior at a frame boundary are unmeasured.
+reg type0_late_odd_r9;
+reg type0_ivm_paired_entry;
+reg type0_ivm_extra_raw_compare;
+wire type0_late_r9_change = !CRTC_TYPE && register_write && addr == 5'd09 &&
+                            !ivm_disp_r && (R8_interlace == 2'b00) &&
+                            (hcc >= 8'd2) && (DI[4:0] != R9_v_max_line);
+// Once C0 reaches zero the raster has already advanced, even before
+// the CLKEN mode latch. An R8 write there cannot consume its predecessor's R9.
+wire type0_ivm_real_entry = r8_toggle_write_t0 && (hcc != 0) &&
+                            (R8_interlace == 2'b00) && (DI[1:0] == 2'b11);
+wire type0_ivm_extra_raw = type0_ivm_extra_raw_compare && !tog_line;
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || CRTC_TYPE) begin
+        type0_late_odd_r9 <= 0;
+        type0_ivm_paired_entry <= 0;
+        type0_ivm_extra_raw_compare <= 0;
+    end else begin
+        if (type0_seam) begin
+            type0_late_odd_r9 <= 0;
+            type0_ivm_paired_entry <= 0;
+            type0_ivm_extra_raw_compare <= type0_ivm_paired_entry &&
+                                           !parity_frame &&
+                                           (R8_interlace == 2'b11);
+        end
+        if (type0_late_r9_change) type0_late_odd_r9 <= DI[0];
+        if (type0_ivm_real_entry) type0_ivm_paired_entry <= type0_late_odd_r9;
+        else if (r8_write_hit_t0 && (DI[1:0] != 2'b11)) type0_ivm_paired_entry <= 0;
+    end
+end
+
 // On the first doubled line, seed ParityC9 with the current C4 parity
 // XOR ParityFrame for odd R9 (French ACCC v1.11 §19.5.2 pp.206,208,
 // SHAKER 02DD). Even R9 keeps the frame parity (§19.8.1 pp.221–223).
@@ -382,12 +418,19 @@ wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line);
 // the old degenerate no-row-end behavior.
 wire [5:0] type0_limit_addend = tog_line ? (tog_enter_line ? {5'b00000, parity_frame}
                                                            : 6'd0) :
+                             type0_ivm_extra_raw ? {5'b00000, parity_frame} :
                              ivm_disp_r ? {4'b0000, parity_c9 ^ R9_v_max_line[0]} : 6'd0;
 wire [5:0] type0_limit_target6 = {1'b0, R9_v_max_line} + type0_limit_addend;
 // French19.8.1 p221/pp224-225: ivm_disp_r retains the exit line's
 // VMA test until its seam; following ordinary lines compare live raw C9.
 wire [4:0] type0_limit_value = ivm_disp_r ? line_vma : line;
-wire       type0_ivm_limit = ({1'b0, type0_limit_value} == type0_limit_target6);
+// For the paired write, Odd uses raw C9 == R9 on the switch raster.
+// Even admits raw comparison on the first raster in IVM instead.
+// Keep the C0=1 Last Line comparison on its ordinary IVM operand.
+wire [4:0] type0_live_limit_value = type0_ivm_extra_raw ? line : type0_limit_value;
+wire       type0_ivm_limit = type0_ivm_paired_entry ?
+                             (parity_frame && (line == R9_v_max_line)) :
+                             ({1'b0, type0_live_limit_value} == type0_limit_target6);
 
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
 // reached from C9>0 must let C9 run to 31 and wrap, so no unconditional

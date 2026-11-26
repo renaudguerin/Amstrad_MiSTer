@@ -289,6 +289,10 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_adj_r4_broken);
+        // Track the pending odd-R9/IVM pair and its deferred live compare.
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_late_odd_r9);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_ivm_paired_entry);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_ivm_extra_raw_compare);
         // IA-6 / BL-018-BL-020: the one-character R0-widening action is
         // behavior-bearing private state and must be lifecycle-visible.
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_widen_pending);
@@ -9477,6 +9481,106 @@ void test_type0_terminal_r7_keeps_preorigin_phase(TestBench& test) {
     test.expect_byte("off-CLKEN R7 preserves departing midpoint phase", 31, test.c0());
 }
 
+// Reduce B1's Even 0186 switch to a prospective terminal row. With
+// R4=6 the first doubled raster has C4=6, C9=6 and RA=12. The live
+// deferred compare misses raw 6 against R9=5. The separate early
+// validation also misses VMA 12 against the ordinary IVM target 6.
+void test_type0_b1_paired_entry_preserves_c1_last_line(TestBench& test) {
+    test.prepare_for_reset(0);
+    test.load_snapshot_registers({63, 40, 46, 0x4e, 6, 0, 127, 0, 0, 7});
+    test.reset();
+    test.run_to_c0(21);
+    test.run_characters((6*8 + 5)*64);
+    test.expect_c4("paired write is on C4=R4", 6);
+    test.expect_ra("paired write begins at raw C9=5", 5);
+    test.write_register(9, 5);
+    test.run_to_c0(35);
+    test.write_register(8, 3);
+    test.run_characters(64);
+    test.expect_c4("first IVM raster remains on C4=R4", 6);
+    test.expect_ra("first IVM raster shows C9.VMA=12", 12);
+    test.run_characters(64);
+    test.expect_c4("nonmatching C0=1 must not end the frame", 6);
+    test.expect_ra("prospective terminal advances to C9.VMA=14", 14);
+}
+
+// Write changed R9 one raster before R8 takes effect. At C0=0 the
+// horizontal counter has wrapped while the IVM mode seam is pending.
+// Sample on each clock phase to distinguish R8 written before the
+// mode latch from R8 written on the mode-latch edge itself.
+void test_type0_b1_r8_at_next_raster(TestBench& test, bool on_seam) {
+    test.prepare_for_reset(0);
+    test.load_snapshot_registers({63, 40, 46, 0x4e, 38, 0, 127, 0, 0, 7});
+    test.reset();
+    test.run_to_c0(21);
+    test.run_characters((6*8 + 4)*64);
+    test.expect_c4("R9 write reaches the departing C4=6", 6);
+    test.expect_ra("R9 write is on the preceding C9=4", 4);
+    test.write_register(9, 5);
+    test.select_register(8);
+    test.run_to_c0(0);
+    test.expect_c4("C0=0 is still within C4=6", 6);
+    test.expect_ra("C0=0 has already advanced to raw C9=5", 5);
+    if (on_seam) test.write_selected_register_at_clken(3);
+    else test.write_selected_register_at_nclken(3);
+    test.run_to_c0(4);
+    test.expect_ra("R8 write phase selects the established seam route", on_seam ? 5 : 10);
+    test.run_characters(64);
+    test.expect_c4("previous-raster R9 cannot pair with this R8", on_seam ? 7 : 6);
+    test.expect_ra("unpaired IVM entry exposes the expected RA", on_seam ? 1 : 12);
+}
+
+// B1's CRTC-facing timing, independent of the R4/R5 calibration loop.
+void test_type0_b1_r9_ivm_entry(TestBench& test, unsigned initial_c9,
+                               unsigned entry_r9, unsigned r9_c0,
+                               unsigned r8_c0, unsigned expected_lines,
+                               bool odd_frame = false) {
+    test.prepare_for_reset(0);
+    const std::uint8_t initial_r6 = odd_frame ? 1 : 127;
+    test.load_snapshot_registers({63, 40, 46, 0x4e, 38, 0, initial_r6, 0, 0, 7});
+    if (odd_frame) test.reset(); // Start a complete frame with R6=1.
+    if (!test.run_to_frame_start(400)) throw TestFailure("B1 progressive origin missing");
+    const auto origin = test.total_characters() - test.c0();
+    test.expect_parity_frame("B1 entry parity seeded by previous R6", odd_frame);
+    if (odd_frame) test.write_register(6, 127);
+    const unsigned entry_row = 6 * 8 + initial_c9;
+    auto at = [&](unsigned line, unsigned c0) {
+        const auto target = origin + line*64 + c0;
+        if (test.total_characters() > target) throw TestFailure("B1 write schedule passed");
+        test.run_characters(target - test.total_characters());
+    };
+    auto write_r9 = [&] { at(entry_row,r9_c0); test.write_register(9,entry_r9); };
+    auto enter_ivm = [&] { at(entry_row,r8_c0); test.write_register(8,3); };
+    if (r9_c0 < r8_c0) {
+        write_r9();
+        enter_ivm();
+    } else {
+        enter_ivm();
+        write_r9();
+    }
+    at(80,33);
+    test.write_register(8,0);
+    at(81,15);
+    test.write_register(9,7);
+    auto next_sync = [&] {
+        bool previous = test.raw_vsync();
+        for (unsigned n = 0; n != 340*64; ++n) {
+            test.run_characters(1);
+            const bool current = test.raw_vsync();
+            if (current && !previous) return test.total_characters();
+            previous = current;
+        }
+        throw TestFailure("B1 next VSYNC missing");
+    };
+    const auto measured = next_sync();
+    if (measured - origin != expected_lines*64)
+        throw TestFailure("B1 first unadjusted VSYNC interval expected " + std::to_string(expected_lines) +
+          " lines, got " + std::to_string((measured-origin)/64.0));
+    test.expect_byte("B1 progressive VSYNC at C0=0", 0, test.c0());
+    if (next_sync()-measured != 312*64)
+        throw TestFailure("B1 one-shot compare changed following progressive frame");
+}
+
 // t24: type-1 IVM VSYNC positions (ACCC v1.11 section 19.5.3 p.209 table).
 //
 // R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
@@ -11377,6 +11481,39 @@ int main(int argc, char** argv) {
          [](TestBench& t) { test_vsync_frames(t, 0, 8, 3, 1); }},
         {"d1_type0_r8_bus_entry", "French 19.7.2 R8 transitions", false,
          [](TestBench& t) { test_vsync_frames(t, 0, 7, 3, 0, 31, 4, true); }},
+        {"b1_type0_paired_entry_preserves_c1_last_line", "French §12.2 pp.94-95 and §19.8.1 p.220", false,
+         test_type0_b1_paired_entry_preserves_c1_last_line},
+        {"b1_type0_r8_on_next_raster_seam", "French §19.8.1 p.220 and established C0 mode-latch edge", false,
+         [](TestBench& t) { test_type0_b1_r8_at_next_raster(t, true); }},
+        {"b1_type0_r8_before_next_raster_seam", "French §19.8.1 p.220 and established off-CLKEN mode-latch edge", false,
+         [](TestBench& t) { test_type0_b1_r8_at_next_raster(t, false); }},
+        {"b1_type0_late_odd_entry_c9_4", "Stock 0185 previous-case calibration, original 0184 timing", false,
+         [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,4,5,21,35,278); }},
+        {"b1_type0_late_odd_entry_c9_5", "Stock 0187 previous-case calibration, original 0186 timing", false,
+         [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,5,5,21,35,310); }},
+        {"b1_type0_odd_frame_r9_entry_c9_5", "Stock 0133 R4=2A/R5=01, original 0132 timing", false,
+         [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,5,5,21,35,279,true); }},
+        {"b1_type0_odd_frame_first_ivm_raster_control", "Stock 012B R4=2B/R5=01, original 012A timing", false,
+         [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,1,5,21,35,271,true); }},
+        {"b1_type0_odd_frame_adjacent_entry_controls", "Stock 0131 and 0135 R4=26/R5=07", false,
+         [](TestBench& t) {
+             test_type0_b1_r9_ivm_entry(t,4,5,21,35,305,true);
+             test_type0_b1_r9_ivm_entry(t,6,5,21,35,305,true);
+         }},
+        {"b1_type0_even_frame_other_entry_controls", "Stock 0181 and 018B R4=26/R5=02", false,
+         [](TestBench& t) {
+             test_type0_b1_r9_ivm_entry(t,2,5,21,35,310);
+             test_type0_b1_r9_ivm_entry(t,7,5,21,35,310);
+         }},
+        {"b1_type0_even_target_entry_control", "Stock 0118 previous-case calibration, original 0117 timing", false,
+         [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,2,6,21,35,280); }},
+        {"b1_type0_unchanged_target_entry_control", "Exact 7-entry caller and unchanged-target boundary", false,
+         [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,5,7,21,35,318); }},
+        {"b1_type0_early_or_reversed_entry_controls", "Preserve pre-C0=2 and reversed-write cases", false,
+         [](TestBench& t) {
+             test_type0_b1_r9_ivm_entry(t,5,5,1,35,278);
+             test_type0_b1_r9_ivm_entry(t,5,5,35,21,278);
+         }},
         {"b1_type0_progressive_origin_after_ivm", "SHAKER B1 0186 and French §19.7.2 p.219", false,
          test_type0_b1_progressive_origin_after_ivm},
         {"b1_type0_terminal_r7_keeps_preorigin_phase", "French §16.4.1 and §19.7.2", false,
