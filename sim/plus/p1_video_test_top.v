@@ -172,6 +172,7 @@ module p1_video_test_top (
 		.HSYNC(crtc_hs),
 		.VSYNC(crtc_vs),
 		.DE(crtc_de),
+		.FRAME_FIELD(),
 		.MA(ma),
 		.RA(ra),
 		.HCC(),

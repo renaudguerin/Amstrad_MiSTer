@@ -615,6 +615,7 @@ module plus_p8_test_top (
 		.HSYNC(video_hs),
 		.VSYNC(video_vs),
 		.FIELD(),
+		.FRAME_FIELD(),
 		.DE(video_de),
 		.MA(video_ma),
 		.RA(video_ra),
