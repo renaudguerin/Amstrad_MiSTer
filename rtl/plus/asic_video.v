@@ -1200,6 +1200,7 @@ reg  [7:0] vid_odd;    // byte displayed during dots 8-15
 reg        de_hold;    // DE captured at the character edge (post-skew)
 reg  [1:0] mode_q;     // GAMODE latched on the qualified GA event
 reg  [3:0] type4_mode_hsync_history;
+reg  [1:0] type4_previous_mode;
 reg  [1:0] type4_requested_mode;
 reg        type4_mode_pending;
 reg        type4_mixed_byte;
@@ -1254,12 +1255,13 @@ end
 // qualifies the requested mode in the ASIC's delayed GA window. The GA
 // owns that event; raw HSYNC assertion cannot establish either condition.
 // Capture the one-clock GA request on CLOCK. The 40226's documented
-// two-character HSYNC transition out of Mode 2 resumes one old dot
-// before changing decoder (§9.3.4.1 p.54 and §9.3.4.5.1 p.69).
-// Other mixed transitions and their GA qualification remain open.
+// two-character HSYNC transition resumes one old dot before changing
+// decoder (§9.3.4.1 p.54 and §9.3.4.5 pp.69–73). Qualification of
+// other raw HSYNC widths and bus phases remains open.
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		mode_q <= 2'b00;
+		type4_previous_mode <= 2'b00;
 		type4_requested_mode <= 2'b00;
 		type4_mode_pending <= 1'b0;
 		type4_mixed_byte <= 1'b0;
@@ -1273,8 +1275,9 @@ always @(posedge CLOCK) begin
 	end
 	else if (MODE_UPDATE_EN) begin
 		type4_mixed_byte <= 1'b0;
-		if (ASIC_40226 && mode_q == 2'd2 && GAMODE != 2'd2 &&
+		if (ASIC_40226 && mode_q != GAMODE &&
 		    type4_mode_hsync_history == 4'b0110 && pix_cnt == 4'd0) begin
+			type4_previous_mode <= mode_q;
 			type4_requested_mode <= GAMODE;
 			type4_mode_pending <= 1'b1;
 		end else begin
@@ -1300,10 +1303,12 @@ wire [2:0] s     = pix_cnt[2:0];
 wire [7:0] mode2_byte = ASIC_40226 && s == 3'd7 ?
                         (pix_cnt[3] ? VIDEOD[7:0] : VIDEOD[15:8]) : vbyte;
 wire [2:0] mode2_position = ASIC_40226 ? s + 3'd1 : s;
+wire [1:0] serializer_mode = type4_mode_start ? type4_requested_mode : mode_q;
+wire [2:0] mixed_mode2_position = s - (type4_previous_mode == 2'd1 ? 3'd1 : 3'd2);
 
 reg [3:0] pen_nib;
 always @(*) begin
-	case (mode_q)
+	case (serializer_mode)
 		// Mode 0: leftmost pixel takes the odd bits, second the even bits
 		// (Grimware bit row A0 B0 A2 B2 A1 B1 A3 B3 => A={A3,A2,A1,A0}).
 		2'b00: pen_nib = s[2] ? {vbyte[0], vbyte[4], vbyte[2], vbyte[6]}
@@ -1318,21 +1323,39 @@ always @(*) begin
 		2'b11: pen_nib = s[2] ? {2'b00, vbyte[2], vbyte[6]}
 		                      : {2'b00, vbyte[3], vbyte[7]};
 	endcase
-	// After the old b5 dot the incoming mode consumes the
-	// remainder of an already shifting byte (FR §9.3.4.5.1 p.69).
+	// The first unblanked dot used the outgoing mode. The incoming
+	// decoder now sees the rest of an already shifting byte (FR §9.3.4.5).
 	if (type4_mode_start || type4_mixed_byte) begin
-		case (type4_requested_mode)
-			2'd0: pen_nib = s[2] ? {1'b0, vbyte[1], 1'b0, vbyte[3]} :
-			                      {1'b0, vbyte[2], vbyte[0], vbyte[4]};
-			2'd1: case (s[2:1])
-				2'd1: pen_nib = {2'b00, vbyte[0], vbyte[4]};
-				2'd2: pen_nib = {3'b000, vbyte[3]};
-				default: pen_nib = {3'b000, vbyte[2]};
+		if (type4_previous_mode == 2'd2) begin
+			case (type4_requested_mode)
+				2'd0: pen_nib = s[2] ? {1'b0, vbyte[1], 1'b0, vbyte[3]} :
+				                      {1'b0, vbyte[2], vbyte[0], vbyte[4]};
+				2'd1: case (s[2:1])
+					2'd1: pen_nib = {2'b00, vbyte[0], vbyte[4]};
+					2'd2: pen_nib = {3'b000, vbyte[3]};
+					default: pen_nib = {3'b000, vbyte[2]};
+				endcase
+				2'd3: pen_nib = s[2] ? {3'b000, vbyte[3]} :
+				                      {2'b00, vbyte[0], vbyte[4]};
+				default: ;
 			endcase
-			2'd3: pen_nib = s[2] ? {3'b000, vbyte[3]} :
-			                      {2'b00, vbyte[0], vbyte[4]};
-			default: ;
-		endcase
+		end else begin
+			case (type4_requested_mode)
+				2'd0: if (type4_previous_mode == 2'd1)
+					pen_nib = s[2] ? {1'b0, vbyte[3], vbyte[1], vbyte[5]} :
+					                 {vbyte[0], vbyte[4], vbyte[2], vbyte[6]};
+				2'd1: case (s[2:1])
+					2'd1: pen_nib = {2'b00, vbyte[3], vbyte[7]};
+					2'd2: pen_nib = {2'b00, vbyte[2], vbyte[6]};
+					default: pen_nib = {2'b00, vbyte[1], vbyte[5]};
+				endcase
+				// The Mode 2 lead takes the next byte normally at s=7.
+				2'd2: if (s != 3'd7) pen_nib = {3'b000, vbyte[~mixed_mode2_position]};
+				2'd3: if (type4_previous_mode == 2'd1)
+					pen_nib = s[2] ? {2'b00, vbyte[1], vbyte[5]} :
+					                 {2'b00, vbyte[2], vbyte[6]};
+			endcase
+		end
 	end
 end
 

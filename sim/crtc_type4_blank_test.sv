@@ -3,7 +3,7 @@ module crtc_type4_blank_test;
 	reg clock = 0, clken = 0, nreset = 0, pixen = 0;
 	reg sna_load = 0, sna_hs = 0;
 	reg [7:0] sna_hcc = 0;
-	reg mode2 = 0;
+	reg [1:0] snapshot_mode = 0;
 	reg use_ga_mode = 0, ga_iorq_n = 1;
 	reg [1:0] target_mode = 1;
 	reg crtc_write = 0, crtc_data_port = 0;
@@ -34,7 +34,7 @@ module crtc_type4_blank_test;
 		.MODE(), .BORDER_O(), .INKR_O(), .GAMODE_O(ga_mode),
 		.LEGACY_PAL_WR(), .LEGACY_PAL_ADDR(), .LEGACY_PAL_DATA(),
 		.SNA_LOAD(sna_load), .SNA_INKSEL(5'd0), .SNA_PALETTE(136'd0),
-		.SNA_CONFIG(8'd2), .SNA_VSDELAY(2'd0), .SNA_INTCNT(6'd0),
+		.SNA_CONFIG({6'd0, snapshot_mode}), .SNA_VSDELAY(2'd0), .SNA_INTCNT(6'd0),
 		.SNA_INT(1'b0), .SNA_VS(1'b0), .SNA_HS(sna_hs)
 	);
 
@@ -55,7 +55,7 @@ module crtc_type4_blank_test;
 			.SNA_LOAD(sna_load), .SNA_ADDR(5'd0), .SNA_REGS(regs), .SNA_HCC(sna_hcc),
 			.SNA_LINE(7'd0), .SNA_RASTER(5'd0), .SNA_VTA(5'd0),
 			.SNA_HSW(4'd0), .SNA_VSW(4'd0), .SNA_VS(1'b0), .SNA_HS(sna_hs),
-			.SNA_ADJ(1'b0), .SNA_MODE(mode2 ? 2'd2 : 2'd0));
+			.SNA_ADJ(1'b0), .SNA_MODE(snapshot_mode));
 	end
 
 	task automatic step(input bit pixel, character);
@@ -88,7 +88,7 @@ module crtc_type4_blank_test;
 		regs[4*8 +: 8] = 31;
 		regs[6*8 +: 8] = 31;
 		regs[7*8 +: 8] = 24;
-		mode2 = 1;
+		snapshot_mode = 2;
 		inks[0*5 +: 5] = 12; // bright red
 		inks[1*5 +: 5] = 21; // bright blue
 		sna_hs = 0;
@@ -123,7 +123,7 @@ module crtc_type4_blank_test;
 		regs[4*8 +: 8] = 31;
 		regs[6*8 +: 8] = 31;
 		regs[7*8 +: 8] = 24;
-		mode2 = use_mode2;
+		snapshot_mode = use_mode2 ? 2'd2 : 2'd0;
 		video_word = 0;
 		inks[0*5 +: 5] = 12; // bright red in mode 0 or mode 2
 		border = use_border ? 11 : 12;
@@ -164,14 +164,18 @@ module crtc_type4_blank_test;
 		end
 	endtask
 
-	localparam logic [2:0] MODE1_DOTS [10] = '{1, 2, 2, 1, 1, 0, 0, 2, 2, 3};
-	localparam logic [11:0] TEST_RGB [8] =
-		'{12'hf00, 12'h00f, 12'h0f0, 12'hf0f, 12'h0ff, 12'h60f, 12'h06f, 12'hff0};
+	localparam logic [3:0] MODE1_DOTS [10] = '{1, 2, 2, 1, 1, 0, 0, 2, 2, 3};
+	localparam logic [4:0] TEST_HW [16] =
+		'{12,21,18,13,19,29,23,10,17,3,26,11,4,15,14,25};
+	localparam logic [11:0] TEST_RGB [16] = '{
+		12'hf00, 12'h00f, 12'h0f0, 12'hf0f, 12'h0ff, 12'h60f, 12'h06f, 12'hff0,
+		12'h0f6, 12'hff6, 12'h6f0, 12'hfff, 12'h006, 12'hf6f, 12'hf60, 12'h6f6
+	};
 
-	task automatic verify_mode2_exit(input logic [1:0] mode,
+	task automatic verify_mode_change(input logic [1:0] old_mode, input logic [1:0] mode,
 	                                 input logic [3:0] width, input bit rewrite_width,
 	                                 input logic [7:0] mixed_byte,
-	                                 input logic [2:0] expected [10],
+	                                 input logic [3:0] expected [10],
 	                                 input logic [11:0] ordinary_first_dot);
 		bit aligned;
 		int raw_fall, qualification, unblank;
@@ -193,15 +197,9 @@ module crtc_type4_blank_test;
 		regs[7*8 +: 8] = 24;
 		sna_hcc = 31;
 		sna_hs = 0;
-		mode2 = 1;
-		inks[0*5 +: 5] = 12;
-		inks[1*5 +: 5] = 21;
-		inks[2*5 +: 5] = 18;
-		inks[3*5 +: 5] = 13;
-		inks[4*5 +: 5] = 19;
-		inks[5*5 +: 5] = 29;
-		inks[6*5 +: 5] = 23;
-		inks[7*5 +: 5] = 10;
+		snapshot_mode = old_mode;
+		for (int ink = 0; ink < 16; ink++)
+			inks[ink*5 +: 5] = TEST_HW[ink];
 		video_word = {8'h6c, mixed_byte};
 		sna_load = 1;
 		step(0, 0);
@@ -244,13 +242,13 @@ module crtc_type4_blank_test;
 			if (dot == qualification && ga_mode !== mode)
 				$fatal(1, "GA did not accept the Mode %0d RMR write", mode);
 			if (dot >= 66 && dot < unblank && {red[1], green[1], blue[1]} !== 12'h000)
-				$fatal(1, "40226 Mode 2 to Mode %0d blackout at dot %0d", mode, dot);
-			// FR §9.3.4.5.1 p.69: one old b5 dot, six dots of the
-			// mixed sequence, then ordinary decoding of the next byte.
+				$fatal(1, "40226 Mode %0d to Mode %0d blackout at dot %0d", old_mode, mode, dot);
+			// FR §9.3.4.5 pp.69–73: one old dot, then five or six
+			// mixed dots before ordinary decoding of the next byte.
 			if (width == 2 && dot >= unblank &&
 			    {red[1], green[1], blue[1]} !== TEST_RGB[expected[dot - unblank]])
-				$fatal(1, "40226 Mode 2 to Mode %0d dot %0d rewrite=%0b: RGB=%03x expected=%03x",
-				       mode, dot, rewrite_width, {red[1], green[1], blue[1]}, TEST_RGB[expected[dot - unblank]]);
+				$fatal(1, "40226 Mode %0d to Mode %0d dot %0d rewrite=%0b: RGB=%03x expected=%03x",
+				       old_mode, mode, dot, rewrite_width, {red[1], green[1], blue[1]}, TEST_RGB[expected[dot - unblank]]);
 			if (dot == unblank && {red[0], green[0], blue[0]} !== ordinary_first_dot)
 				$fatal(1, "40489 mode change leaked the 40226 transition");
 			if (width == 3 && dot == unblank && {red[1], green[1], blue[1]} !== 12'h0f0)
@@ -291,18 +289,33 @@ module crtc_type4_blank_test;
 		verify_ink_change(1, 0);
 		verify_ink_change(0, 1);
 		verify_ink_change(1, 1);
-		verify_mode2_exit(1, 2, 0, 8'h29, MODE1_DOTS, 12'h0f0);
-		verify_mode2_exit(1, 2, 1, 8'h29, MODE1_DOTS, 12'h0f0);
-		verify_mode2_exit(1, 3, 1, 8'h29, MODE1_DOTS, 12'h0f0);
+		verify_mode_change(2, 1, 2, 0, 8'h29, MODE1_DOTS, 12'h0f0);
+		verify_mode_change(2, 1, 2, 1, 8'h29, MODE1_DOTS, 12'h0f0);
+		verify_mode_change(2, 1, 3, 1, 8'h29, MODE1_DOTS, 12'h0f0);
 
 		// Independent bit patterns make b0, b1, b2, b3 and b4 distinguishable.
 		// Next byte 6C emits 6,6,6 in Mode 0, 2,2,3 in Mode 1 and 2,2,2 in Mode 3.
-		verify_mode2_exit(0, 2, 0, 8'ha6, '{1,4,4,4,4,4,4,6,6,6}, 12'hfff);
-		verify_mode2_exit(0, 2, 0, 8'h51, '{0,3,3,0,0,0,0,6,6,6}, 12'hf00);
-		verify_mode2_exit(0, 2, 0, 8'h2b, '{1,2,2,5,5,5,5,6,6,6}, 12'hfff);
-		verify_mode2_exit(3, 2, 0, 8'ha6, '{1,0,0,0,0,0,0,2,2,2}, 12'h00f);
-		verify_mode2_exit(3, 2, 0, 8'h51, '{0,3,3,0,0,0,0,2,2,2}, 12'hf00);
-		verify_mode2_exit(3, 2, 0, 8'h2b, '{1,2,2,1,1,1,1,2,2,2}, 12'h0f0);
+		verify_mode_change(2, 0, 2, 0, 8'ha6, '{1,4,4,4,4,4,4,6,6,6}, 12'hf6f);
+		verify_mode_change(2, 0, 2, 0, 8'h51, '{0,3,3,0,0,0,0,6,6,6}, 12'hf00);
+		verify_mode_change(2, 0, 2, 0, 8'h2b, '{1,2,2,5,5,5,5,6,6,6}, 12'hf60);
+		verify_mode_change(2, 3, 2, 0, 8'ha6, '{1,0,0,0,0,0,0,2,2,2}, 12'h00f);
+		verify_mode_change(2, 3, 2, 0, 8'h51, '{0,3,3,0,0,0,0,2,2,2}, 12'hf00);
+		verify_mode_change(2, 3, 2, 0, 8'h2b, '{1,2,2,1,1,1,1,2,2,2}, 12'h0f0);
+
+		// FR §9.3.4.5.2 p.70: Mode 0 supplies its full first pen.
+		verify_mode_change(0, 1, 2, 0, 8'h2b, '{14,2,2,0,0,3,3,2,2,3}, 12'h0f0);
+		verify_mode_change(0, 2, 2, 0, 8'ha6, '{13,1,0,1,0,0,0,1,1,0}, 12'hf00);
+		verify_mode_change(0, 3, 2, 0, 8'ha6, '{13,1,1,2,2,2,2,2,2,2}, 12'h00f);
+		// FR §9.3.4.5.3 p.71: Mode 1 reuses the second pair, then
+		// takes later pens from the portion of the byte still shifting.
+		verify_mode_change(1, 0, 2, 0, 8'hb7, '{1,14,14,3,3,3,3,6,6,6}, 12'hf6f);
+		verify_mode_change(1, 2, 2, 0, 8'hb7, '{1,0,1,1,0,1,0,1,1,0}, 12'hf00);
+		verify_mode_change(1, 3, 2, 0, 8'hb7, '{1,2,2,3,3,3,3,2,2,2}, 12'h00f);
+		// FR §9.3.4.5.4 p.73: Mode 3 starts with its two-bit first
+		// pen, then shares the Mode 0 rearrangement of the remaining bits.
+		verify_mode_change(3, 0, 2, 0, 8'h2b, '{2,14,14,8,8,8,8,6,6,6}, 12'hf60);
+		verify_mode_change(3, 1, 2, 0, 8'ha6, '{1,1,1,2,2,3,3,2,2,3}, 12'h00f);
+		verify_mode_change(3, 2, 2, 0, 8'h2b, '{2,0,0,1,0,1,0,1,1,0}, 12'hf00);
 
 		$display("PASS CRTC4 horizontal blackout, Mode 2 lead, ink phase and mixed byte");
 		$finish;
