@@ -31,9 +31,9 @@
 //  cite their ACCC section at the point of implementation.
 //============================================================================
 
-// Progressive timing and IVM addressing. Interlace sync and extra lines,
-// cursor output and the sub-character R0/R2/R3 and VSYNC aperture need
-// separate qualification.
+// Progressive timing, IVM addressing and natural MID-VSYNC. Interlace
+// extra lines, cursor output and the sub-character R0/R2/R3 and VSYNC
+// aperture need separate qualification.
 module crtc_type2 (
 	input            CLOCK,
 	input            CLKEN,
@@ -56,7 +56,8 @@ reg [7:0] h_total, h_displayed, h_sync_pos;
 reg [3:0] h_sync_width;
 reg [6:0] v_total, v_displayed, v_sync_pos;
 reg [4:0] v_adjust, max_raster;
-reg ivm_mode;
+reg [1:0] interlace_mode;
+wire ivm_mode = &interlace_mode;
 reg [13:0] start_addr;
 reg [5:0] cursor_addr_high;
 reg [7:0] cursor_addr_low;
@@ -82,7 +83,7 @@ always @(posedge CLOCK) begin
 		v_sync_pos <= 0;
 		v_adjust <= 0;
 		max_raster <= 0;
-		ivm_mode <= 0;
+		interlace_mode <= 0;
 		start_addr <= 0;
 		cursor_addr_high <= 0;
 		cursor_addr_low <= 0;
@@ -97,7 +98,7 @@ always @(posedge CLOCK) begin
 			5'd5: v_adjust <= DI[4:0];
 			5'd6: v_displayed <= DI[6:0];
 			5'd7: v_sync_pos <= DI[6:0];
-			5'd8: ivm_mode <= &DI[1:0];
+			5'd8: interlace_mode <= DI[1:0];
 			5'd9: max_raster <= DI[4:0];
 			5'd12: start_addr[13:8] <= DI[5:0];
 			5'd13: start_addr[7:0] <= DI;
@@ -121,6 +122,7 @@ reg last_line, previous_last_line, last_line_enabled;
 reg [3:0] hsc, vsc;
 reg hsync_released;
 reg vsync_counting, vsync_matched;
+reg vsync_mid_pending;
 reg horizontal_display, vertical_display;
 
 wire line_end = hcc == h_total;
@@ -171,13 +173,28 @@ wire timing_write = write_selected && (selected == 5'd4 || selected == 5'd9);
 // FR §16.4.3 p.171: a match during HSYNC consumes the same 16-line
 // interval as a visible VSYNC. Remember the region until C4 leaves R7.
 wire [6:0] compare_r7 = write_selected && selected == 5'd7 ? DI[6:0] : v_sync_pos;
-wire vsync_match = (CLKEN && line_end ? next_row : row) == compare_r7;
-wire vsync_event = vsync_match && !vsync_matched &&
-                   ((CLKEN && line_end) || (write_selected && selected == 5'd7));
-wire vsync_end = CLKEN && line_end && vsc == 4'd15;
+wire vsync_line_tick = CLKEN && line_end;
+wire vsync_match = (vsync_line_tick ? next_row : row) == compare_r7;
+wire vsync_admit = vsync_match && !vsync_matched &&
+                   (vsync_line_tick || (write_selected && selected == 5'd7));
+// FR §19.7.2 p.219: the new frame's parity takes effect before R7=0.
+// In either interlace mode the even field uses C0=R0/2.
+wire vsync_mid_on_line = vsync_line_tick && interlace_mode[0] &&
+                        !(frame_end ? next_frame_odd : frame_odd);
+wire vsync_mid_tick = CLKEN && next_hcc == {1'b0, h_total[7:1]};
+wire vsync_arm_mid = vsync_admit && vsync_mid_on_line && !vsync_mid_tick;
+// MODEL LIMIT (B26): reserve the midpoint on natural row entry and
+// cancel the pending event if R8 or R7 removes its match. Midpoint bus
+// write ordering needs original-CPC probes. Live R7 retains §16.4.3.
+wire vsync_mid_event = vsync_mid_pending && vsync_mid_tick && !vsync_line_tick &&
+                       vsync_match && interlace_mode[0];
+wire vsync_event = (vsync_admit && !vsync_arm_mid) || vsync_mid_event;
+// FR §16.1 p.161: the fixed sixteen counts occur at C0=0,
+// including after a midpoint onset and when the pin is hidden.
+wire vsync_end = vsync_line_tick && vsc == 4'd15;
 // FR §15.6 p.157: the natural row-entry compare sees the outgoing
 // character. HSYNC starting at C0=0 can still blank DE on that line.
-wire vsync_hidden = CLKEN && line_end ? HSYNC :
+wire vsync_hidden = vsync_line_tick ? HSYNC :
                     CLKEN ? hsync_next || hsync_end : HSYNC || hsync_released;
 
 assign MA = video_addr;
@@ -207,15 +224,18 @@ always @(posedge CLOCK) begin
 		VSYNC <= 0;
 		vsync_counting <= 0;
 		vsync_matched <= 0;
+		vsync_mid_pending <= 0;
 		horizontal_display <= 0;
 		vertical_display <= 0;
 	end else begin
-		if (!vsync_match || vsync_event) vsync_matched <= vsync_match;
+		if (!vsync_match || vsync_admit) vsync_matched <= vsync_match;
+		if (vsync_line_tick || vsync_mid_tick || !vsync_match || !interlace_mode[0])
+			vsync_mid_pending <= vsync_arm_mid;
 		if (vsync_event && (!vsync_counting || vsync_end)) begin
 			vsync_counting <= 1;
 			VSYNC <= !vsync_hidden;
 			vsc <= 0;
-		end else if (vsync_counting && CLKEN && line_end) begin
+		end else if (vsync_counting && vsync_line_tick) begin
 			vsc <= vsc + 4'd1;
 			if (vsync_end) begin
 				vsync_counting <= 0;

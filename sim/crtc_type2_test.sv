@@ -59,12 +59,50 @@ module crtc_type2_test;
 		write_reg(13, 8'h80);
 	endtask
 
-	task automatic find_origin(input int last_raster = 1);
+	task automatic find_origin(input int last_raster = 1, input logic [4:0] first_ra = 0);
 		for (int tick = 0; tick < 3 * (20 * (last_raster + 1) + 3) * 32; tick++) begin
 			step(1);
-			if (ma == 14'h1280 && ra == 0 && de) return;
+			if (ma == 14'h1280 && ra == first_ra && de) return;
 		end
 		$fatal(1, "no frame at the programmed origin");
+	endtask
+
+	task automatic verify_mid_vsync(input logic [7:0] mode, sync_row, input bit ghost);
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'hf3);
+		write_reg(2, ghost ? 8'd12 : 8'd18);
+		write_reg(7, sync_row);
+		write_reg(8, mode);
+		find_origin(1, mode[1:0] == 3 ? 5'd1 : 5'd0);
+
+		// The first programmed frame is odd. Even interlace starts at
+		// C0=R0/2=15, including when R7 is the new frame's origin
+	// (FR §19.7.2 p.219). Both phases count 16 C0=0 edges,
+	// independent of the R3 high nibble (FR §16.1 p.161).
+		for (int field = 0; field < 2; field++) begin
+		int onset, release_tick;
+			bit hidden;
+			onset = 2 * int'(sync_row) * 32 + (field == 1 && mode[0] ? 15 : 0);
+		release_tick = (2 * int'(sync_row) + 16) * 32;
+			hidden = ghost && field == 1;
+			for (int tick = 0; tick < 43 * 32; tick++) begin
+			if (vs !== (!hidden && tick >= onset && tick < release_tick))
+					$fatal(1, "R8=%02x R7=%0d field=%0d x=%0d y=%0d ghost=%0b VSYNC=%0b",
+					       mode, sync_row, field, tick % 32, tick / 32, ghost, vs);
+				if (hidden && tick == onset + 1) begin
+					// The midpoint coincides with the HSYNC release
+					// character. Once clear, a progressive R7 trigger
+					// still cannot bypass the ghost (FR §16.4.3 p.171).
+					write_reg(8, 8'h30);
+					write_reg(7, 127);
+					write_reg(7, sync_row);
+					if (vs) $fatal(1, "MID-VSYNC ghost did not consume the sync interval");
+				end
+				step(1);
+			end
+		end
 	endtask
 
 	task automatic verify_ghost_vsync;
@@ -319,8 +357,12 @@ module crtc_type2_test;
 		verify_ivm(7, 0);
 		verify_ivm(6, 1);
 		verify_ivm(6, 0);
+		verify_mid_vsync(8'h31, 5, 0);
+		verify_mid_vsync(8'h33, 0, 0);
+		verify_mid_vsync(8'h32, 5, 0);
+		verify_mid_vsync(8'h33, 5, 1);
 
-		$display("PASS CRTC2 progressive timing, I/O and IVM addressing");
+		$display("PASS CRTC2 progressive timing, I/O, IVM addressing and MID-VSYNC");
 		$finish;
 	end
 endmodule
