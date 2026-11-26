@@ -83,10 +83,10 @@ $(CRTC2_BIN): crtc_type2_test.sv ../rtl/crtc_type2.v Makefile
 	$(VERILATOR) --binary --timing --top-module crtc_type2_test \
 		--Mdir $(dir $@) $< ../rtl/crtc_type2.v
 
-$(CRTC4_BLANK_BIN): crtc_type4_blank_test.sv ../rtl/plus/asic_video.v Makefile
+$(CRTC4_BLANK_BIN): crtc_type4_blank_test.sv ../rtl/plus/asic_video.v ../rtl/plus/asic_ga_timing.v Makefile
 	mkdir -p $(dir $@)
 	$(VERILATOR) --binary --timing --top-module crtc_type4_blank_test \
-		--Mdir $(dir $@) $< ../rtl/plus/asic_video.v
+		--Mdir $(dir $@) $< ../rtl/plus/asic_video.v ../rtl/plus/asic_ga_timing.v
 
 plus-test:
 	"$(MAKE)" -C plus test-run

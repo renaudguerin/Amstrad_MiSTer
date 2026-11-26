@@ -1199,6 +1199,11 @@ reg  [7:0] vid_even;   // byte displayed during dots 0-7
 reg  [7:0] vid_odd;    // byte displayed during dots 8-15
 reg        de_hold;    // DE captured at the character edge (post-skew)
 reg  [1:0] mode_q;     // GAMODE latched on the qualified GA event
+reg  [3:0] type4_mode_hsync_history;
+reg  [1:0] type4_requested_mode;
+reg        type4_mode_pending;
+reg        type4_mixed_byte;
+wire       type4_mode_start = type4_mode_pending && PIXEN && pix_cnt == 4'd2;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) pix_cnt <= 4'd0;
@@ -1236,19 +1241,55 @@ always @(posedge CLOCK) begin
 	end
 end
 
+// The GA qualifies one character after a short raw HSYNC falls. Its
+// two-character case arrives with the samples low/high/high/low.
+// A later R3 write cannot change the completed pulse.
+always @(posedge CLOCK) begin
+	if (!nRESET) type4_mode_hsync_history <= 4'b0000;
+	else if (SNA_LOAD) type4_mode_hsync_history <= {4{SNA_HS}};
+	else if (CLKEN) type4_mode_hsync_history <= {type4_mode_hsync_history[2:0], HSYNC};
+end
+
 // ACCC v1.11 FR §§9.3.1–9.3.3 pp.52–53: a valid >=2us HSYNC
 // qualifies the requested mode in the ASIC's delayed GA window. The GA
 // owns that event; raw HSYNC assertion cannot establish either condition.
-// Consume on CLOCK, not PIXEN: the supplied event is one master clock.
-// Type3's exact mixed-byte transition pixel remains open (§9.3.4.1 p.54).
+// Capture the one-clock GA request on CLOCK. The 40226's documented
+// two-character HSYNC transition out of Mode 2 resumes one old dot
+// before changing decoder (§9.3.4.1 p.54 and §9.3.4.5.1 p.69).
+// Other mixed transitions and their GA qualification remain open.
 always @(posedge CLOCK) begin
-	if (!nRESET) mode_q <= 2'b00;
+	if (!nRESET) begin
+		mode_q <= 2'b00;
+		type4_requested_mode <= 2'b00;
+		type4_mode_pending <= 1'b0;
+		type4_mixed_byte <= 1'b0;
+	end
 	else if (SNA_LOAD) begin
 		// The settled header owns the decoder while the GA restores its
 		// shadow on this same edge; sampling GAMODE would read old state.
 		mode_q <= SNA_MODE;
+		type4_mode_pending <= 1'b0;
+		type4_mixed_byte <= 1'b0;
 	end
-	else if (MODE_UPDATE_EN) mode_q <= GAMODE;
+	else if (MODE_UPDATE_EN) begin
+		type4_mixed_byte <= 1'b0;
+		if (ASIC_40226 && mode_q == 2'd2 && GAMODE != 2'd2 &&
+		    type4_mode_hsync_history == 4'b0110 && pix_cnt == 4'd0) begin
+			type4_requested_mode <= GAMODE;
+			type4_mode_pending <= 1'b1;
+		end else begin
+			mode_q <= GAMODE;
+			type4_mode_pending <= 1'b0;
+		end
+	end
+	else if (type4_mode_start) begin
+		mode_q <= type4_requested_mode;
+		type4_mode_pending <= 1'b0;
+		type4_mixed_byte <= 1'b1;
+	end
+	else if (PIXEN && pix_cnt == 4'd7) begin
+		type4_mixed_byte <= 1'b0;
+	end
 end
 
 wire [7:0] vbyte = pix_cnt[3] ? vid_odd : vid_even;
@@ -1277,6 +1318,22 @@ always @(*) begin
 		2'b11: pen_nib = s[2] ? {2'b00, vbyte[2], vbyte[6]}
 		                      : {2'b00, vbyte[3], vbyte[7]};
 	endcase
+	// After the old b5 dot the incoming mode consumes the
+	// remainder of an already shifting byte (FR §9.3.4.5.1 p.69).
+	if (type4_mode_start || type4_mixed_byte) begin
+		case (type4_requested_mode)
+			2'd0: pen_nib = s[2] ? {1'b0, vbyte[1], 1'b0, vbyte[3]} :
+			                      {1'b0, vbyte[2], vbyte[0], vbyte[4]};
+			2'd1: case (s[2:1])
+				2'd1: pen_nib = {2'b00, vbyte[0], vbyte[4]};
+				2'd2: pen_nib = {3'b000, vbyte[3]};
+				default: pen_nib = {3'b000, vbyte[2]};
+			endcase
+			2'd3: pen_nib = s[2] ? {3'b000, vbyte[3]} :
+			                      {2'b00, vbyte[0], vbyte[4]};
+			default: ;
+		endcase
+	end
 end
 
 // [KT] measured legacy-colour table (Palette section): hardware colour
