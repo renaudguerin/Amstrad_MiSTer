@@ -5,6 +5,7 @@ RTL       := ../rtl/CRTC.v ../rtl/crtc_type0_engine.v ../rtl/crtc_type1_engine.v
 OBJ_DIR   := obj_dir
 TEST_SRC  := sim_main.cpp
 TEST_BIN  := $(OBJ_DIR)/crtc_tests
+CRTC2_BIN := $(OBJ_DIR)/crtc_type2/Vcrtc_type2_test
 
 CRTF_TOP      := crt_filter_blank_test_top
 CRTF_TOP_SRC  := crt_filter_blank_test_top.v
@@ -50,7 +51,7 @@ crt-filter-blank-test: $(CRTF_TEST_BIN)
 # inside a makefile; JOBS=1 gives serial, readable output.
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
-SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
+SIM_TESTS := crtc-test crtc-type2-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
 	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
 	ga40010-test u765-test b18-save-admission-test hardware-loop-host-test crt-response-test
 
@@ -67,6 +68,14 @@ full-run: $(SIM_TESTS) plus-full
 
 crtc-test: $(TEST_BIN)
 	$(TEST_BIN)
+
+.PHONY: crtc-type2-test
+crtc-type2-test: $(CRTC2_BIN)
+	$(CRTC2_BIN)
+
+$(CRTC2_BIN): crtc_type2_test.sv ../rtl/crtc_type2.v Makefile
+	$(VERILATOR) --binary --timing --top-module crtc_type2_test \
+		--Mdir $(dir $@) $< ../rtl/crtc_type2.v
 
 plus-test:
 	"$(MAKE)" -C plus test-run
