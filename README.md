@@ -11,9 +11,11 @@ The core is in active development. Many games run, but compatibility is incomple
 1. Download the latest `.rbf` from [Releases](https://github.com/renaudguerin/Amstrad_MiSTer/releases).
 2. Copy it to `/media/fat/_Computer/` on the MiSTer SD card.
 3. Copy [`boot.rom`](roms/boot.rom) to `/media/fat/Games/Amstrad/boot.rom`. The core needs this file to boot.
-4. Put disk images (`.DSK`) or Plus cartridges (`.CPR`) in `/media/fat/Games/Amstrad/` and mount them from the core menu. Select the appropriate machine model.
+4. Put disk images (`.DSK`) or Plus cartridges (`.CPR`) in `/media/fat/Games/Amstrad/` and mount them from the core menu. For a classic CPC, open **Hardware**, set **Plus model** to **Off**, select **CPC 6128**, **CPC 664** or **CPC 464** under **Model**, and choose **Reset & apply model**. For a Plus cartridge, select the intended **Plus model** before loading it.
 
 For a disk, `CAT` lists files and `RUN"program` starts a BASIC program. `|A` and `|B` select drives. Tape loading supports `.CDT` files with `|TAPE` and `RUN"`; tape seek and rewind are not supported.
+
+See [ROM setup and expansion slots](roms/README.md) for firmware overrides and how to load a ROM into a numbered slot.
 
 ## Features
 
