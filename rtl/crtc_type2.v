@@ -31,8 +31,9 @@
 //  cite their ACCC section at the point of implementation.
 //============================================================================
 
-// Progressive timing. Interlace, cursor output and the sub-character
-// R0/R2/R3 and VSYNC aperture require a separately qualified board path.
+// Progressive timing and IVM addressing. Interlace sync and extra lines,
+// cursor output and the sub-character R0/R2/R3 and VSYNC aperture need
+// separate qualification.
 module crtc_type2 (
 	input            CLOCK,
 	input            CLKEN,
@@ -55,6 +56,7 @@ reg [7:0] h_total, h_displayed, h_sync_pos;
 reg [3:0] h_sync_width;
 reg [6:0] v_total, v_displayed, v_sync_pos;
 reg [4:0] v_adjust, max_raster;
+reg ivm_mode;
 reg [13:0] start_addr;
 reg [5:0] cursor_addr_high;
 reg [7:0] cursor_addr_low;
@@ -80,6 +82,7 @@ always @(posedge CLOCK) begin
 		v_sync_pos <= 0;
 		v_adjust <= 0;
 		max_raster <= 0;
+		ivm_mode <= 0;
 		start_addr <= 0;
 		cursor_addr_high <= 0;
 		cursor_addr_low <= 0;
@@ -94,6 +97,7 @@ always @(posedge CLOCK) begin
 			5'd5: v_adjust <= DI[4:0];
 			5'd6: v_displayed <= DI[6:0];
 			5'd7: v_sync_pos <= DI[6:0];
+			5'd8: ivm_mode <= &DI[1:0];
 			5'd9: max_raster <= DI[4:0];
 			5'd12: start_addr[13:8] <= DI[5:0];
 			5'd13: start_addr[7:0] <= DI;
@@ -107,6 +111,8 @@ end
 reg [7:0] hcc;
 reg [6:0] row;
 reg [4:0] raster;
+reg [3:0] ivm_raster;
+reg frame_odd, next_frame_odd;
 reg [4:0] adjustment;
 reg in_adjustment;
 reg [13:0] line_addr, next_line_addr;
@@ -127,12 +133,22 @@ wire frame_end = in_adjustment ? next_adjustment == v_adjust :
                  last_line && v_adjust == 0;
 wire [6:0] next_row = frame_end ? 7'd0 : row + {6'd0, raster_end};
 wire [4:0] next_raster = frame_end || raster_end ? 5'd0 : raster + 5'd1;
+// FR §19.8.3 pp.227–228: C9.IVM runs in every R8 mode, resetting
+// at C9=R9/2 and at the row end. C4 still uses the ordinary comparator.
+wire [3:0] ivm_limit = max_raster[4:1];
+wire ivm_raster_reset = frame_end || raster_end || raster == {1'b0, ivm_limit};
+wire [3:0] next_ivm_raster = ivm_raster_reset ? 4'd0 : ivm_raster + 4'd1;
+// The address transfer compares C9.IVM without parity. With even R9
+// the row ends before that counter reaches its limit on the second half.
+wire address_raster_end = ivm_mode ? ivm_raster == ivm_limit : raster_end;
+wire next_address_raster_end = ivm_mode ? next_ivm_raster == ivm_limit :
+                              next_raster == max_raster;
 wire display_end = next_hcc == h_displayed;
 // FR §17.4.3 p.186: R1=0 compares before last-line evaluation.
 // On entry to a frame, only the AND half of the pointer reload runs.
 wire [13:0] line_addr_on_wrap =
 	frame_end && h_displayed == 0 ? next_line_addr & start_addr :
-	frame_end || raster_end ? next_line_addr : line_addr;
+	frame_end || address_raster_end ? next_line_addr : line_addr;
 // FR §17.1 p.178: VMA runs through every character, even if a late
 // R0 write forces C0 to overflow without starting a new line.
 wire [13:0] next_video_addr = video_addr + 14'd1;
@@ -165,7 +181,7 @@ wire vsync_hidden = CLKEN && line_end ? HSYNC :
                     CLKEN ? hsync_next || hsync_end : HSYNC || hsync_released;
 
 assign MA = video_addr;
-assign RA = raster;
+assign RA = ivm_mode ? {ivm_raster, frame_odd} : raster;
 assign DE = horizontal_display && vertical_display;
 
 always @(posedge CLOCK) begin
@@ -173,6 +189,9 @@ always @(posedge CLOCK) begin
 		hcc <= 0;
 		row <= 0;
 		raster <= 0;
+		ivm_raster <= 0;
+		frame_odd <= 0;
+		next_frame_odd <= 0;
 		adjustment <= 0;
 		in_adjustment <= 0;
 		line_addr <= 0;
@@ -222,19 +241,25 @@ always @(posedge CLOCK) begin
 				horizontal_display <= 0;
 				if (frame_end)
 					next_line_addr <= start_addr;
-				else if (raster_end)
+				else if (address_raster_end)
 					next_line_addr <= next_video_addr;
 			end
 			if (line_end) begin
 				row <= next_row;
 				raster <= next_raster;
+				ivm_raster <= next_ivm_raster;
+				// FR §19.5.4 p.213: reaching R6 determines the next
+				// frame's parity independently of the current R8 mode.
+				if (frame_end) frame_odd <= next_frame_odd;
+				if (next_row == v_displayed && (frame_end || next_row != row))
+					next_frame_odd <= frame_end ? !next_frame_odd : !frame_odd;
 				horizontal_display <= h_displayed != 0 && !hsync_next;
 				if (frame_end || next_row == v_displayed)
 					vertical_display <= frame_end && v_displayed != 0;
 				line_addr <= line_addr_on_wrap;
 				// Ordinary R1=0 uses the incoming raster and VMA.
 				// The terminal transfer above uses the outgoing last-line state.
-				if (h_displayed == 0 && (frame_end || next_raster == max_raster))
+				if (h_displayed == 0 && (frame_end || next_address_raster_end))
 					next_line_addr <= line_addr_on_wrap;
 				if (frame_end) in_adjustment <= 0;
 				else if (in_adjustment) adjustment <= next_adjustment;

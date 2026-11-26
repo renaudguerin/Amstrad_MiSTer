@@ -59,8 +59,8 @@ module crtc_type2_test;
 		write_reg(13, 8'h80);
 	endtask
 
-	task automatic find_origin;
-		for (int tick = 0; tick < 3 * 43 * 32; tick++) begin
+	task automatic find_origin(input int last_raster = 1);
+		for (int tick = 0; tick < 3 * (20 * (last_raster + 1) + 3) * 32; tick++) begin
 			step(1);
 			if (ma == 14'h1280 && ra == 0 && de) return;
 		end
@@ -201,6 +201,52 @@ module crtc_type2_test;
 			$fatal(1, "post-overflow R1 did not capture advanced MA, MA=%04x", ma);
 	endtask
 
+	task automatic verify_ivm(input logic [7:0] last_raster, input bit odd_frame);
+		logic [13:0] next_row_addr;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'h03);
+		write_reg(6, 2);
+		write_reg(9, last_raster);
+		find_origin(int'(last_raster));
+
+		// R6 was reached in the preceding progressive frame. The first
+		// programmed origin is odd and the next is even (FR §19.5.4 p.213).
+		if (!odd_frame) repeat ((20 * (int'(last_raster) + 1) + 3) * 32) step(1);
+		repeat (5 * 32 + 3) step(1);
+		if (ma !== 14'h1283 || ra !== 5'd5 || !de)
+			$fatal(1, "progressive MA/RA changed at the IVM midpoint, MA=%04x RA=%02x", ma, ra);
+
+		// C9.IVM has already reset at C9=3 and advanced once. A new
+		// R9 changes the comparator but keeps that counter history. Two
+		// R8 writes at C0=3 switch RA without a character clock
+		// (FR §19.8.3 pp.227–228).
+		write_reg(9, 11);
+		write_reg(8, 8'h33);
+		if (ma !== 14'h1283 || ra !== {4'd1, odd_frame} || !de)
+			$fatal(1, "live R8=3 missed C9.IVM history, MA=%04x RA=%02x", ma, ra);
+		write_reg(8, 8'h32);
+		if (ma !== 14'h1283 || ra !== 5'd5 || !de)
+			$fatal(1, "live R8=2 did not restore progressive RA, MA=%04x RA=%02x", ma, ra);
+		write_reg(9, last_raster);
+		write_reg(8, 8'h33);
+
+		// R9=7 reaches the VMA capture limit again on the last raster.
+		// R9=6 ends the row one raster early, so it repeats the base.
+		// Both advance at the next midpoint while C4 stays in row 1
+		// (FR §19.4.3 pp.204–205 and §19.8.3 p.227).
+		next_row_addr = last_raster[0] ? 14'h1288 : 14'h1280;
+		repeat ((int'(last_raster) - 4) * 32 - 3) step(1);
+		if (ma !== next_row_addr || ra !== {4'd0, odd_frame} || !de)
+			$fatal(1, "R9=%0d IVM row seam MA=%04x RA=%02x", last_raster, ma, ra);
+		repeat (4 * 32) step(1);
+		if (ma !== next_row_addr + 14'd8 || ra !== {4'd0, odd_frame} || !de)
+			$fatal(1, "R9=%0d IVM midpoint MA=%04x RA=%02x", last_raster, ma, ra);
+		repeat ((int'(last_raster) - 3) * 32) step(1);
+		if (de) $fatal(1, "R9=%0d IVM did not blank at C4=R6", last_raster);
+	endtask
+
 	initial begin
 		step(0);
 		nreset = 1;
@@ -269,8 +315,12 @@ module crtc_type2_test;
 		verify_zero_r1_pointer();
 		verify_zero_r1_row_advance();
 		verify_hcc_overflow_address();
+		verify_ivm(7, 1);
+		verify_ivm(7, 0);
+		verify_ivm(6, 1);
+		verify_ivm(6, 0);
 
-		$display("PASS CRTC2 progressive timing and I/O");
+		$display("PASS CRTC2 progressive timing, I/O and IVM addressing");
 		$finish;
 	end
 endmodule
