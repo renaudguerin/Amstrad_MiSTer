@@ -34,6 +34,14 @@ select GX4000 at launch. On older builds, open the shortcut, select
 save settings once from the MiSTer system menu. Launching Amstrad from
 `_Computer` uses its usual configuration.
 
+### Narrow border
+
+Set **Audio & Video → Border → Narrow** to zoom into a 672×216 window around
+the center of the CPC picture on scaled output. Use **Full** for titles that
+draw in the border or move the picture outside that window. Narrow takes
+precedence over Vertical Crop. Direct Video and Raw CRT keep the full raster.
+An unscaled analog output blanks the cropped area without enlarging the picture.
+
 ## Features
 
 - CPC 464, 664 and 6128 modes, two disk drives, expansion ROMs, joystick and mouse support, Multiface 2, and basic CDT tape input.

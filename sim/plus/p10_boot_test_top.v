@@ -928,7 +928,7 @@ module p10_boot_test_top #(
         .field_in(1'b0),
 `endif
         .pixel_rate_select(1'b0), .forced_scandoubler(1'b0),
-        .vcrop_en(1'b0), .HDMI_WIDTH(12'd1920), .HDMI_HEIGHT(12'd1080),
+        .vcrop_en(1'b0), .narrow_border(1'b0), .HDMI_WIDTH(12'd1920), .HDMI_HEIGHT(12'd1080),
         .HDMI_FREEZE(1'b0), .progress_pix(1'b0), .gamma_bus(b6_gamma),
         .CE_PIXEL(b6_mixer_ce), .VGA_R(b6_mixer_rgb[23:16]),
         .VGA_G(b6_mixer_rgb[15:8]), .VGA_B(b6_mixer_rgb[7:0]),

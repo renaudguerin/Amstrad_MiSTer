@@ -29,7 +29,7 @@ module video_field_test_top (
         .hs(hsync), .vs(raw_vs), .hbl(border ? hsync : ~display),
         .vbl(border ? raw_vs : 1'b0),
         .pixel_rate_select(1'b0), .forced_scandoubler(1'b0),
-        .field_in(raw_field), .vcrop_en(1'b0),
+        .field_in(raw_field), .vcrop_en(1'b0), .narrow_border(1'b0),
         .HDMI_WIDTH(12'd1920), .HDMI_HEIGHT(12'd1080),
         .HDMI_FREEZE(1'b0), .progress_pix(1'b0), .gamma_bus(gamma_bus),
         .CE_PIXEL(ce), .VGA_R(), .VGA_G(), .VGA_B(),

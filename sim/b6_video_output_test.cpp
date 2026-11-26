@@ -14,12 +14,14 @@ struct Bench {
     // It is outputs only, so every assertion the displayed-path tests already
     // make still has to hold beside these.
     bool check_obs=false;
+    bool progressive=false;
+    unsigned first_active_dot=0;
     Bench() {
         d.ce_16=0; d.native_cadence=0; d.raw_crt=0; d.pixel_vblank=0; d.plus_mode=1;
         d.mode=0; d.scale=0; d.ar=0; d.integer_scale=0; d.mix=0;
         d.r4=13; d.g4=7; d.b4=2; d.hs=0; d.vs=0; d.hbl=1; d.vbl=1;
         d.pixel_rate_select=0; d.forced_scandoubler=0; d.field_in=0;
-        d.vcrop_en=1; d.HDMI_WIDTH=1920; d.HDMI_HEIGHT=1080;
+        d.vcrop_en=1; d.narrow_border=0; d.HDMI_WIDTH=1920; d.HDMI_HEIGHT=1080;
         d.HDMI_FREEZE=0; d.progress_pix=0; d.gamma_bus=0;
     }
     void require(bool good, const char* why) {
@@ -33,7 +35,7 @@ struct Bench {
             d.hbl=(dot>=768); d.hs=(dot>=800&&dot<864);
             d.vbl=frame_sync&&(y>=300);
             d.vs=frame_sync&&(y>=304&&y<307);
-            d.field_in=frame_sync&&(y>=304);
+            d.field_in=!progressive&&frame_sync&&(y>=304);
             const bool sampled=check_obs&&d.ce_16;
             const unsigned p_hs=d.hs,p_vs=d.vs,p_hbl=d.hbl,p_vbl=d.vbl,p_field=d.field_in;
             d.CLK_VIDEO=0; d.eval(); d.CLK_VIDEO=1; d.eval(); ++clocks;
@@ -58,7 +60,10 @@ struct Bench {
                 require(d.CE_PIXEL==d.ce_16,"Raw CRT lost native dot cadence");
                 require(d.VGA_SL==0,"Raw CRT retained scanline effect");
             }
-            if(d.CE_PIXEL&&d.VGA_DE) ++acquired;
+            if(d.CE_PIXEL&&d.VGA_DE) {
+                if (!acquired) first_active_dot = dot;
+                ++acquired;
+            }
         }
         if(check_native) {
             // Acquisition width is counted at the real output, after the
@@ -69,6 +74,17 @@ struct Bench {
         return acquired;
     }
     void frame() {for(unsigned y=0;y<320;++y) line(y);}
+    void expect_window(unsigned width, unsigned top, unsigned height) {
+        for (unsigned y = 0; y < 320; ++y) {
+            unsigned expected = (y >= top && y < top + height) ? width : 0;
+            unsigned actual = line(y);
+            if (actual != expected) {
+                throw std::runtime_error("border window line " + std::to_string(y) +
+                    ": expected " + std::to_string(expected) + " pixels, got " +
+                    std::to_string(actual));
+            }
+        }
+    }
 };
 int main(int argc,char**argv) {
     Verilated::commandArgs(argc,argv);
@@ -138,6 +154,56 @@ int main(int argc,char**argv) {
         b.d.ce_16=1;
         b.d.CLK_VIDEO=0; b.d.eval(); b.d.CLK_VIDEO=1; b.d.eval();
         b.require(b.d.obs_field==1,"obs_field did not register on ce_pix");
+
+        Bench full;
+        full.d.vcrop_en = 0;
+        for (unsigned f = 0; f < 3; ++f) full.frame();
+        full.line(100);
+
+        Bench narrow;
+        narrow.d.narrow_border = 1;
+        for (unsigned f = 0; f < 3; ++f) narrow.frame();
+        narrow.check_obs = true;
+        narrow.expect_window(672, 28, 216);
+        narrow.check_obs = false;
+        narrow.line(100);
+        narrow.require(narrow.first_active_dot == full.first_active_dot + 48,
+                       "Narrow changes width without centering the aperture");
+
+        // At the adaptive 4 MHz input rate this is the same native-dot
+        // aperture, sampled once every four dots.
+        narrow.d.pixel_rate_select = 1;
+        full.d.pixel_rate_select = 1;
+        for (unsigned f = 0; f < 3; ++f) narrow.frame();
+        for (unsigned f = 0; f < 3; ++f) full.frame();
+        narrow.expect_window(168, 28, 216);
+        narrow.line(100);
+        full.line(100);
+        narrow.require(narrow.first_active_dot == full.first_active_dot + 48,
+                       "Adaptive Narrow shifted the aperture phase");
+
+        narrow.d.pixel_rate_select = 0;
+        narrow.d.vcrop_en = 0;
+        narrow.d.HDMI_WIDTH = 0;
+        narrow.d.HDMI_HEIGHT = 0; // Main's Direct Video sentinel
+        for (unsigned f = 0; f < 2; ++f) narrow.frame();
+        narrow.expect_window(768, 0, 300);
+
+        narrow.d.HDMI_WIDTH = 1920;
+        narrow.d.HDMI_HEIGHT = 1080;
+        narrow.d.native_cadence = 1; // response path with horizontal displacement
+        for (unsigned f = 0; f < 2; ++f) narrow.frame();
+        narrow.expect_window(768, 0, 300);
+
+        Bench scanlines;
+        scanlines.progressive = true;
+        scanlines.d.narrow_border = 1;
+        scanlines.d.scale = 2;
+        for (unsigned f = 0; f < 4; ++f) scanlines.frame();
+        unsigned doubled_pixels = 0;
+        for (unsigned y = 0; y < 320; ++y) doubled_pixels += scanlines.line(y);
+        scanlines.require(doubled_pixels == 2 * 672 * 216,
+                          "Narrow must crop before scan doubling");
         std::cout<<"B6 output PASS: Full crop="<<cropped/768
                  <<" lines; Raw CRT native checks="<<b.native_checks
                  <<", uncropped 768-dot windows="<<b.raw_windows
