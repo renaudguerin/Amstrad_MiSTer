@@ -142,7 +142,7 @@ module crtc_type0_engine
 
 	// F10 interlace parity updates and C9.VMA view (ACCC v1.11 section
 	// 19.8.1 pp.220-221).  pf/pc9/parity_r6 write strobes drive the
-	// wrapper's shared flops; ivm_disp/line_vma feed the wrapper's RA mux.
+	// wrapper's shared flops; address_ra drives the external address pin.
 	output           pf_write,
 	output           pf_value,
 	output           pc9_write,
@@ -150,7 +150,7 @@ module crtc_type0_engine
 	output           pr6_write,
 	output           pr6_value,
 	output           ivm_disp,
-	output     [4:0] line_vma
+	output     [4:0] address_ra
 );
 
 /* verilator lint_off WIDTH */
@@ -304,7 +304,34 @@ assign pc9_value = type0_ivm_turn_on ? type0_pc9_entry :
                    pf_write         ? parity_r6 :
                                       (row_next[0] ^ parity_frame);
 assign ivm_disp  = ivm_disp_r;
-assign line_vma  = {line[3:0], parity_c9};
+wire [4:0] line_vma = {line[3:0], parity_c9};
+
+// French ACCC v1.11 §19.8.1 pp.220–221: the first fetch of the
+// incoming raster uses its C9.VMA (or raw C9 on exit). Capture its
+// address at the actual rollover using the previously accepted R8.
+// The fetch keeps that owner through its first character, including
+// an R0=0 freeze after a real wrap. At the next CLKEN the established
+// mode/parity seam supplies later or repeated C0 addresses.
+localparam [1:0] ADDRESS_LEGACY = 2'b00, ADDRESS_RAW = 2'b01;
+reg [1:0] address_c0_owner;
+wire address_entry_in_adj = (row_new && frame_adj) ||
+                            (!frame_new_w && (in_adj || in_adj_route));
+wire address_entry_parity = (pf_write ? pf_value : parity_frame) ^
+    (R9_v_max_line[0] && (row_new ? row_next[0] : row[0]) &&
+     !address_entry_in_adj && !(type0_add_line_active && !frame_new_w));
+wire address_vma_parity = ivm_disp_r ?
+    (pc9_write ? pc9_value : parity_c9) : address_entry_parity;
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || CRTC_TYPE)
+        address_c0_owner <= ADDRESS_LEGACY;
+    else if (CLKEN && line_new)
+        address_c0_owner <= (R8_interlace == 2'b11) ?
+                            {1'b1, address_vma_parity} : ADDRESS_RAW;
+    else if (type0_seam)
+        address_c0_owner <= ADDRESS_LEGACY;
+end
+assign address_ra = address_c0_owner[1] ? {line[3:0], address_c0_owner[0]} :
+                    address_c0_owner == ADDRESS_RAW || !ivm_disp_r ? line : line_vma;
 
 reg        type0_r4_adjust_switch;
 reg        type0_r9_live_compare;

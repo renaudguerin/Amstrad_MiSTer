@@ -111,7 +111,7 @@ assign MA = row_addr_r;
 // 19.8.2: no separate C9.VMA concept), so RA is the raw counter.  Type 0
 // forms the split C9.VMA of section 19.8.1 on lines that started with IVM
 // active; the old field-OR approximation is gone.
-assign RA = CRTC_TYPE ? line : (e0_ivm_disp ? e0_line_vma : line);
+assign RA = CRTC_TYPE ? line : e0_address_ra;
 
 assign DE = de[CRTC_TYPE ? e1_de_index : e0_de_index];
 
@@ -271,7 +271,7 @@ wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
 wire       e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value;
 wire       e0_pr6_write, e0_pr6_value, e0_ivm_disp;
 wire       row_r6_landing;
-wire [4:0] e0_line_vma;
+wire [4:0] e0_address_ra;
 wire [4:0] e0_line_next, e0_c5_next;
 wire [6:0] e0_row_next;
 wire [1:0] e0_de_index;
@@ -301,7 +301,7 @@ crtc_type0_engine crtc_type0_engine
 	e0_vsc_load, e0_r7_write_fire, e0_vsync_holdoff, e0_vde_toggle,
 	e0_r6_vder_write, e0_r6_vder_value,
 	e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value,
-	e0_pr6_write, e0_pr6_value, e0_ivm_disp, e0_line_vma
+	e0_pr6_write, e0_pr6_value, e0_ivm_disp, e0_address_ra
 );
 
 wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;

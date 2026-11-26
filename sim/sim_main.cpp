@@ -312,6 +312,8 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_late_odd_r9);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_ivm_paired_entry);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_ivm_extra_raw_compare);
+        // The first VRAM fetch can still own the current C0 address.
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__address_c0_owner);
         // IA-6 / BL-018-BL-020: the one-character R0-widening action is
         // behavior-bearing private state and must be lifecycle-visible.
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_widen_pending);
@@ -9641,12 +9643,80 @@ void test_type0_b1_r8_at_next_raster(TestBench& test, bool on_seam) {
     test.expect_c4("C0=0 is still within C4=6", 6);
     test.expect_ra("C0=0 has already advanced to raw C9=5", 5);
     if (on_seam) test.write_selected_register_at_clken(3);
-    else test.write_selected_register_at_nclken(3);
+    else {
+        test.write_selected_register_at_nclken(3);
+        test.expect_ra("post-rollover R8 cannot relabel the first fetch", 5);
+    }
     test.run_to_c0(4);
     test.expect_ra("R8 write phase selects the established seam route", on_seam ? 5 : 10);
     test.run_characters(64);
     test.expect_c4("previous-raster R9 cannot pair with this R8", on_seam ? 7 : 6);
     test.expect_ra("unpaired IVM entry exposes the expected RA", on_seam ? 1 : 12);
+}
+
+// Direct pins exercise an R8 write on the actual rollover and context
+// replacement while an address for the first C0 has already been selected.
+void test_type0_ivm_first_address_context(TestBench& test) {
+    const std::array<std::uint8_t, 10> progressive = {63, 40, 46, 0x4e, 38, 0, 127, 0, 0, 7};
+    test.prepare_for_reset(0);
+    test.load_snapshot_registers(progressive);
+    test.reset();
+    test.run_to_c0(16);
+    test.run_characters(3*64);
+    test.select_register(8);
+    test.run_to_c0(63);
+    test.write_selected_register_at_clken(3);
+    test.expect_byte("same-edge R8 completed at rollover", 0, test.c0());
+    test.expect_ra("first character keeps old address tag on concurrent R8", 4);
+    test.run_to_c0(4);
+    test.expect_ra("legacy C0 sample still admits the accepted R8", 8);
+
+    test.run_to_c0(63);
+    test.load_snapshot_registers_at_clken(progressive);
+    test.expect_byte("snapshot applied on actual rollover", 0, test.c0());
+    test.expect_ra("snapshot suppresses the captured IVM address", 0);
+
+    test.run_to_c0(17);
+    test.write_register(8, 3);
+    test.run_to_c0(0);
+    test.reset();
+    test.expect_ra("reset discards the prior C0 address", 0);
+    test.run_to_c0(4);
+    test.expect_ra("live R8 reenters from reset counters", 0);
+    test.run_to_c0(0);
+    test.expect_ra("first post-reset raster uses restored IVM", 2);
+}
+
+// A real line that starts at C0=0 still owns its first fetch if a
+// terminal or early-C0 R0 write subsequently pins the counter. Repeated
+// C0 cycles resume their old rules after that first character.
+void test_type0_ivm_real_rollover_before_freeze(TestBench& test, bool write_on_rollover) {
+    test.prepare_for_reset(0);
+    const std::uint8_t total = write_on_rollover ? 1 : 63;
+    test.load_snapshot_registers({total, 40, 46, 0x4e, 38, 0, 127, 0, 0, 7});
+    test.reset();
+    test.run_to_c0(1);
+    test.run_characters(2*(total+1));
+    test.expect_ra("terminal raster starts from ordinary C9=2", 2);
+    test.write_register(8, 3);
+    test.select_register(0);
+    if (write_on_rollover) {
+        test.write_selected_register_at_clken(0);
+    } else {
+        test.run_to_c0(0);
+        test.expect_ra("real incoming C0 has IVM address", 6);
+        test.write_selected_register_now(0);
+    }
+    test.expect_byte("R0 falls to zero while C0 is zero", 0, test.c0());
+    test.expect_ra("first real C0 retains its IVM address with R0 frozen", 6);
+    test.write_register(8, 0);
+    test.expect_ra("withdrawn mode cannot relabel an owned first C0", 6);
+    test.run_characters(1);
+    test.expect_byte("next C0 stays frozen", 0, test.c0());
+    test.expect_ra("frozen repetition consumes the settled progressive mode", 3);
+    test.write_register(0, 1);
+    test.run_to_c0(1);
+    test.expect_ra("widening from frozen C0 preserves the current C9", 3);
 }
 
 // B1's CRTC-facing timing, independent of the R4/R5 calibration loop.
@@ -11611,6 +11681,13 @@ int main(int argc, char** argv) {
          [](TestBench& t) { test_type0_b1_r8_at_next_raster(t, true); }},
         {"b1_type0_r8_before_next_raster_seam", "French §19.8.1 p.220 and established off-CLKEN mode-latch edge", false,
          [](TestBench& t) { test_type0_b1_r8_at_next_raster(t, false); }},
+        {"b1_type0_ivm_first_address_context", "French §19.8.1, same-edge R8 admission and reset/SNA address context", false,
+         test_type0_ivm_first_address_context},
+        {"b1_type0_ivm_real_rollover_before_freeze", "French §19.8.1 and §13.2.6; actual rollover ownership before two freeze apertures", false,
+         [](TestBench& t) {
+             test_type0_ivm_real_rollover_before_freeze(t, true);
+             test_type0_ivm_real_rollover_before_freeze(t, false);
+         }},
         {"b1_type0_late_odd_entry_c9_4", "Stock 0185 previous-case calibration, original 0184 timing", false,
          [](TestBench& t) { test_type0_b1_r9_ivm_entry(t,4,5,21,35,278); }},
         {"b1_type0_late_odd_entry_c9_5", "Stock 0187 previous-case calibration, original 0186 timing", false,

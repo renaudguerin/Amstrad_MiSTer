@@ -134,3 +134,17 @@ $(ASIC_R3_POSITION_BIN): $(B18_SNAPSHOT_RTL) asic_r3_position_top.sv asic_r3_pos
 		--Mdir $(OBJ_DIR)/asic_r3_position -Wno-fatal -Wno-PROCASSWIRE \
 		-CFLAGS "$(CXXFLAGS)" -o asic_r3_position_tests \
 		$(B18_SNAPSHOT_RTL) asic_r3_position_top.sv asic_r3_position_test.cpp
+
+# CRTC0 display-address ownership through the real T80 and first video CAS.
+CLASSIC_IVM_ADDRESS_BIN := $(OBJ_DIR)/classic_ivm_address/classic_ivm_address_tests
+.PHONY: classic-ivm-address-test
+classic-ivm-address-test: $(CLASSIC_IVM_ADDRESS_BIN)
+	$<
+
+$(CLASSIC_IVM_ADDRESS_BIN): $(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_ivm_address_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(@D)
+	$(VERILATOR) --cc --exe --build --top-module classic_mode_boundary_top -UVERILATOR \
+		+1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(@D) -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o classic_ivm_address_tests \
+		$(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_ivm_address_test.cpp
