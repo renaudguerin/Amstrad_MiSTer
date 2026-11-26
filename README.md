@@ -28,8 +28,11 @@ MiSTer picks the latest matching `Amstrad_*.rbf` in `_Computer`. If you
 have both the official classic core and this fork installed, edit the
 launcher's `<rbf>` to name this fork's dated build without `.rbf`.
 
-Main builds with [MGL option support](https://github.com/MiSTer-devel/Main_MiSTer/commit/e8e915a60cee)
-select GX4000 at launch. On older builds, open the shortcut, select
+Official MiSTer Main builds containing commit `e8e915a60cee` select GX4000 at
+launch through the generic MGL option setter. [Upstream Main change](https://github.com/MiSTer-devel/Main_MiSTer/commit/e8e915a60cee)
+
+For Main builds that predate the change, including `MiSTer_20261010`, open
+the shortcut, select
 **Hardware → Plus model → GX4000**, choose **Reset & apply model**, and
 save settings once from the MiSTer system menu. Launching Amstrad from
 `_Computer` uses its usual configuration.

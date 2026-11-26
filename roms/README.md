@@ -54,6 +54,15 @@ The `.eZZ` extension selects the lower OS ROM. For a combined image with
 the lower ROM followed by upper slots starting at 0, use `.eZ0`. The
 included `cpc464nd.eZ0` uses that format. Copy it into the Amstrad games
 directory and select it through **Load CPC464 ROM** to load its CPC 464 bank.
+Its OS and BASIC are identical to the 464 pair in `boot.rom`, and its
+upper slots 1–7 contain filler.
+
+That picker is a legacy file route. The core keeps separate firmware banks in
+SDRAM for its three classic models. The picker directs the file to the 464's
+bank regardless of the selected model. A standard `boot.rom` already supplies
+the 464 OS and BASIC. For a single raw 16 KiB image, select CPC 464 and use
+**ROM slots**. The old picker also accepts `.eZ0` bundles and `.eNN` upper
+slots above 15, and provides the `F7` route for MGL launchers.
 
 ### Load ROM overrides at startup
 
