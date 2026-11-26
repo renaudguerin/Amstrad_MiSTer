@@ -127,6 +127,11 @@ wire frame_end = in_adjustment ? next_adjustment == v_adjust :
 wire [6:0] next_row = frame_end ? 7'd0 : row + {6'd0, raster_end};
 wire [4:0] next_raster = frame_end || raster_end ? 5'd0 : raster + 5'd1;
 wire display_end = next_hcc == h_displayed;
+// FR §17.4.3 p.186: R1=0 compares before last-line evaluation.
+// On entry to a frame, only the AND half of the pointer reload runs.
+wire [13:0] line_addr_on_wrap =
+	frame_end && h_displayed == 0 ? next_line_addr & start_addr :
+	frame_end || raster_end ? next_line_addr : line_addr;
 
 // FR §14.6 p.142: counting from zero wraps back to zero after 16
 // characters. The running comparator also sees later R3 writes.
@@ -206,7 +211,7 @@ always @(posedge CLOCK) begin
 			if (hsync_end) previous_last_line <= last_line_match;
 
 			// FR §17.4.3 pp.185–186: R12/R13 enter the pending pointer
-			// only at R1 during the last line. R1=0 has a separate aperture.
+			// at R1 during the last line. Handle R1=0 on the line seam.
 			if (display_end && !line_end) begin
 				horizontal_display <= 0;
 				if (frame_end)
@@ -220,7 +225,11 @@ always @(posedge CLOCK) begin
 				horizontal_display <= h_displayed != 0 && !hsync_next;
 				if (frame_end || next_row == v_displayed)
 					vertical_display <= frame_end && v_displayed != 0;
-				if (frame_end || raster_end) line_addr <= next_line_addr;
+				line_addr <= line_addr_on_wrap;
+				// Ordinary R1=0 uses the incoming raster and VMA.
+				// The terminal transfer above uses the outgoing last-line state.
+				if (h_displayed == 0 && (frame_end || next_raster == max_raster))
+					next_line_addr <= line_addr_on_wrap;
 				if (frame_end) in_adjustment <= 0;
 				else if (in_adjustment) adjustment <= next_adjustment;
 				else if (last_line) begin

@@ -140,6 +140,44 @@ module crtc_type2_test;
 			       position, width, hs, vs, de);
 	endtask
 
+	task automatic verify_zero_r1_pointer;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'h03);
+		write_reg(4, 0);
+		write_reg(5, 0);
+		find_origin();
+		step(1);
+		write_reg(1, 0);
+		repeat (33) step(1);
+
+		// On the last line, R1=0 has already been compared at C0=0.
+		// R12/R13 written at C0=2 reach VMA' on the next C0=0
+		// through the AND stage only (FR §17.4.3 p.186).
+		write_reg(12, 8'h10);
+		write_reg(13, 8'hc1);
+		repeat (30) step(1);
+		if (ma !== 14'h1080 || ra !== 0)
+			$fatal(1, "R1=0 AND-only reload was %04x at frame origin", ma);
+	endtask
+
+	task automatic verify_zero_r1_row_advance;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'h03);
+		find_origin();
+		repeat (32 + 9) step(1);
+
+		// The ordinary row already latched VMA at R1=8. The next
+		// line starts at C9=0, where R9=1 forbids a new R1=0 latch.
+		write_reg(1, 0);
+		repeat (32 - 9) step(1);
+		if (ma !== 14'h1288 || ra !== 0)
+			$fatal(1, "R1=0 discarded the pending row pointer, MA=%04x", ma);
+	endtask
+
 	initial begin
 		step(0);
 		nreset = 1;
@@ -205,6 +243,8 @@ module crtc_type2_test;
 		verify_line_start_sync(0, 6, 1, 1, 0);
 		verify_line_start_sync(18, 14, 0, 0, 1);
 		verify_line_start_sync(18, 15, 1, 0, 0);
+		verify_zero_r1_pointer();
+		verify_zero_r1_row_advance();
 
 		$display("PASS CRTC2 progressive timing and I/O");
 		$finish;
