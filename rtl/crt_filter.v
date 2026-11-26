@@ -49,6 +49,8 @@ reg phase_epoch, phase_pair_valid;
 reg [4:0] phase_first, phase_pending, phase_active;
 reg [9:0] phase_age;
 reg [8:0] phase_period;
+reg [8:0] phase_previous_fall;
+reg phase_fall_valid, phase_check_fall, phase_hold_step;
 
 // Separately qualify settled early raw sync beyond the small alternating-pair
 // aperture. Complete ordinary pulses and equal periods distinguish a stable
@@ -77,6 +79,8 @@ initial begin
     phase_epoch = 0; phase_pair_valid = 0;
     phase_first = 0; phase_pending = 0; phase_active = 0;
     phase_age = 1023; phase_period = 0;
+    phase_previous_fall = 0;
+    phase_fall_valid = 0; phase_check_fall = 0; phase_hold_step = 0;
 end
 
 // French ACCC v1.11 section14.4 pp134-135: the ordinary4/5 pair
@@ -256,6 +260,8 @@ always @(posedge CLK) begin : syncgen
 	reg signed [10:0] phase_value;
 	reg [5:0] phase_sum;
     reg [4:0] phase_effective;
+    reg [9:0] phase_interval;
+    reg phase_one_tick;
     reg [5:0] regular_rise, regular_fall, output_rise, output_fall;
     reg [9:0] relock_fall_target;
     reg relock_rise, relock_fall, relock_open, relock_regular;
@@ -343,6 +349,8 @@ always @(posedge CLK) begin : syncgen
         if (hSyncCount > {1'b0, hSyncSize[8:1]})
             phase_value = phase_value - $signed({2'd0, hSyncSize});
         phase_sum = {phase_first[4], phase_first} + phase_value[5:0];
+        phase_interval = phase_age + 10'd1;
+        phase_one_tick = phase_value == 11'sd1 || phase_value == -11'sd1;
         phase_effective = phase_active;
         if (hSyncCount == 0) begin
             phase_effective = phase_pending;
@@ -362,6 +370,29 @@ always @(posedge CLK) begin : syncgen
             phase_effective = 0;
             phase_period <= hSyncSize;
         end
+        if (phase_anchor || no_hsync || hSyncSize < 32 || phase_period != hSyncSize) begin
+            phase_fall_valid <= 0;
+            phase_check_fall <= 0;
+            phase_hold_step <= 0;
+        end else if (~old_hsync & hsync_i) begin
+            // A leading edge at +/-1 with a matching interval of P +/-1
+            // follows a leading edge at zero. Use that pulse's actual fall
+            // as the reference so later R3 changes do not stale the grid.
+            phase_check_fall <= phase_epoch && syncs == 3 && phase_fall_valid &&
+                ((phase_value == 11'sd1 && phase_interval == {1'b0, hSyncSize} + 10'd1) ||
+                 (phase_value == -11'sd1 && phase_interval + 10'd1 == {1'b0, hSyncSize}));
+            phase_fall_valid <= 0;
+            if (!phase_one_tick || phase_interval != {1'b0, hSyncSize})
+                phase_hold_step <= 0;
+        end else if (old_hsync && !hsync_i) begin
+            // A later translated or short fall releases the hold. Only
+            // a fresh zero-to-one-tick transition can arm it again.
+            if (phase_check_fall || phase_hold_step)
+                phase_hold_step <= hSyncCount > 9'd24 && hSyncCount == phase_previous_fall;
+            phase_fall_valid <= 1;
+            phase_check_fall <= 0;
+            phase_previous_fall <= hSyncCount;
+        end
         if (~old_hsync & hsync_i) begin
             phase_age <= 0;
             if (phase_epoch && !phase_anchor && !no_hsync &&
@@ -376,8 +407,16 @@ always @(posedge CLK) begin : syncgen
                         phase_pair_valid <= 1;
                     end else begin
                         phase_pair_valid <= 0;
-                        if (!phase_sum[0])
-                            // Divide the even sum in the signed +/-8 cohort.
+                        // MODEL LIMIT (B26): when a long pulse still ends
+                        // on the reference grid, retain the crop across a
+                        // stable one-CE4 leading-edge shift. In BU 021B the
+                        // raw pulse shortens while shaped GA sync stays in
+                        // place. Keep the existing phase model for falls
+                        // through the nominal Full pulse (count 24).
+                        if (!phase_sum[0] &&
+                                (!phase_hold_step ||
+                                 (phase_sum != 6'd2 && phase_sum != 6'd62) ||
+                                 phase_first != phase_value[4:0]))
                             phase_pending <= phase_sum[5:1];
                         else phase_pending <= 0;
                     end

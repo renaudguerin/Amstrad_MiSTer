@@ -274,6 +274,90 @@ void test_full_relocks_early_phase_and_releases_without_vsync() {
     }
 }
 
+// SHAKER BU 021B enters a 55-CE4 raw pulse one enable later, on the
+// clock of the next legacy origin. The preceding pulse is 56 CE4 wide,
+// leaving the raw fall and the shaped monitor sync on their old grid.
+void test_full_preserves_bu_crop_phase() {
+    constexpr unsigned step_line = 2 * 312 + 66;
+    constexpr unsigned release_line = step_line + 8;
+    struct PulseCase {
+        unsigned width;
+        bool narrow_before_step;
+        bool translate;
+        bool expect_phase_shift;
+        unsigned delayed_fall;
+        const char* name;
+    };
+    const std::array<PulseCase, 6> pulse_cases = {{
+        {56, false, false, false, 0, "long fixed-fall BU pulse"},
+        {56, false, true, true, 0, "long equal-width translated pulse"},
+        {24, false, false, true, 0, "ordinary-width fixed-fall pulse"},
+        {56, true, true, true, 0, "translation after a width-only change"},
+        {56, false, false, false, 57, "delayed whole-pulse translation"},
+        {56, false, false, false, 24, "delayed ordinary-width fall"},
+    }};
+    unsigned crop_steps = 0;
+    for (const auto& pulse : pulse_cases) {
+        CrtFilterBench tb;
+        bool hs = false;
+        unsigned base_rise = 0, base_open = 0;
+        const unsigned last_line = pulse.delayed_fall ? release_line + 8 : release_line;
+        for (unsigned line = 0; line < last_line; ++line) {
+            const unsigned step = line >= step_line ? kClksPerCe : 0;
+            const unsigned raw_start = 160 * kClksPerCe + step;
+            const unsigned raw_width = pulse.width - unsigned(pulse.narrow_before_step &&
+                                                            line >= step_line - 8);
+            const bool released = pulse.delayed_fall && line >= release_line;
+            const unsigned raw_end = released ? (160 + pulse.delayed_fall) * kClksPerCe
+                                              : (160 + raw_width) * kClksPerCe +
+                                                  (pulse.translate ? step : 0);
+            const bool vs = line % 312 < 4;
+            bool old_out = false, old_hblank = false;
+            unsigned rise = 0, open = 0, rises = 0, opens = 0, width = 0;
+            for (unsigned clock = 0; clock < kLineClks; ++clock) {
+                const bool next_hs = clock >= raw_start && clock < raw_end;
+                const auto sample = tb.tick_clk(clock % kClksPerCe == 0,
+                                                hs, vs, next_hs, vs);
+                hs = next_hs;
+                if (clock && sample.hsync_selected && !old_out) {
+                    rise = clock;
+                    ++rises;
+                }
+                if (clock && !sample.hblank_selected && old_hblank) {
+                    open = clock;
+                    ++opens;
+                }
+                width += sample.hsync_selected != 0;
+                old_out = sample.hsync_selected;
+                old_hblank = sample.hblank_selected;
+                if (line >= step_line - 2 && sample.no_hsync)
+                    fail("BU crop lost the raw source");
+            }
+            if (line < step_line - 2) continue;
+            if (rises != 1 || opens != 1 || width != 16 * kClksPerCe)
+                fail("BU crop fixture needs one intact Full HSYNC and opening per line");
+            if (line == step_line - 2) {
+                base_rise = rise;
+                base_open = open;
+            }
+            if (line == step_line - 1 && (rise != base_rise || open != base_open))
+                fail("BU crop fixture did not train a stable line");
+            if (pulse.expect_phase_shift || released) {
+                const unsigned settle_line = (released ? release_line : step_line) + 4;
+                if (line >= settle_line &&
+                        (rise != base_rise + kClksPerCe || open != base_open + kClksPerCe))
+                    fail(std::string("Full crop rejected phase movement for ") + pulse.name);
+            } else if (line >= step_line && (rise != base_rise || open != base_open)) {
+                ++crop_steps;
+                std::cout << "BU line " << line << " Full HS " << int(rise) - int(base_rise)
+                          << " and HBlank open " << int(open) - int(base_open)
+                          << " master-clock shifts\n";
+            }
+        }
+    }
+    if (crop_steps) fail("Full crop moved across the BU fixed monitor-sync grid");
+}
+
 void check_phase_window(unsigned start, unsigned raw_width,
                         const std::string& label) {
     CrtFilterBench tb;
@@ -495,8 +579,9 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 10> kTests = {{
+constexpr std::array<TestCase, 11> kTests = {{
     {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
+    {"Full crop preserves the BU fixed monitor-sync grid", test_full_preserves_bu_crop_phase},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
     {"Live HBLANK preserves master phase and the +3-pixel R2.JIT shift", test_live_blank_master_phase_and_r2jit},
     {"raw force blank longer than the scaler minimum remains blank", test_long_raw_force_blank_wins},
