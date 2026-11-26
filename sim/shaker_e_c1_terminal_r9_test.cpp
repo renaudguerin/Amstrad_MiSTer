@@ -1,4 +1,4 @@
-#include "VCRTC.h"
+#include "VShakerEC1TerminalR9.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -44,7 +44,7 @@ public:
         }
     }
 
-    VCRTC crtc;
+    VShakerEC1TerminalR9 crtc;
 
 private:
     void clock(bool character_edge) {

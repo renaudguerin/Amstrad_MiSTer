@@ -10,5 +10,6 @@ shaker-e-c1-terminal-r9-test: $(SHAKER_E_C1_BIN)
 
 $(SHAKER_E_C1_BIN): $(RTL) shaker_e_c1_terminal_r9_test.cpp shaker_e_c1.mk
 	mkdir -p $(@D)
-	$(VERILATOR) --cc --exe --build --top-module CRTC --Mdir $(SHAKER_E_C1_OBJ) \
+	$(VERILATOR) --cc --exe --build --top-module CRTC --prefix VShakerEC1TerminalR9 \
+		--Mdir $(SHAKER_E_C1_OBJ) \
 		-Wno-fatal -CFLAGS "$(CXXFLAGS)" -o $(notdir $@) $(RTL) shaker_e_c1_terminal_r9_test.cpp
