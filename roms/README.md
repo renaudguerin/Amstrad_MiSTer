@@ -16,7 +16,7 @@ The multi-machine system ROM bundle. The core **will not boot without this file*
   /media/fat/Games/Amstrad/boot.rom
   ```
 
-You can also select a bundle using **ROMs → Load Main ROM**. Use this to
+You can also select a bundle using **Load Main ROM**. Use this to
 switch to a bundle with a different country firmware. MiSTer Main's CPC
 startup looks for `boot.rom`. Its separate `boot0.rom` through `boot3.rom`
 search applies to other cores. If your CPC system bundle is named `boot0.rom`,
@@ -32,12 +32,12 @@ python3 roms/build_bundle.py /path/to/ROMs fr boot-fr.rom
 The supported codes are `en`, `fr`, `es` and `da`. The tool replaces the
 three OS/BASIC pairs and retains AMSDOS and Multiface 2 from the base bundle.
 Copy the output to the Amstrad games directory and select it via
-**ROMs → Load Main ROM**. MiSTer remembers the file for that core profile.
+**Load Main ROM**. MiSTer remembers the file for that core profile.
 
 ### Load an expansion ROM
 
 For a headerless 16 KiB `.rom` file, select the classic machine under
-**Hardware → Model**, then use **ROMs → ROM slot** to pick **Lower OS** or
+**Hardware → Model**, then use **ROM slots → ROM slot** to pick **Lower OS** or
 **Upper 0** through **Upper 15**. Select the file with **Load into selected
 slot**. That load writes the chosen model's bank and resets into that model.
 The override survives a core reset and is cleared when you reload the FPGA
@@ -45,7 +45,7 @@ core. Use the startup filenames below for persistent overrides.
 
 For a raw 16 KiB upper ROM, give the file an `.eNN` extension where `NN` is
 the two-digit slot number in hexadecimal. For example, rename a ROM for
-slot 10 to `myrom.e0A` and select it using **ROMs → Load expansion**. This writes the
+slot 10 to `myrom.e0A` and select it using **Load expansion**. This writes the
 slot in both the CPC 6128 and 664 banks. Use **Load CPC464 ROM** to write the
 same slot in the CPC 464 bank. Slot 0 is normally BASIC, and slot 7 is
 normally AMSDOS on the disk models.
