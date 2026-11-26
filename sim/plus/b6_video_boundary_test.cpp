@@ -6,11 +6,17 @@
 #include <algorithm>
 
 namespace {
-Program video_program(unsigned width) {
+Program video_program(unsigned width, bool frequent_vsync = false) {
     Program p = build_program();
     // Adapt the existing generator's explicit CRTC writes. Each match is a
     // complete OUT (C),A instruction sequence, not a patch to production state.
-    const uint8_t regs[] = {63,40,50,uint8_t(0x20|width),38,0,25,30,0,7};
+    // Keep 64 us scanlines. R4=7 and R9=7 give 64-line frames, with
+    // a raw VSYNC two rows in. Several raw pulses land in the filtered
+    // active picture, independently of how the motherboard masks RGB.
+    const uint8_t regs[] = {
+        63, 40, 50, uint8_t(0x20|width), uint8_t(frequent_vsync ? 7 : 38), 0,
+        uint8_t(frequent_vsync ? 6 : 25), uint8_t(frequent_vsync ? 2 : 30), 0, 7
+    };
     for (unsigned r=0; r<10; ++r) {
         std::vector<uint8_t> key{1,0,0xbc,0x3e,uint8_t(r),0xed,0x79,1,0,0xbd,0x3e};
         auto at=std::search(p.code.begin(),p.code.end(),key.begin(),key.end());
@@ -50,6 +56,8 @@ struct Result {
     uint64_t reset_policy_checks=0, reset_policy_bad=0;
     uint64_t shift_fetches=0, asymmetric=0, colored=0, windows=0, bad_width=0;
     uint64_t raw_tuple_diff=0, full_tag_bad=0, applied_bad=0;
+    unsigned raw_vsyncs=0, filtered_vsyncs=0;
+    unsigned active_blank_dots=0, colored_blank_dots=0;
     std::vector<uint8_t> de;
 };
 
@@ -140,12 +148,12 @@ void live_transitions(Harness& h,bool plus,Result& r,uint8_t& history) {
     }
 }
 
-Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
+Result run_video(bool plus,unsigned type,unsigned mode,unsigned width,bool frequent_vsync = false) {
     Harness h(plus,type);
     h.verify_mutation(0);
     h.dut.production_clocking=1;
     h.dut.b6_mode=mode;
-    const auto program=video_program(width);
+    const auto program=video_program(width,frequent_vsync);
     // Physical SDRAM video region; C000-CFFF etc are disjoint from setup.
     for(unsigned a=0xc000;a<0x10000;a+=2) {
         h.store(0,0x20000+a,uint8_t(0x13 ^ ((a>>1)&0x7f)));
@@ -157,14 +165,17 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
                                    {"cb03",std::vector<uint8_t>(16384,0)}}));
         h.wait_for_reset_release();
     }
-    h.run(1800000); // setup, filter acquisition, then complete programmed frames
+    h.run(frequent_vsync ? 3000000 : 1800000); // setup and filter acquisition
     std::cout<<"SETUP machine="<<(plus?2:type)<<" PC="<<std::hex<<h.dut.dbg_pc<<" RGB="<<h.dut.dbg_video_rgb<<std::dec<<std::endl;
     Result r;
     uint8_t history=0;
     bool history_valid=false, old_de=h.dut.b6_mixer_de, complete=false;
     unsigned window=0;
     bool blank_tag=false,tag_valid=false;
-    for(unsigned n=0;n<1400000;++n) {
+    bool old_raw_vs=h.dut.dbg_raw_vsync, old_filtered_vs=h.dut.b6_full_tuple&4;
+    unsigned blank_age=0;
+    const unsigned sample_clocks=frequent_vsync ? 312*4096 : 1400000;
+    for(unsigned n=0;n<sample_clocks;++n) {
         const auto &d=h.dut;
         const bool fetch=d.b6_cpu_n&&!d.b6_ras_n&&!d.b6_cas_n;
         const bool bs=d.b6_bs, shift=d.b6_shift;
@@ -189,14 +200,13 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
         if(ce) {
             // Renderer samples raw blank on this edge. The converter consumes
             // the preceding dot's tag alongside that dot's registered RGB.
-            // Both raw modes carry the additional vertical mask; Full never
-            // does (hardware observations,
-            // "Pixel and output pipeline").
+            // The raw modes carry the additional vertical mask on both
+            // machines. Classic Full gets its blank from the GA DAC path.
             if(mode&&tag_valid&&expected_mask) {
                 ++r.mask_checks;
                 r.mask_bad+=h.dut.b6_color_rgb!=0;
             }
-            if(!mode) r.full_tag_bad+=h.dut.b6_pixel_vblank!=0;
+            if(!mode&&!plus) r.full_tag_bad+=h.dut.b6_pixel_vblank!=0;
             blank_tag=raw_blank;
             tag_valid=true;
         }
@@ -215,12 +225,24 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
         // One applied selection owns every policy, and the steady trace above
         // never crosses a boundary, so it must equal the request throughout.
         r.applied_bad+=h.dut.b6_applied!=mode||h.dut.b6_raw_crt!=(mode==2);
+        const bool raw_vs=d.dbg_raw_vsync, filtered_vs=d.b6_full_tuple&4;
+        r.raw_vsyncs+=raw_vs&&!old_raw_vs;
+        r.filtered_vsyncs+=filtered_vs&&!old_filtered_vs;
+        old_raw_vs=raw_vs;
+        old_filtered_vs=filtered_vs;
+        blank_age=d.b6_raw_vblank ? blank_age+1 : 0;
         if(h.dut.b6_mixer_ce) {
             const bool de=h.dut.b6_mixer_de;
             r.de.push_back(de);
             // The complete production output chain now supplies numeric RGB;
             // the dynamic and Plus layer fixtures independently score it.
             r.colored+=de&&h.dut.b6_mixer_rgb!=0;
+            // Sample well inside the GA blank so the oracle does not
+            // depend on the converter's exact pixel latency.
+            if(de&&blank_age>=64) {
+                ++r.active_blank_dots;
+                r.colored_blank_dots+=d.b6_mixer_rgb!=0;
+            }
             if(de&&!old_de) {window=0;complete=true;}
             if(de) ++window;
             if(!de&&old_de&&complete) {
@@ -360,6 +382,18 @@ int main(int argc,char**argv) {
                           << " colored="<<r.colored<<std::endl;
                 bad|=failed;
             }
+        }
+        if((only_machine==3||only_machine==2)&&(!only_width||only_width==14)) {
+            const auto r=run_video(true,0,0,14,true);
+            const bool failed=r.raw_vsyncs<=r.filtered_vsyncs||!r.filtered_vsyncs||
+                r.active_blank_dots<10000||r.colored_blank_dots||
+                !r.colored||!r.windows||r.bad_width||r.tuple_bad||r.applied_bad;
+            std::cout<<"B6 Plus Full frequent VS "<<(failed?"FAIL":"PASS")
+                     <<" raw_vs="<<r.raw_vsyncs<<" filter_vs="<<r.filtered_vsyncs
+                     <<" active_blank="<<r.active_blank_dots
+                     <<" output_nonblack="<<r.colored_blank_dots
+                     <<" active_nonblack="<<r.colored<<" bad_width="<<r.bad_width<<std::endl;
+            bad|=failed;
         }
     } catch(const std::exception&e) {std::cerr<<"B6 fixture: "<<e.what()<<'\n';return 2;}
     return bad?1:0;

@@ -95,7 +95,7 @@ Mac, including the Verilator build.
 | `sim/plus run/p10_dma_mobo_tests` | fast | `rtl/plus/asic_dma.v` `rtl/plus/asic_ga_timing.v` `rtl/YM2149.sv` `rtl/i8255.v` `rtl/Amstrad_motherboard.v` | DMA and PPI concurrency on the full motherboard |
 | `sim/plus run/b8_palette_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_ga_timing.v` | Plus palette writes through the legacy and ASIC paths |
 | `sim/plus run/sna_save_stream_tests` | fast | `rtl/sna_save_stream.v` `rtl/sna_ddr_mux.v` `rtl/sna_cart_mux.v` | SNA save stream to DDR3, including bus stalls |
-| `sim/plus b6-video-boundary` | slow | `rtl/Amstrad_motherboard.v` `rtl/crt_filter.v` `rtl/amstrad_video_output.sv` | Sync filter modes on the full motherboard to the output chain; 6 boots (about 1 min) |
+| `sim/plus b6-video-boundary` | slow | `rtl/Amstrad_motherboard.v` `rtl/crt_filter.v` `rtl/amstrad_video_output.sv` | Motherboard sync-filter and output modes, including active Plus Gate Array vertical blanking in Full after an extra raw VSYNC |
 | `sim/plus b6-video-boundary-strict` | slow | — | The same with all 18 boots (adds classic type 1 and HSYNC width 14); run it when a change touches ordinary-width filtering or classic type-1 sync |
 | `sim/plus b6-dynamic` | slow | `rtl/Amstrad_motherboard.v` `rtl/crt_filter.v` `rtl/amstrad_video_output.sv` | Output chain under CPU-written short, missing, multiple and wide sync; passive acquisition port agrees with filter state |
 | `sim/plus b6-plus-layers` | slow | `rtl/plus/asic_video.v` `rtl/plus/asic_sprites.v` `rtl/amstrad_video_output.sv` | Plus scroll and sprites through the colour converter and output chain |

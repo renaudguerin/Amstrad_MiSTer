@@ -165,8 +165,8 @@ module Amstrad_motherboard #(
 	// the committed Raw CRT selection; the core uses it to force native cadence
 	// and drop its post-processing.  pixel_vblank is the dot-sampled raw
 	// vertical blank tag that travels with the pixel it belongs to and is
-	// consumed as an exact-zero mask after colour conversion.  Both are
-	// inactive in Full mode.
+	// consumed as an exact-zero mask after colour conversion. Plus also
+	// uses the sampled blank tag in Full.
 	output        raw_crt,
 	output        pixel_vblank,
 	output        native_cadence,
@@ -1209,13 +1209,13 @@ end
 // Explicit raw vertical-blank pixel metadata.  Sampled on the native dot
 // enable beside the renderer's own pixel production; amstrad_video_color
 // gives it the converter's own pixel latency before masking, so the tag
-// cannot black out a neighbouring pixel.  Only the raw modes tag: Full
-// conversion is unchanged, and the horizontal force blank keeps the
-// renderer/DAC near-black rendering it already has.
+// cannot black out a neighbouring pixel. Plus needs this tag in Full as
+// well: its ASIC RGB renderer handles horizontal blank only. Classic Full
+// already gets vertical blank from the Gate Array DAC path.
 reg source_pixel_vblank;
 always @(posedge clk) begin
 	if (reset) source_pixel_vblank <= 1'b0;
-	else if (ce_16) source_pixel_vblank <= (sync_filter_applied != 2'd0) & vblank_ga;
+	else if (ce_16) source_pixel_vblank <= (plus_mode | (sync_filter_applied != 2'd0)) & vblank_ga;
 end
 // Mask the converter's newly registered output on lifecycle invalidation.
 // Its live owner mux still exposes one pre-edge stale dot to gamma/mixer;
