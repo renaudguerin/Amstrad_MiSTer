@@ -917,7 +917,12 @@ always @(posedge CLOCK) begin
 		// management/VS landings and adjustment parity remain separate limits.
 		if(row_r6_landing && (row_new ? !(frame_new && !CRTC_TYPE) :
 				!(row_commit_value == 0 && line == 0))) begin
-			vde <= 0; vde_r <= 0;
+			vde <= 0;
+			// FR §18.2.3 p.190: C4=R6=0 was already evaluated
+			// on the outgoing last character. Keep the new frame's
+			// sticky gate open while R6=0 still forces border.
+			if (!(CRTC_TYPE && frame_new && !SNA_LOAD && row == 0))
+				vde_r <= 0;
 		end
 		if(type0_r6_zero_origin_r1_hit) begin
 			vde <= 0; vde_r <= 0;

@@ -12,7 +12,7 @@ module crtc_cpu_phase_top(
  output [7:0] seq, c0,
  output [6:0] row,
  output [4:0] line, r5,
- output pending, in_adj, vde, vde_r,
+ output pending, in_adj, vde, vde_r, de_out,
  output ce16, phi_p, cclk_n, write_active, arm, vma_flag, parity_flag,
  output [13:0] ma,
  output [7:0] bus_data
@@ -47,6 +47,7 @@ module crtc_cpu_phase_top(
  assign r5=crtc.R5_v_total_adj;
  assign pending=crtc.crtc_type1_engine.rfd_r0_pending;
  assign in_adj=crtc.in_adj;
+ assign de_out=de;
  assign vde=crtc.vde;
  assign vde_r=crtc.vde_r;
  assign arm=crtc.crtc_type1_engine.rfd_arm;

@@ -254,6 +254,68 @@ void r6_temporary(unsigned phase) {
   // French §18.2.3 p190: R6=0 outside row0 is temporary, unlike equality.
   b.check(b.d.vde && b.d.vde_r, "R6 nonzero must remove temporary border");
 }
+
+void r6_zero_across_frame(unsigned phase, unsigned write_char, bool prior_equal) {
+  Bench b(true, 6, 63, 50);
+  b.pos(0, 0, 3);
+  if (prior_equal) {
+    b.write(phase, 4, false);
+    b.run(64);
+    b.release();
+    b.write(phase, 0);
+    b.run(64);
+    b.release();
+    b.write(phase, 6, false);
+    b.run(64);
+    b.release();
+  }
+  b.pos(prior_equal ? 0 : 3, 3, write_char);
+  b.write(phase, 0);
+  b.seam();
+  b.release();
+  b.pos(0, 0, 2);
+  b.check(!b.d.de_out, "R6=0 must still blank display at frame origin");
+
+  // French v1.11 §18.2.3 p190 and original 039C–039F. A zero
+  // equality already seen on the preceding last character does
+  // not become sticky again at the incoming origin.
+  b.write(phase, 3);
+  b.run(64);
+  b.release();
+  b.pos(0, 0, 7);
+  b.check(bool(b.d.de_out) == prior_equal,
+          "unequal R6 must reopen DE only after a carried zero equality");
+}
+
+void r6_zero_across_adjustment() {
+  Bench b(true, 4, 15, 50);
+  const unsigned phase = 0x0f;
+  b.pos(0, 0, 3);
+  b.write(phase, 127);
+  b.release();
+  b.write(phase, 5, false);
+  b.release();
+  b.write(phase, 1);
+  b.release();
+  b.write(phase, 6, false);
+  b.release();
+  b.pos(40, 0, 0);
+  b.pos(80, 0, 0);
+  b.pos(120, 0, 0);
+  b.until([&] { return b.d.in_adj && b.d.row == 0 && b.d.c0 == 15; });
+  b.write(phase, 0);
+  b.seam();
+  b.release();
+  b.pos(0, 0, 2);
+  b.check(!b.d.in_adj && !b.d.de_out,
+          "the zero R6 write must blank the first character after adjustment");
+  b.write(phase, 3);
+  b.run(64);
+  b.release();
+  b.pos(0, 0, 7);
+  b.check(b.d.de_out, "a carried zero equality at the end of adjustment must reopen DE");
+}
+
 int main() {
   unsigned failures = 0;
   auto test = [&](const std::string &name, auto fn) {
@@ -281,8 +343,16 @@ int main() {
     test("R0 type0 safe" + s, [&] { r0_type0(phase, true); });
     test("R6 sticky border" + s, [&] { r6_sticky(phase); });
     test("R6 temporary border" + s, [&] { r6_temporary(phase); });
+    for (unsigned write_char : {62u, 63u}) {
+      std::string aperture = s + " C0=" + std::to_string(write_char);
+      test("R6 zero equality at frame boundary" + aperture,
+           [&] { r6_zero_across_frame(phase, write_char, true); });
+      test("R6 zero with no preceding equality" + aperture,
+           [&] { r6_zero_across_frame(phase, write_char, false); });
+    }
     test("R5 terminal C9" + s, [&] { r5_last_line(phase); });
   }
+  test("R6 zero equality at adjustment frame boundary", r6_zero_across_adjustment);
   std::cout << failures << " failures\n";
   return failures ? 1 : 0;
 }
