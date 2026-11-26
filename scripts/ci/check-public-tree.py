@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_DOCS = {
     "docs/README.md", "docs/building.md", "docs/roadmap.md",
-    "docs/known-issues.md", "docs/images/banner.jpg",
+    "docs/known-issues.md", "docs/images/banner.jpg", "docs/GX4000.mgl",
 }
 TOP = {
     ".gitignore", ".worktreeinclude", "AGENTS.md", "README.md", "CREDITS.md",
@@ -53,7 +53,7 @@ PUBLIC_SCRIPTS = {
     "scripts/hardware-loop/test_sna_pull.py",
 }
 PUBLIC_SIM_DOCS = {"sim/README.md", "sim/TESTS.md", "sim/soak-golden-history.md"}
-PUBLIC_ROMS = {"roms/README.md", "roms/boot.rom", "roms/cpc464nd.eZ0"}
+PUBLIC_ROMS = {"roms/README.md", "roms/boot.rom", "roms/cpc464nd.eZ0", "roms/build_bundle.py"}
 PUBLIC_RTL_ASSETS = {
     "rtl/GA40010/40010-simplified_V03.pdf", "rtl/u765/test.dsk",
     "rtl/T80/README",
