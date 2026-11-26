@@ -60,7 +60,7 @@ Mac, including the Verilator build.
 | `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC (type 3) counters and register bus, including original Plus STATUS2 bit 4 at interlaced field boundaries and bits 5 and 7 in adjustment and on the extra line |
 | `sim/plus run/b6_menu_mask_tests` | fast | `rtl/plus/plus_menu_capability_mask.v` `rtl/plus/plus_model_select.v` | OSD capability mask and RAM size per machine model |
 | `sim/plus run/dandanator_loader_bounds_tests` | fast | `rtl/dandanator/*` | Dandanator loader address bounds |
-| `sim/plus run/rom_loader_route_tests` | fast | `rtl/rom_loader_route.v` | ROM download routing against a frozen model of the old Amstrad.sv decoder |
+| `sim/plus run/rom_loader_route_tests` | fast | `Amstrad.sv` `rtl/rom_loader_route.v` `sim/plus/rom_loader_route_test.cpp` | Legacy routes against the old decoder and numbered slot isolation, including oversize uploads |
 | `sim/plus run/rom_presence_tests` | fast | `Amstrad.sv` `rtl/rom_presence_map.v` `rtl/Amstrad_MMU.v` `sim/plus/rom_presence_test*` | Model-local classic upper ROM presence in the MMU, including snapshot restore and absent-ROM fallback |
 | `sim/plus run/plus_legacy_cart_gate_tests` | fast | `rtl/plus/plus_legacy_cart_gate.v` | Dandanator mapping lifecycle against a later Plus cartridge load |
 | `sim/plus run/plus_cartridge_memory_tests` | fast | `rtl/plus/plus_cartridge_memory.v` | Cartridge memory service handshakes, aborts and image replacement |

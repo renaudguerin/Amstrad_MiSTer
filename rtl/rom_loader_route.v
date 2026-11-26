@@ -7,6 +7,8 @@ module rom_loader_route
 	input        [7:0] ioctl_index,
 	input       [24:14] ioctl_addr,
 	input        [8:0] page,
+	input        [1:0] selected_bank,
+	input        [4:0] selected_slot,
 	output             rom_active,
 	output             addr_valid,
 	output       [1:0] initial_bank,
@@ -14,19 +16,26 @@ module rom_loader_route
 	output             promote_bank0_to_bank1
 );
 
-	// rom_download qualification: index[4:0] < 4 or index == 7
-	assign rom_active = (ioctl_index[4:0] < 5'd4) || (ioctl_index == 8'd7);
+	wire numbered_slot = ioctl_index == 8'd9;
+	assign rom_active = (ioctl_index[4:0] < 5'd4) || (ioctl_index == 8'd7) || numbered_slot;
 
 	// Second-write promotion: expansion ROMs loaded to bank 0 are promoted
 	// to bank 1 on the second write cycle if index[7:6] == 1 or index[5:0] != 0.
-	assign promote_bank0_to_bank1 = (ioctl_index[7:6] == 2'b01) || (ioctl_index[5:0] != 6'd0);
+	assign promote_bank0_to_bank1 = !numbered_slot &&
+		((ioctl_index[7:6] == 2'b01) || (ioctl_index[5:0] != 6'd0));
 
 	reg       valid;
 	reg [1:0] bank;
 	reg [8:0] a_hi;
+	wire [4:0] upper_slot = selected_slot - 5'd1;
 
 	always @(*) begin
-		if (ioctl_index != 8'd0) begin
+		if (numbered_slot) begin
+			// One raw 16 KiB image, isolated from the adjacent slots and banks.
+			valid = ioctl_addr == 0 && selected_bank < 2'd3 && selected_slot <= 5'd16;
+			bank = selected_bank;
+			a_hi = selected_slot == 0 ? 9'd0 : {1'b1, 3'd0, upper_slot};
+		end else if (ioctl_index != 8'd0) begin
 			valid = 1'b1;
 			bank  = (ioctl_index == 8'd7) ? 2'd2 : {1'b0, &ioctl_index[7:6]};
 			a_hi  = {page[8], page[7:0] + ioctl_addr[21:14]};

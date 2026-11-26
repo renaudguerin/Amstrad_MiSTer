@@ -60,13 +60,9 @@ localparam CONF_STR = {
 	"F8,CPR,Load Plus cartridge;",
 	"d5OK,Tape sound,Disabled,Enabled;",
 	"-;",
-	"FC0,ROM,Load Main ROM;",
-	"FC3,E??,Load expansion;",
-	"-;",
 	"F5,ROM,Load Dandanator ROM;",
 	"F6,SNA,Load snapshot;",
 	"T[38],Save snapshot;",
-	"F7,E??,Load CPC464 ROM;",
 	"-;",
 	"O[62:61],SNAC,Off,Player 1,Player 2;",
 	"-;",
@@ -109,6 +105,14 @@ localparam CONF_STR = {
 	"P2O[34:33],Plus model,Off,GX4000,6128+,464+;",
 	"P2OV,Tape progressbar,Off,On;",
 	"P2O[37],SSM markers,Off,On;",
+
+	"P3,ROMs;",
+	"P3FC0,ROM,Load Main ROM;",
+	"P3FC3,E??,Load expansion;",
+	"P3F7,E??,Load CPC464 ROM;",
+	"P3-;",
+	"d3P3O[55:51],ROM slot,Lower OS,Upper 0,Upper 1,Upper 2,Upper 3,Upper 4,Upper 5,Upper 6,Upper 7,Upper 8,Upper 9,Upper 10,Upper 11,Upper 12,Upper 13,Upper 14,Upper 15;",
+	"d3P3F9,ROM,Load into selected slot;",
 
 	"-;",
 	"R0,Reset & apply model;",
@@ -471,6 +475,8 @@ wire [255:0] rom_map;
 // reads page combinationally and never writes it.
 reg   [8:0] page = 0;
 reg         combo = 0;
+reg   [1:0] rom_selected_bank = 0;
+reg   [4:0] rom_selected_slot = 0;
 
 wire        rom_route_active;
 wire        rom_route_valid;
@@ -483,6 +489,8 @@ rom_loader_route rom_loader_route
 	.ioctl_index(ioctl_index),
 	.ioctl_addr(ioctl_addr[24:14]),
 	.page(page),
+	.selected_bank(rom_selected_bank),
+	.selected_slot(rom_selected_slot),
 	.rom_active(rom_route_active),
 	.addr_valid(rom_route_valid),
 	.initial_bank(rom_route_initial_bank),
@@ -558,7 +566,12 @@ always @(posedge clk_sys) begin
 
 	old_download <= ioctl_download;
 	if(~old_download & ioctl_download & rom_download) begin
-		if(ioctl_index) begin
+		if(ioctl_index == 8'd9) begin
+			// ROM downloads reset and apply the requested classic model.
+			rom_selected_bank <= menu_model;
+			rom_selected_slot <= status[55:51];
+			combo <= 0;
+		end else if(ioctl_index) begin
 			page <= 9'h1EE; // some unused page for malformed file extension
 			combo <= 0;
 			if(ioctl_file_ext[15:8] >= "0" && ioctl_file_ext[15:8] <= "9") page[7:4] <= ioctl_file_ext[11:8];
