@@ -1214,6 +1214,20 @@ reg  [3:0] pix_cnt;    // dot index within the character (0..15)
 reg  [7:0] vid_even;   // byte displayed during dots 0-7
 reg  [7:0] vid_odd;    // byte displayed during dots 8-15
 reg        de_hold;    // DE captured at the character edge (post-skew)
+// MODEL LIMIT (40489): the original SHAKER A2/C 0009 comparison places
+// the display response 31–94 master clocks after the current stored-R8
+// aperture. Use the preceding character's selector at the display sample.
+// French ACCC v1.11 §19.2.3 pp.194–195 describes live skew within a line.
+reg [1:0] display_skew;
+always @(posedge CLOCK) begin
+    if (!nRESET) display_skew <= 2'd0;
+    else if (SNA_LOAD) display_skew <= SNA_REGS[69:68];
+    else if (PIXEN && CLKEN) display_skew <= R8_skew;
+end
+wire display_sample_de = ASIC_40226 ? DE :
+                         display_skew == 2'b00 ? disp_raw :
+                         display_skew == 2'b01 ? dde[0] :
+                         display_skew == 2'b10 ? dde[1] : 1'b0;
 reg  [1:0] mode_q;     // GAMODE latched on the qualified GA event
 reg  [3:0] type4_mode_hsync_history;
 reg  [1:0] type4_previous_mode;
@@ -1250,7 +1264,7 @@ always @(posedge CLOCK) begin
 	else if (PIXEN) begin
 		if (CLKEN) begin
 			vid_even <= VIDEOD[7:0];
-			de_hold  <= DE;
+			de_hold  <= display_sample_de;
 		end
 		else if (pix_cnt == 4'd7) begin
 			vid_odd <= VIDEOD[15:8];
@@ -1450,7 +1464,7 @@ always @(posedge CLOCK) begin
 		de_first_char <= 1'b0;
 	end
 	else if (PIXEN && CLKEN) begin
-		de_first_char <= (!de_hold && DE) || (hcc_last && DE);
+		de_first_char <= (!de_hold && display_sample_de) || (hcc_last && display_sample_de);
 	end
 end
 

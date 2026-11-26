@@ -3732,7 +3732,47 @@ void t02n_write_stores_at_strobe_end(TestBench& test) {
     expect_r12("t02n second fragment of the same value keeps R12", 0x33);
 }
 
-constexpr std::array<TestCase, 92> kTests = {{
+void test_display_skew_sampling(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(0, 63);
+    test.write_register(1, 40);
+    test.set_pixen_divider(4);
+    test.set_ga(2, 24, 0);
+    test.run_to_state(0, 0, 10, "continuous displayed interval");
+    test.expect_de("unskewed DE established", true);
+    test.write_register(8, 0x30);
+    test.align_to_character_start();
+    test.run_dots(2);
+    test.expect_hcc("first consuming character", 11);
+    test.expect_de("stored border-on reaches the raw DE output", false);
+    test.expect_pen("first character still presents the preceding display sample", false, 0);
+
+    test.write_register(8, 0x00);
+    test.align_to_character_start();
+    test.run_dots(2);
+    test.expect_hcc("second consuming character", 12);
+    test.expect_de("stored R8 returned to raw display", true);
+    test.expect_pen("adjacent clear still leaves one border character", true, 0);
+
+    test.align_to_character_start();
+    test.run_dots(2);
+    test.expect_hcc("third consuming character", 13);
+    test.expect_pen("following character displays ink again", false, 0);
+
+    test.write_register(8, 0x30);
+    test.align_to_character_start();
+    test.run_dots(2);
+    test.expect_pen("snapshot starts with an active display sample", false, 0);
+    test.load_idle_snapshot();
+    test.run_dots(2);
+    test.expect_pen("idle snapshot clears old display from the output", true, 0);
+
+    test.reset();
+    test.run_dots(2);
+    test.expect_pen("reset clears display sampling history", true, 0);
+}
+
+constexpr std::array<TestCase, 93> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3811,6 +3851,7 @@ constexpr std::array<TestCase, 92> kTests = {{
     {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},
     {"t05d mode 0 nibble pixels", t05d_mode0_nibble_pixels},
     {"t05e border substitution and sync blank", t05e_border_substitution_and_sync_blank},
+    {"live display skew is sampled at adjacent character boundaries", test_display_skew_sampling},
     {"t05f mode change requires qualified GA event", t05f_mode_change_latches_at_hsync},
     {"t05g mode 3 two-bit pixels", t05g_mode3_two_bit_pixels},
     {"t05h byte halves belong to their character "
