@@ -17,6 +17,23 @@ For a disk, `CAT` lists files and `RUN"program` starts a BASIC program. `|A` and
 
 See [ROM setup and expansion slots](roms/README.md) for firmware overrides and how to load a ROM into a numbered slot.
 
+### GX4000 shortcut
+
+Copy [GX4000.mgl](docs/GX4000.mgl) into `/media/fat/_Console/`. It uses the
+Amstrad bitstream in `_Computer`, shares the Amstrad games directory, and
+has its own saved settings. Open the shortcut, then use **Load Plus cartridge**
+to select a `.CPR`.
+
+MiSTer picks the latest matching `Amstrad_*.rbf` in `_Computer`. If you
+have both the official classic core and this fork installed, edit the
+launcher's `<rbf>` to name this fork's dated build without `.rbf`.
+
+Main builds with [MGL option support](https://github.com/MiSTer-devel/Main_MiSTer/commit/e8e915a60cee)
+select GX4000 at launch. On older builds, open the shortcut, select
+**Hardware → Plus model → GX4000**, choose **Reset & apply model**, and
+save settings once from the MiSTer system menu. Launching Amstrad from
+`_Computer` uses its usual configuration.
+
 ## Features
 
 - CPC 464, 664 and 6128 modes, two disk drives, expansion ROMs, joystick and mouse support, Multiface 2, and basic CDT tape input.
