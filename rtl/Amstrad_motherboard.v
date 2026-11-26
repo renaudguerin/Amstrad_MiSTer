@@ -427,7 +427,7 @@ assign snap_printer_data = printer_data;
 );
 
 wire legacy_crtc_hs, legacy_crtc_vs, legacy_crtc_de, legacy_crtc_field;
-wire legacy_crtc_restart, legacy_crtc_frame_field, legacy_cursor;
+wire legacy_crtc_restart, legacy_crtc_frame_field, legacy_cursor, legacy_de_sample_next;
 wire type2_crtc_hs, type2_crtc_vs, type2_crtc_de;
 wire type4_crtc_hs, type4_crtc_vs, type4_crtc_de, type4_field;
 wire [13:0] legacy_ma, type2_ma;
@@ -478,6 +478,7 @@ CRTC crtc
 	.HSYNC(legacy_crtc_hs),
 	.HSYNC_RESTART(legacy_crtc_restart),
 	.DE(legacy_crtc_de),
+	.DE_SAMPLE_NEXT(legacy_de_sample_next),
 	.FIELD(legacy_crtc_field),
 	.FRAME_FIELD(legacy_crtc_frame_field),
 	.CURSOR(legacy_cursor),
@@ -1463,6 +1464,7 @@ ga40010 GateArray (
 	.HSYNC_RESTART_I(crtc_hsync_restart & ~plus_mode),
 	.VSYNC_I(crtc_vs),
 	.DISPEN(crtc_de),
+	.DISPEN_SAMPLE_NEXT(legacy_de_sample_next && !classic_crtc2 && !integrated_timing),
 	.CCLK(),
 	.CCLK_EN_P(ga_cclk_en_p),
 	.CCLK_EN_N(ga_cclk_en_n),

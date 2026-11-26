@@ -72,6 +72,7 @@ module CRTC
 	output reg       HSYNC,
 	output reg       HSYNC_RESTART,
 	output           DE,
+	output           DE_SAMPLE_NEXT,
 	output           FIELD,
 	output           FRAME_FIELD,
 	output           CURSOR,
@@ -582,6 +583,7 @@ always @(posedge CLOCK) begin
 	end
 end
 wire register_write = ENABLE & RS & ~nCS & ~R_nW;
+wire r1_write_border = register_write && addr == 5'd01 && hcc == DI;
 // ACCC v1.11 section 14.7.1 p.142 (FR §14.7.1 p.143): an OUT(C),r8 update which makes
 // R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
 // for several master clocks in the integrated machine, so recognize only its
@@ -727,7 +729,7 @@ always @(posedge CLOCK) begin
 			type1_hsync_start_pending <= 0;
 		end
 
-		if (ENABLE & RS & ~nCS & ~R_nW & addr == 5'd01 & hcc == DI) hde <= 0;
+		if (r1_write_border) hde <= 0;
 
 		if (CLKEN) begin
 			if(line_new)                   hde <= 1;
@@ -872,6 +874,8 @@ always @(posedge CLOCK) begin
 	end
 end
 
+wire type0_r6_zero_toggle = e0_vde_toggle && !type0_r6_zero_origin_border;
+
 // French ACCC v1.11 §16.2.1 pp161-162: ordinary Type1 GA-black starts
 // one Pixel-M2 after Type0. At production64MHz, delay Type1 publication by
 // four clocks on both edges, preserving the logical pulse width. This is an
@@ -913,7 +917,7 @@ always @(posedge CLOCK) begin
 		vsync_allow <= 1;
 	end
 	else if (CLKEN) begin
-		if (e0_vde_toggle && !type0_r6_zero_origin_border) begin
+		if (type0_r6_zero_toggle) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end
@@ -993,7 +997,7 @@ always @(posedge CLOCK) begin
 		end
 	end
 	else if (nCLKEN) begin
-		if (e0_vde_toggle && !type0_r6_zero_origin_border) begin
+		if (type0_r6_zero_toggle) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end
@@ -1049,6 +1053,24 @@ always @(posedge CLOCK) begin
 	else if(nCLKEN)   de_second_half <= 1;
 end
 
+// MODEL LIMIT (B26): French ACCC v1.11 §18.3.2 p.191 defines the pin's
+// continued alternation in the Type 0 R6=0 conflict. SHAKER B7 01BC
+// also resolves which half carries pixels at the Gate Array aperture.
+// Qualify only the advancing, unskewed conflict within the active line.
+// The physical DE-to-GA aperture and the other DE routes are unmeasured.
+wire type0_display_write = reg_data_write &&
+    ((addr == 5'd0 && DI != R0_h_total) ||
+     (addr == 5'd1 && DI != R1_h_displayed) ||
+     (addr == 5'd6 && DI[6:0] != 0) ||
+     (addr == 5'd8 && DI[5:4] != R8_skew));
+// These lookaheads own DE only at CLKEN. At nCLKEN the last
+// active character still alternates before the definitive R1 border.
+wire type0_de_boundary = CLKEN && (line_new || row_commit || type0_r6_zero_origin_r1_hit);
+assign DE_SAMPLE_NEXT = nRESET && !SNA_LOAD && type0_r6_zero_toggle &&
+                        !e0_r0_frozen && !in_adj && !type0_de_boundary &&
+                        hde && (vde == vde_r) && (R8_skew == 0) &&
+                        (R1_h_displayed <= R0_h_total) && !type0_r6_force_border &&
+                        !r1_write_border && !type0_display_write;
 wire de_unskewed = hde & vde & vde_r & !type0_r6_force_border &
 					~(e0_spurious_border_off & de_second_half);
 wire [3:0] de = {1'b0, dde[1:0], de_unskewed};

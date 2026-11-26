@@ -40,6 +40,7 @@ module ga40010 (
 	input  HSYNC_RESTART_I,
 	input  VSYNC_I,
 	input  DISPEN,
+	input  DISPEN_SAMPLE_NEXT,
 
 	output CCLK,
 	output CCLK_EN_P,
@@ -251,6 +252,8 @@ end
 
 wire vidbuf_clk_en = cen_16 & (S == 8'he0 || S == 8'h03);
 reg DISPEN_BUF;
+reg DISPEN_SAMPLE_PENDING;
+initial DISPEN_SAMPLE_PENDING = 1'b0;
 reg [7:0] VIDEO_BUF;
 // SNA does not serialize pending prefetches. A byte becomes eligible only
 // after a real post-apply fetch; loading an old VIDEO_BUF cannot publish it.
@@ -260,10 +263,15 @@ always @(posedge clk) begin
 	else if (vidbuf_clk_en) VIDEO_BUF_VALID <= 1'b1;
 end
 always @(posedge clk) begin
+	// The byte still arrives at S=e0/03. In the qualified Type 0
+	// conflict, sample settled DE before the next serializer load.
+	DISPEN_SAMPLE_PENDING <= !reset && !SNA_LOAD && vidbuf_clk_en && DISPEN_SAMPLE_NEXT;
 	if (vidbuf_clk_en) begin
 		DISPEN_BUF <= DISPEN;
 		VIDEO_BUF <= D;
 	end
+	if (DISPEN_SAMPLE_PENDING && !reset && !SNA_LOAD)
+		DISPEN_BUF <= DISPEN;
 end
 
 //////// VIDEO CONTROL ////////

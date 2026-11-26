@@ -103,7 +103,7 @@ ga40010 ga40010 (
 	.HSYNC_I(CRTC_HSYNC),
 	.HSYNC_RESTART_I(crtc_hsync_restart),
 	.VSYNC_I(CRTC_VSYNC),
-	.DISPEN(CRTC_DE),
+	.DISPEN(CRTC_DE), .DISPEN_SAMPLE_NEXT(de_sample_next),
 	.CCLK(),
 	.CCLK_EN_P(CCLK_EN_P),
 	.CCLK_EN_N(CCLK_EN_N),
@@ -150,7 +150,7 @@ wire [4:0] RA;
 wire CRTC_HSYNC;
 wire crtc_hsync_restart;
 wire CRTC_VSYNC;
-wire CRTC_DE;
+wire CRTC_DE, de_sample_next;
 
 assign VRAM_ADDR = {MA[13:12], RA[2:0], MA[9:0]};
 assign CRTC_HSYNC_RAW = CRTC_HSYNC;
@@ -196,7 +196,7 @@ CRTC crtc
 	.VSYNC(CRTC_VSYNC),
 	.HSYNC(CRTC_HSYNC),
 	.HSYNC_RESTART(crtc_hsync_restart),
-	.DE(CRTC_DE),
+	.DE(CRTC_DE), .DE_SAMPLE_NEXT(de_sample_next),
 	.SNAP_ADDR(), .SNAP_REGS(), .SNAP_HCC(), .SNAP_ROW(),
 	.SNAP_LINE(), .SNAP_C5(), .SNAP_IN_ADJ(), .SNAP_HSC(),
 	.SNAP_HSYNC(), .SNAP_VSYNC_R(), .SNAP_VSW_ELAPSED(),

@@ -14,7 +14,7 @@ module video_field_test_top (
         .CRTC_TYPE(crtc_type), .ENABLE(enable), .nCS(~enable),
         .R_nW(1'b0), .RS(rs), .DI(data), .DO(),
         .SNA_LOAD(1'b0), .SNA_ADDR(5'd0), .SNA_REGS(144'd0),
-        .VSYNC(raw_vs), .HSYNC(hsync), .HSYNC_RESTART(), .DE(display),
+        .VSYNC(raw_vs), .HSYNC(hsync), .HSYNC_RESTART(), .DE(display), .DE_SAMPLE_NEXT(),
         .FIELD(raw_field), .FRAME_FIELD(field_out),
         .CURSOR(), .MA(), .RA(), .SNAP_HCC(c0), .SNAP_ROW(c4), .SNAP_LINE(c9)
     );

@@ -179,7 +179,7 @@ module t80_freeze_top(
     .IORQ_N(IORQ_n),
     .HSYNC_I(1'b0), .HSYNC_RESTART_I(1'b0),
     .VSYNC_I(1'b0),
-    .DISPEN(1'b0),
+    .DISPEN(1'b0), .DISPEN_SAMPLE_NEXT(1'b0),
     .CCLK_EN_P(),
     .CCLK_EN_N(),
     .PHI_EN_P(phi_en_p),

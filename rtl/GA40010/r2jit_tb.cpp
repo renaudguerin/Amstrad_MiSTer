@@ -23,6 +23,11 @@ struct PixelSample { unsigned rgb, mode; };
 struct SourceCapture { std::vector<PixelSample> pixels; unsigned write_phase=0, write_seq=0; };
 struct PaletteSample { unsigned tick,phase,seq,c0,rgb; bool accept,sync,de; };
 
+struct R1Sample {
+    unsigned c0, seq, rgb, ma;
+    bool before, after;
+};
+
 class Bench {
 public:
     explicit Bench(bool crtc_type)
@@ -77,6 +82,44 @@ public:
         wait_for("non-black displayed pixels", [&] {
             return dut_->CRTC_DE_RAW && !blank();
         });
+    }
+
+    std::vector<R1Sample> capture_r6_origin_display(bool conflict) {
+        source_memory_ = true;
+        for (unsigned i = 0; i < ram_.size(); i++)
+            ram_[i] = (i & 1) ? 0xff : 0x00;
+        configure(46, 0x84);
+        write_crtc(1, 16);
+        write_crtc(4, 38);
+        write_crtc(6, conflict ? 0 : 25);
+        write_crtc(7, 30);
+        write_io(0x7fff, 0);
+        write_io(0x7fff, 0x5f);  // 00 byte, ink 0
+        write_io(0x7fff, 1);
+        write_io(0x7fff, 0x44);  // FF byte, ink 1
+        write_io(0x7fff, 16);
+        write_io(0x7fff, 0x46);  // border distinguishable from both bytes
+        write_io(0x7fff, 0x82);
+        wait_for("Mode2", [&] { return dut_->GA_VIDEO_MODE == 2; }, 2000000);
+        wait_for("real preceding raster", [&] {
+            return dut_->CRTC_ROW == 38 && dut_->CRTC_RASTER == 7;
+        }, 2000000);
+        wait_for("interior of true first line", [&] {
+            return dut_->CRTC_ROW == 0 && dut_->CRTC_RASTER == 0 && dut_->CRTC_C0 == 13;
+        }, 2000000);
+        std::vector<R1Sample> result;
+        while (dut_->CRTC_C0 < 20) {
+            const bool pix = dut_->CEN_16;
+            R1Sample sample{unsigned(dut_->CRTC_C0), unsigned(dut_->GA_SEQ), 0,
+                            unsigned(dut_->VRAM_ADDR), bool(dut_->CRTC_DE_RAW), false};
+            clock();
+            if (pix) {
+                sample.rgb = rgb();
+                sample.after = dut_->CRTC_DE_RAW;
+                result.push_back(sample);
+            }
+        }
+        return result;
     }
 
     void select_crtc_register(std::uint8_t reg) {
@@ -863,6 +906,55 @@ void publication_width_and_context() {
     }
 }
 
+// French ACCC v1.11 §18.3.2 p.191 explains the E0 fall and definitive R1.
+// The stock 01BC order fixes the eligible advancing byte/DE alignment.
+// Pin/raster timing selects the case. Tagged VRAM and the ordinary paired
+// run locate the two real byte slots without a private production signal.
+void check_type0_r6_origin_display() {
+    constexpr unsigned even_ink = 62, odd_ink = 1, border = 13;
+    Bench ordinary(false), conflict(false);
+    auto control = ordinary.capture_r6_origin_display(false);
+    auto trial = conflict.capture_r6_origin_display(true);
+    if (trial.size() != control.size())
+        throw TestFailure("R1 sample grid moved");
+    unsigned falls = 0, definitive = 0, anchor = control.size();
+    for (unsigned index = 0; index < control.size(); index++) {
+        const auto& a = control[index];
+        const auto& b = trial[index];
+        if (a.c0 != b.c0 || a.seq != b.seq || a.ma != b.ma)
+            throw TestFailure("CRTC or byte address moved");
+        if (b.c0 == 15 && b.seq == 0xe0 && b.before && !b.after) falls++;
+        if (b.c0 == 15 && b.seq == 0x03 && !b.before && !b.after) definitive++;
+        if (index < 16 || index + 32 >= control.size())
+            continue;
+        bool matches = a.c0 == 15;
+        for (unsigned j = 0; j < 32; j++) {
+            const unsigned expected = j < 8 ? even_ink : j < 16 ? odd_ink : border;
+            matches &= control[index + j].rgb == expected;
+        }
+        if (matches) {
+            if (anchor != control.size())
+                throw TestFailure("ambiguous paired ordinary word");
+            anchor = index;
+        }
+    }
+    if (falls != 1 || definitive != 1)
+        throw TestFailure("missing raw E0 fall or unchanged definitive R1");
+    if (anchor == control.size())
+        throw TestFailure("missing ordinary asymmetric final word");
+    unsigned prior_bad = 0, last_even_bad = 0, definitive_bad = 0;
+    for (unsigned j = 0; j < 16; j++)
+        prior_bad += trial[anchor - 16 + j].rgb != (j < 8 ? border : odd_ink);
+    for (unsigned j = 0; j < 8; j++)
+        last_even_bad += trial[anchor + j].rgb != border;
+    for (unsigned j = 8; j < 32; j++)
+        definitive_bad += trial[anchor + j].rgb != border;
+    std::cout << "R1=16 real Type0 E0 falling=" << falls << " definitive=" << definitive
+              << " word_anchor=" << anchor << " previous_bad=" << prior_bad
+              << " last_even_bad=" << last_even_bad << " definitive_bad=" << definitive_bad << '\n';
+    if (prior_bad || last_even_bad || definitive_bad)
+        throw TestFailure("R1=16 last active tag or definitive border differs");
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -875,6 +967,7 @@ int main(int argc, char** argv) {
             if (!border) { Bench high(type); high.check_palette_alignment(mode,false,true); }
         }
         if(argc==2 && std::string(argv[1])=="--palette-only") return 0;
+        check_type0_r6_origin_display();
         source_byte_windows();
         for(bool type:{false,true}) for(unsigned kind:{0u,1u,2u}) for(unsigned delay:{0u,7u}) {
             Bench cancel(type);cancel.check_jit_cancellation(kind,delay);

@@ -124,7 +124,7 @@ module crtc_t80_top(
   end
   wire crtc_wr_deferred = crtc_wr & ~crtc_type1_r0_write &
     ((!crtc_wr_d && crtc_wr_late_phase) | crtc_wr_hold);
-  wire hs, vs, de;
+  wire hs, vs, de, de_sample_next;
   wire hs_restart;
 
   // Motherboard wait state logic: ready | (IORQ_n & MREQ_n)
@@ -170,7 +170,7 @@ module crtc_t80_top(
     .IORQ_N(IORQ_n),
     .HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart),
     .VSYNC_I(vs),
-    .DISPEN(de),
+    .DISPEN(de), .DISPEN_SAMPLE_NEXT(de_sample_next),
     .CCLK_EN_P(cclk_en_p),
     .CCLK_EN_N(cclk_en_n),
     .PHI_EN_P(phi_en_p),
@@ -222,7 +222,7 @@ module crtc_t80_top(
     .SNA_REGS(sna_regs),
     .VSYNC(vs),
     .HSYNC(hs), .HSYNC_RESTART(hs_restart),
-    .DE(de),
+    .DE(de), .DE_SAMPLE_NEXT(de_sample_next),
     .FIELD(),
     .CURSOR(),
     .MA(ma),

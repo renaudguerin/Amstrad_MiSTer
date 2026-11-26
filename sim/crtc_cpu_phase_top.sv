@@ -34,7 +34,7 @@ module crtc_cpu_phase_top(
  end
  wire [7:0] selected_data = direct_write ? write_data : data;
  wire selected_write = direct_write || !(iorq_n | wr_n);
- wire cn, cp, hs, vs, de;
+ wire cn, cp, hs, vs, de, de_sample_next;
  wire hs_restart;
  assign seq=ga.S;
  assign ce16=ce_16;
@@ -57,7 +57,7 @@ module crtc_cpu_phase_top(
    .clk(clk), .cen_16(ce_16), .fast(1'b0), .RESET_N(~reset),
    .A(2'b10), .D(selected_data), .MREQ_N(1'b1), .M1_N(1'b1),
    .RD_N(1'b1), .IORQ_N(~selected_write),
-   .HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart), .VSYNC_I(vs), .DISPEN(de),
+   .HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart), .VSYNC_I(vs), .DISPEN(de), .DISPEN_SAMPLE_NEXT(de_sample_next),
    .CCLK_EN_P(cp), .CCLK_EN_N(cn), .PHI_EN_P(phi_p),
    .PHI_EN_N(), .PHI_N(), .CCLK(), .RAS_N(), .CAS_N(),
    .CASAD_N(), .READY(), .CPU_N(), .MWE_N(), .E244_N(), .ROMEN_N(),
@@ -71,6 +71,6 @@ module crtc_cpu_phase_top(
    .ENABLE(selected_write), .nCS(1'b0), .R_nW(1'b0), .RS(bus_rs),
    .DI(selected_data), .DO(),
    .SNA_LOAD(sna_load), .SNA_ADDR(sna_addr), .SNA_REGS(sna_regs),
-   .VSYNC(vs), .HSYNC(hs), .HSYNC_RESTART(hs_restart), .DE(de), .FIELD(), .CURSOR(), .MA(ma), .RA()
+   .VSYNC(vs), .HSYNC(hs), .HSYNC_RESTART(hs_restart), .DE(de), .DE_SAMPLE_NEXT(de_sample_next), .FIELD(), .CURSOR(), .MA(ma), .RA()
  );
 endmodule
