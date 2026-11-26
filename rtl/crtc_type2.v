@@ -119,6 +119,7 @@ reg in_adjustment;
 reg [13:0] line_addr, next_line_addr;
 reg [13:0] video_addr;
 reg last_line, previous_last_line, last_line_enabled;
+reg at_line_opening, opening_raster_match;
 reg [3:0] hsc, vsc;
 reg hsync_released;
 reg vsync_counting, vsync_matched;
@@ -217,6 +218,8 @@ always @(posedge CLOCK) begin
 		last_line <= 0;
 		previous_last_line <= 0;
 		last_line_enabled <= 0;
+		at_line_opening <= 0;
+		opening_raster_match <= 0;
 		hsc <= 0;
 		vsc <= 0;
 		hsync_released <= 0;
@@ -243,14 +246,22 @@ always @(posedge CLOCK) begin
 			end
 		end
 
-		// FR §12.4.1 pp.97–98: live writes cannot rearm Last Line
-		// until a mismatch has been sampled at the end of HSYNC.
-		if (timing_write && last_line_enabled && !previous_last_line &&
-		    !HSYNC && last_line_match)
-			last_line <= 1;
+		if (timing_write) begin
+			// FR §12.4.1 p.97. During the first character,
+			// a write uses the new R4 and the opening R9.
+			if (at_line_opening) begin
+				if (selected == 5'd4)
+					last_line <= !HSYNC && !previous_last_line &&
+					             row == compare_r4 && opening_raster_match;
+			end else if (last_line_enabled && !previous_last_line &&
+			             !HSYNC && last_line_match) begin
+				last_line <= 1;
+			end
+		end
 
 		if (CLKEN) begin
 			hcc <= next_hcc;
+			at_line_opening <= line_end;
 			video_addr <= line_end ? line_addr_on_wrap : next_video_addr;
 			HSYNC <= hsync_next;
 			hsc <= HSYNC ? hsc + 4'd1 : 4'd0;
@@ -268,6 +279,7 @@ always @(posedge CLOCK) begin
 					next_line_addr <= next_video_addr;
 			end
 			if (line_end) begin
+				opening_raster_match <= next_raster == max_raster;
 				row <= next_row;
 				raster <= next_raster;
 				ivm_raster <= next_ivm_raster;

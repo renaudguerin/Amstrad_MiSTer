@@ -193,6 +193,33 @@ module crtc_type2_test;
 			       previous_match, vs, de, ma);
 	endtask
 
+	task automatic verify_last_line_opening(input bit r9_write, opening);
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'h03);
+		write_reg(5, 0);
+		write_reg(7, 20);
+		find_origin();
+		repeat (38 * 32 + 2) step(1);
+		if (r9_write) write_reg(9, 2);
+		repeat (30) step(1);
+		if (!opening) step(1);
+		if (hs || ra !== 1 || vs)
+			$fatal(1, "expected the opening of the second raster of C4=19");
+
+		// At C0=0 a new R4 can cancel the terminal, while a new
+		// R9 cannot create one. One character later the terminal
+		// is sticky and a live R9 can create it if it was absent.
+		// FR §12.4.1 p.97.
+		if (r9_write) write_reg(9, 1);
+		else write_reg(4, 21);
+		repeat (opening ? 32 : 31) step(1);
+		if (opening ? (!vs || de) : (vs || !de || ma !== 14'h1280))
+			$fatal(1, "%s at C0=%0d: VSYNC=%0b DE=%0b MA=%04x",
+			       r9_write ? "R9" : "R4", !opening, vs, de, ma);
+	endtask
+
 	task automatic verify_line_start_sync(
 		input logic [7:0] position, width,
 		input bit expect_hs, expect_vs, expect_de
@@ -382,6 +409,10 @@ module crtc_type2_test;
 		verify_hsync_collision();
 		verify_previous_last_line(0);
 		verify_previous_last_line(1);
+		verify_last_line_opening(0, 0);
+		verify_last_line_opening(1, 0);
+		verify_last_line_opening(1, 1);
+		verify_last_line_opening(0, 1);
 		verify_line_start_sync(0, 6, 1, 1, 0);
 		verify_line_start_sync(18, 14, 0, 0, 1);
 		verify_line_start_sync(18, 15, 1, 0, 0);
