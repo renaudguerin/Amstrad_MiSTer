@@ -280,14 +280,15 @@ int check_span(Bench& b, const FieldSpan& span, const char* label,
     const uint8_t h1 = span.vsyncs[1].hcc;
     const uint64_t len0 = span.origins[1].cyc - span.origins[0].cyc;
     const uint64_t len1 = span.origins[2].cyc - span.origins[1].cyc;
-    std::printf("%s: fields=%u/%u hcc=%u/%u lens=%llu/%llu interlace_o=%u scandbl=%u\n",
+    const uint8_t origin_field0 = span.origins[0].field & 1;
+    const uint8_t origin_field1 = span.origins[1].field & 1;
+    std::printf("%s: fields=%u/%u hcc=%u/%u origin_fields=%u/%u lens=%llu/%llu interlace_o=%u scandbl=%u\n",
                 label, (unsigned)f0, (unsigned)f1, (unsigned)h0, (unsigned)h1,
+                (unsigned)origin_field0, (unsigned)origin_field1,
                 (unsigned long long)len0, (unsigned long long)len1,
                 (unsigned)b.dut.interlace_o, (unsigned)b.dut.scandoubler_o);
     if (expect_interlace) {
-        // FR §19.6.4 p.218 + FR §19.7.3 p.219: one even field carries the
-        // additional line and starts VSYNC at C0=R0/2 (hcc=31, R0=63);
-        // the odd field starts at the seam (hcc=0).
+        // FR §19.7.3 p.219 gives one midpoint and one seam VSYNC rise.
         const bool phase_ok = (h0 == 31 && h1 == 0) || (h0 == 0 && h1 == 31);
         if (!phase_ok)
             note("expected one MID (hcc=31) and one seam (hcc=0) VSYNC, saw " +
@@ -309,24 +310,22 @@ int check_span(Bench& b, const FieldSpan& span, const char* label,
                 note("expected FIELD=" + std::to_string(want_seam) +
                      " on the seam field, seam carried " + std::to_string(seam_field));
         }
-        if (len0 == len1)
-            note("expected unequal field lengths (even field +1 line per FR §19.6.4 p.218)");
+        // FR §19.6.4 p.218 assigns the extra line to the even frame
+        // recorded at its origin. With R7=0, the outgoing-parity MID
+        // and the following seam can land in the same measured interval.
+        if (origin_field0 == origin_field1)
+            note("expected opposite FIELD values at consecutive frame origins");
         else {
-            const uint64_t long_len = len0 > len1 ? len0 : len1;
-            const uint64_t short_len = len0 > len1 ? len1 : len0;
-            if (long_len - short_len != 4096)
-                note("expected exactly +1 line (4096 clks, R0=63) on the even field, saw +" +
-                     std::to_string(long_len - short_len));
-            else if (phase_ok) {
-                // Associate the +1 line with the even field from actual
-                // origin/event matching: vsyncs[k] falls in the segment
-                // ending at origins[k+1], so the MID (hcc=31) rise identifies
-                // the segment that must carry the additional line.
-                const bool mid_first = (h0 == 31);
-                const uint64_t mid_len = mid_first ? len0 : len1;
-                if (mid_len != long_len)
-                    note("expected the MID-phase (hcc=31) field to be the longer one "
-                         "(+1 line per FR §19.6.4 p.218)");
+            const unsigned even = origin_field0 ? 0 : 1;
+            const uint64_t even_len = even == 0 ? len0 : len1;
+            const uint64_t odd_len = even == 0 ? len1 : len0;
+            if (even_len != odd_len + 4096)
+                note("expected one additional 4096-clock line in the even frame (FIELD=1), saw " +
+                     std::to_string(even_len) + " even and " + std::to_string(odd_len) + " odd");
+            if (!polarity_exception && phase_ok) {
+                const uint64_t mid_cycle = span.vsyncs[h0 == 31 ? 0 : 1].cyc;
+                if (mid_cycle <= span.origins[even].cyc || mid_cycle >= span.origins[even + 1].cyc)
+                    note("expected the ordinary MID-VSYNC rise inside the even frame");
             }
         }
         if (check_consumer && b.dut.scandoubler_o != 0)
