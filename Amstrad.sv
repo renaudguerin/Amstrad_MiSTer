@@ -464,7 +464,7 @@ reg  [22:0] boot_a;
 reg   [1:0] boot_bank;
 reg   [7:0] boot_dout;
 
-reg [255:0] rom_map = '0;
+wire [255:0] rom_map;
 
 // B10-3: page/combo have a single sequential driver (the download
 // always block below, the only page <= / combo <= writer); rom_loader_route
@@ -548,7 +548,6 @@ always @(posedge clk_sys) begin
 			if(rom_download && rom_route_promote && !boot_bank) boot_bank <= 1;
 			else begin
 				{boot_wr, romdl_wait} <= 0;
-				if(boot_a[22]) rom_map[boot_a[21:14]] <= 1;
 				if(combo && &boot_a[13:0]) begin
 					combo <= 0;
 					page  <= 9'h1FF;
@@ -830,7 +829,19 @@ wire       plus_has_tape;
 // reside; .ram64k on the motherboard instance configures whether the 128K
 // banking expansion is active. In classic mode the bank follows `model` with
 // the `sna_load` bridge during snapshot restore edges.
-wire [1:0] mem_bank = plus_mode ? 2'b00 : (sna_load ? sna_model : model);
+wire [1:0] classic_bank = sna_load ? sna_model : model;
+wire [1:0] mem_bank = plus_mode ? 2'b00 : classic_bank;
+
+// Mark each upper ROM bank actually written, including both writes when
+// a legacy expansion is copied into the two classic disk-model banks.
+rom_presence_map rom_presence (
+	.clk(clk_sys),
+	.mark(ce_ref && boot_wr && romdl_wait && boot_a[22]),
+	.write_bank(boot_bank),
+	.write_slot(boot_a[21:14]),
+	.read_bank(classic_bank),
+	.present(rom_map)
+);
 
 sdram sdram
 (

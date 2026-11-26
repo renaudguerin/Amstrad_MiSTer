@@ -35,6 +35,12 @@ ROM_ROUTE_OBJ_DIR  := obj_dir/rom_loader_route
 ROM_ROUTE_TEST_SRC := $(abspath rom_loader_route_test.cpp)
 ROM_ROUTE_TEST_BIN := $(ROM_ROUTE_OBJ_DIR)/rom_loader_route_tests
 
+ROM_PRESENCE_TOP      := rom_presence_test_top
+ROM_PRESENCE_RTL      := $(abspath rom_presence_test_top.v ../../rtl/rom_presence_map.v ../../rtl/Amstrad_MMU.v)
+ROM_PRESENCE_OBJ_DIR  := $(OBJ_DIR)/rom_presence
+ROM_PRESENCE_TEST_SRC := $(abspath rom_presence_test.cpp)
+ROM_PRESENCE_TEST_BIN := $(ROM_PRESENCE_OBJ_DIR)/rom_presence_tests
+
 LEGACY_CART_TOP      := plus_legacy_cart_gate
 LEGACY_CART_RTL      := $(abspath ../../rtl/plus/plus_legacy_cart_gate.v)
 LEGACY_CART_OBJ_DIR  := obj_dir/plus_legacy_cart_gate
@@ -381,7 +387,7 @@ P10DMAMOBO_OBJ_DIR  := obj_dir/p10_dma_mobo
 P10DMAMOBO_TEST_SRC := $(abspath p10_dma_mobo_test.cpp)
 P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
 
-TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(ROM_ROUTE_TEST_BIN) $(LEGACY_CART_TEST_BIN) $(MEMORY_TEST_BIN) \
+TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(ROM_ROUTE_TEST_BIN) $(ROM_PRESENCE_TEST_BIN) $(LEGACY_CART_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
 	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(D3_TEST_BIN) $(SPRREGS_TEST_BIN) $(SPRMULTI_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
@@ -611,6 +617,11 @@ $(ROM_ROUTE_TEST_BIN): $(ROM_ROUTE_RTL) $(ROM_ROUTE_TEST_SRC) Makefile | $(OBJ_D
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ROM_ROUTE_TOP) \
 		--Mdir $(ROM_ROUTE_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(ROM_ROUTE_TEST_BIN)) $(ROM_ROUTE_RTL) $(ROM_ROUTE_TEST_SRC)
+
+$(ROM_PRESENCE_TEST_BIN): $(ROM_PRESENCE_RTL) $(ROM_PRESENCE_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ROM_PRESENCE_TOP) -Wno-CASEX \
+		--Mdir $(ROM_PRESENCE_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(ROM_PRESENCE_TEST_BIN)) $(ROM_PRESENCE_RTL) $(ROM_PRESENCE_TEST_SRC)
 
 $(LEGACY_CART_TEST_BIN): $(LEGACY_CART_RTL) $(LEGACY_CART_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(LEGACY_CART_TOP) \

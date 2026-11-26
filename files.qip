@@ -28,6 +28,7 @@ set_global_assignment -name VERILOG_FILE rtl/ssm_marker.v
 set_global_assignment -name VERILOG_FILE rtl/video_interlace.v
 set_global_assignment -name VERILOG_FILE rtl/Amstrad_MMU.v
 set_global_assignment -name VERILOG_FILE rtl/rom_loader_route.v
+set_global_assignment -name VERILOG_FILE rtl/rom_presence_map.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_unlock.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_ga_timing.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_video.v
