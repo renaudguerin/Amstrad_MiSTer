@@ -23,7 +23,8 @@ module b8_field_bench_top (
 	output [1:0] mode_o,
 	output       hsync_o,
 	output       vsync_o,      // selected + filtered VSYNC (consumer clock)
-	output       vsync_field,  // selected FIELD (VGA_F1)
+	output       vsync_field,  // selected live FIELD
+	output       vga_f1,       // platform frame-field identity
 	output [2:0] interlace_o,  // production consumer history
 	output       scandoubler_o,// production consumer enable
 	input  [1:0] sync_filter_i,// B8-2 drives 1 (normal filtered path)
@@ -122,6 +123,7 @@ module b8_field_bench_top (
 		.hsync(hsync_o),
 		.vsync(mb_vsync),
 		.field(mb_field),
+		.frame_field(vga_f1),
 
 		.native_cadence(),
 		.vram_din(16'd0),

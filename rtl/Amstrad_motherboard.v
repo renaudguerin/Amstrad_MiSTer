@@ -577,12 +577,11 @@ wire        de_sel = plus_mode ? plus_crtc_de : classic_crtc4 ? type4_crtc_de : 
 // Classic FIELD stays with the classic CRTC; Plus FIELD comes from the ASIC's
 // own frame parity (see asic_video FIELD). Unselected-engine perturbation must
 // not reach the pin.
-wire        plus_field;
+wire        plus_field, plus_frame_field;
 wire source_field = plus_mode ? plus_field : classic_crtc4 ? type4_field : crtc_field;
 assign field = crt_response_active ? crt_field_aligned : source_field;
-// Classic R8 pulses must not advertise interlace to the platform scaler.
-// Preserve the existing Plus FIELD export; this repair concerns classic R8.
-wire source_frame_field = plus_mode ? plus_field : classic_crtc4 ? type4_field : crtc_frame_field;
+// Platform F1 uses frame identity from the selected CRTC.
+wire source_frame_field = plus_mode ? plus_frame_field : classic_crtc4 ? type4_field : crtc_frame_field;
 assign frame_field = crt_response_active ? crt_frame_field_aligned : source_frame_field;
 
 wire plus_mode_update_en;
@@ -703,6 +702,7 @@ asic_video asic_vid
 	.VSYNC(plus_crtc_vs),
 	.DE(plus_crtc_de),
 	.FIELD(plus_field),
+	.FRAME_FIELD(plus_frame_field),
 	.MA(plus_ma),
 	.RA(plus_ra),
 
@@ -771,6 +771,7 @@ asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
 	.VSYNC(type4_crtc_vs),
 	.DE(type4_crtc_de),
 	.FIELD(type4_field),
+	.FRAME_FIELD(),
 	.MA(type4_ma),
 	.RA(type4_ra),
 	.HCC(), .LINE(), .ROW(), .ADJ(),

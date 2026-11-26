@@ -66,6 +66,7 @@ module asic_video #(
 	output reg       VSYNC,
 	output           DE,
 	output           FIELD,
+	output           FRAME_FIELD,
 	output    [13:0] MA,
 	output     [4:0] RA,
 
@@ -408,6 +409,7 @@ reg  [4:0] raster;
 reg        in_adj;
 reg        interlace_line;
 reg        parity_frame;
+reg        frame_interlace;
 reg        parity_c9;
 
 wire       ivm_active    = (R8_interlace == 2'b11);
@@ -491,6 +493,7 @@ always @(posedge CLOCK) begin
 		in_adj   <= 1'b0;
 		interlace_line <= 1'b0;
 		parity_frame <= 1'b0;
+		frame_interlace <= 1'b0;
 		parity_c9    <= 1'b0;
 	end
 	else if (SNA_LOAD) begin
@@ -504,6 +507,7 @@ always @(posedge CLOCK) begin
 		// Not serialized by the format: deterministic reset seed.
 		interlace_line <= 1'b0;
 		parity_frame   <= 1'b0;
+		frame_interlace <= SNA_REGS[64];
 		parity_c9      <= 1'b0;
 	end
 	else begin
@@ -519,6 +523,7 @@ always @(posedge CLOCK) begin
 			// starts from a well-defined frame state.
 			if (frame_restart) begin
 				parity_frame <= frame_parity_n;
+				frame_interlace <= R8_interlace[0];
 				parity_c9    <= frame_parity_n;
 			end
 			else if (ivm_active && c9_done && !enter_adj &&
@@ -1030,9 +1035,11 @@ assign ADJ  = in_adj;
 // the classic FIELD=~field resemblance (separate legacy flop) is not
 // evidence. Transition C9/frame mismatch after an odd-C9 entry is real per
 // FR §19.5.5 p.214: FIELD follows frame parity, not raster parity.
-// Combinational from the frame-origin flop, so it is stable across the
-// mid-frame C4=R7 VSYNC it qualifies.
+// Live ASIC FIELD follows the retained parity and the stored R8 mode.
 assign FIELD = ~parity_frame & R8_interlace[0];
+// Platform frame identity uses the mode at the actual ParityFrame update.
+// R8 writes inside a frame still affect the live ASIC FIELD and timing.
+assign FRAME_FIELD = ~parity_frame & frame_interlace;
 assign MA   = vma;
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 assign RA   = ra_eff;

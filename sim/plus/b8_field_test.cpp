@@ -232,6 +232,8 @@ struct OriginEvent {
 struct FieldSpan {
     std::vector<OriginEvent> origins;
     std::vector<VsyncEvent> vsyncs;
+    std::vector<unsigned> selected_f1;
+    unsigned platform_mismatches = 0;
 };
 
 // Two settled fields delimited by three origins, raw-VSYNC rises strictly
@@ -243,14 +245,23 @@ FieldSpan collect_two_settled_fields(Bench& b, const char* ctx) {
     out.origins.push_back({b.cyc, b.dut.vsync_field});
     bool prev_origin = true;
     bool prev_vsync = *b.plus_vsync_raw() != 0;
+    bool prev_selected = b.dut.vsync_o != 0;
     uint64_t n = 0;
     while (out.origins.size() < 3) {
         b.tick();
         if (++n > kFieldTimeout) fail(std::string(ctx) + ": two-field span timeout");
         bool origin = at_plus_origin(b);
         bool vsync = *b.plus_vsync_raw() != 0;
-        if (vsync && !prev_vsync)
+        const bool selected = b.dut.vsync_o;
+        if (vsync && !prev_vsync) {
             out.vsyncs.push_back({b.cyc, *b.plus_hcc(), b.dut.vsync_field});
+            out.platform_mismatches += b.dut.vga_f1 != b.dut.vsync_field;
+        }
+        if (selected && !prev_selected) {
+            out.selected_f1.push_back(b.dut.vga_f1);
+            out.platform_mismatches += b.dut.vga_f1 != b.dut.vsync_field;
+        }
+        prev_selected = selected;
         if (origin && !prev_origin) out.origins.push_back({b.cyc, b.dut.vsync_field});
         prev_origin = origin;
         prev_vsync = vsync;
@@ -273,6 +284,15 @@ int check_span(Bench& b, const FieldSpan& span, const char* label,
         note("expected exactly 2 raw Plus VSYNC rises over two fields, saw " +
              std::to_string(span.vsyncs.size()));
         return failures;
+    }
+    if (span.platform_mismatches)
+        note("scaler F1 differs from settled live FIELD at raw or selected VS");
+    if (expect_interlace && check_consumer) {
+        if (span.selected_f1.size() != 2 || span.selected_f1[0] == span.selected_f1[1])
+            note("selected VS did not carry both settled scaler field values");
+        else
+            std::printf("%s: selected VS scaler F1 %u/%u\n", label,
+                        span.selected_f1[0], span.selected_f1[1]);
     }
     const uint8_t f0 = span.vsyncs[0].field & 1;
     const uint8_t f1 = span.vsyncs[1].field & 1;
@@ -449,9 +469,7 @@ int run() {
                         (unsigned long long)hold);
         (void)field_before;
         FieldSpan span = collect_two_settled_fields(b, "t1-settled");
-        FieldSpan full;
-        full.origins = span.origins;
-        full.vsyncs = span.vsyncs;
+        FieldSpan full = span;
         int sub = check_span(b, full, "t1 settled pairing after odd entry",
                              true, false, true);
         local += sub;
@@ -585,6 +603,45 @@ int run() {
     }
     *b.classic_r8() = 0;
     b.tick();
+
+    {
+        // Original B1 alternates R9=6/R8=3 inside rows six through fourteen
+        // and returns to R8=0 before either field origin.
+        const char* ctx = "B1 partial R8 owner";
+        program_at_origin(b, 0, 0, ctx);
+        write_crtc(b, 4, 42, ctx);
+        write_crtc(b, 9, 7, ctx);
+        run_to_plus_origin(b, kOriginTimeout, ctx);
+        unsigned raw_high = 0, scaler_high = 0, raw_edges = 0, selected_edges = 0;
+        bool old_raw = *b.plus_vsync_raw() != 0, old_selected = b.dut.vsync_o != 0;
+        const auto seek = [&](unsigned c4, unsigned c0) {
+            for (uint64_t n = 0; n < kFieldTimeout; ++n) {
+                b.tick();
+                const bool raw = *b.plus_vsync_raw(), selected = b.dut.vsync_o;
+                raw_edges += raw && !old_raw;
+                selected_edges += selected && !old_selected;
+                old_raw = raw;
+                old_selected = selected;
+                raw_high += b.dut.vsync_field;
+                scaler_high += b.dut.vga_f1;
+                if (*b.plus_line() == c4 && *b.plus_row() == 0 && *b.plus_hcc() == c0)
+                    return;
+            }
+            fail("B1: missing partial register boundary");
+        };
+        for (unsigned frame = 0; frame < 4; ++frame) {
+            seek(6, 30);
+            write_crtc(b, 9, 6, ctx);
+            write_crtc(b, 8, 3, ctx);
+            seek(14, 28);
+            write_crtc(b, 8, 0, ctx);
+            write_crtc(b, 9, 7, ctx);
+        }
+        const bool owns_frame = raw_high && !scaler_high && raw_edges >= 2 && selected_edges >= 2;
+        std::printf("%s %s raw_high=%u scaler_high=%u raw_vs=%u selected_vs=%u\n",
+                    owns_frame ? "PASS" : "FAIL", ctx, raw_high, scaler_high, raw_edges, selected_edges);
+        failures += !owns_frame;
+    }
 
     if (failures != 0)
         fail("B8-2 FIELD ownership: " + std::to_string(failures) + " case(s) failed");
