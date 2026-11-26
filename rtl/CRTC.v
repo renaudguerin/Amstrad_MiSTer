@@ -918,8 +918,16 @@ always @(posedge CLOCK) begin
 			// preserves the active width during the R0=0 candidate above,
 			// including the final expiry tick, without stopping C4/C9.
 			if(vsync_holdoff) ;
-			else if(vsc) begin
-				vsc <= vsc - 1'd1;
+			// French ACCC v1.11 §14.2 p.133: Type 0 compares the
+			// running four-bit C3h against live R3h. The terminal
+			// pre-increment count is R3h-1, including 15 for R3h=0.
+			// Passing the comparison on a prior line requires a wrap.
+			// SHAKER 02EA resolves whole lines. Keep the established
+			// count edge pending a physical write/clock capture.
+			else if(CRTC_TYPE ? (vsc != 0) :
+			                    (VSYNC_r && vsw_elapsed != e0_vsc_load)) begin
+				// Retain the loaded countdown for live switches to Type 1.
+				if(vsc != 0) vsc <= vsc - 1'd1;
 				vsw_elapsed <= vsw_elapsed + 4'd1;
 			end
 			else if (vsync_fire) begin
@@ -930,7 +938,10 @@ always @(posedge CLOCK) begin
 				vsc <= vsc_load;
 				vsw_elapsed <= 4'd0;
 			end
-			else VSYNC_r <= 0;
+			else begin
+				VSYNC_r <= 0;
+				vsc <= 0;
+			end
 		end
 	end
 	else if (nCLKEN) begin

@@ -1071,6 +1071,51 @@ void test_type0_dynamic_vsync_width_extremes(TestBench& test) {
     }
 }
 
+// French ACCC v1.11 §14.2 p.133 and SHAKER 2.7 D/R 02EA: changing R3h
+// to 8 on line eight ends an ordinary pulse at eight lines. Line nine
+// has passed that comparison, so the four-bit counter wraps to 24 lines.
+void test_live_vsync_width(TestBench& test) {
+    constexpr unsigned line_ticks = 64 * kClockTicksPerCharacter;
+    struct Case {
+        unsigned type, initial_width, write_line, new_width, expected_lines;
+    };
+    for (const auto& c : {Case{0, 8, 0, 0, 8}, Case{0, 0, 9, 0, 16},
+                         Case{1, 0, 8, 8, 16}, Case{1, 0, 9, 8, 16},
+                         Case{0, 0, 8, 8, 8}, Case{0, 0, 9, 8, 24}}) {
+        test.set_crtc_type(c.type);
+        const std::array<std::uint8_t, 10> registers = {
+            63, 40, 46, static_cast<std::uint8_t>((c.initial_width << 4) | 14),
+            38, 0, 25, 2, 0, 7,
+        };
+        for (unsigned reg = 0; reg < registers.size(); ++reg)
+            test.write_register(reg, registers[reg]);
+        test.select_register(3);
+        test.reset();
+
+        for (unsigned tick = 0; tick < 17 * line_ticks && !test.published_vsync(); ++tick)
+            test.run_clock_ticks(1);
+        test.expect_vsync_high("ordinary VSYNC rises");
+
+        unsigned width = 0;
+        const unsigned write_tick = ((c.write_line ? c.write_line - 1 : 0) * 64 + 16)
+                                    * kClockTicksPerCharacter;
+        while (test.published_vsync() && width < 25 * line_ticks) {
+            // Put the write one quarter into the indicated active line, well
+            // away from either the horizontal sync or the line boundary.
+            if (c.write_line && width == write_tick)
+                test.write_selected_register_now((c.new_width << 4) | 14);
+            else
+                test.run_clock_ticks(1);
+            ++width;
+        }
+        test.expect_high("published VSYNC width, type " + std::to_string(c.type) +
+                         ", R3h write line " + std::to_string(c.write_line) +
+                         ", expected " + std::to_string(c.expected_lines * line_ticks) +
+                         " clocks, got " + std::to_string(width),
+                         width == c.expected_lines * line_ticks);
+    }
+}
+
 void test_type0_r7_c0_2_at_line_boundary(TestBench& test) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -1093,9 +1138,8 @@ void test_type0_r7_c0_2_at_line_boundary(TestBench& test) {
 // counter must read as C3h, the up-counter the Compendium defines. French ACCC
 // v1.11 section 6.1.2 p.34: VSYNC starts with C3h=0, C3h increments per line,
 // VSYNC ends when C3h reaches R3h (or 16). Section 14.2 p.133: R3h=0 means 16
-// lines; type 1 always uses 16. The RTL counts vsc down from a type-specific
-// load instead, so these vectors pin the conversion at mid-line sample points
-// (no CLKEN-edge ambiguity) across the four ways a count can start or pause.
+// lines; type 1 always uses 16. These vectors check C3h at mid-line sample
+// points (no CLKEN-edge ambiguity) across the ways a count can start or pause.
 void expect_vsw_elapsed(TestBench& test, const std::string& expectation,
                         unsigned expected) {
     if (!test.raw_vsync()) {
@@ -10295,6 +10339,8 @@ int main(int argc, char** argv) {
          false, test_r7_level_write_and_active_rearm},
         {"t02g_type0_dynamic_vsync_width_extremes", "ACCC v1.10 sections 14.2 and 16.4.1; F3",
          false, test_type0_dynamic_vsync_width_extremes},
+        {"type0_live_vsync_width", "French ACCC v1.11 §14.2 p.133 and SHAKER 02EA",
+         false, test_live_vsync_width},
         {"t02h_type0_r7_c0_2_at_line_boundary", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_c0_2_at_line_boundary},
         {"t36a_b18_vsw_elapsed_counter",
