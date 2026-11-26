@@ -498,7 +498,11 @@ wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
 // its C9 continues the adjustment count to R5 (section 11.2 p.85).
-assign line_next = type0_add_intercept ? R5_v_total_adj :
+// An R9-derived zero end already calculated C9=0 (§11.2.2 p82), which
+// must also start the added line if a same-edge R5 write selected zero.
+wire [4:0] type0_add_line_c9 = (type0_r9_zero_adjust_end || type0_adj_r9_zero_end) ?
+                              5'd0 : R5_v_total_adj;
+assign line_next = type0_add_intercept ? type0_add_line_c9 :
                    type0_rollover_line_last ? 5'd0 : line + 5'd1;
 assign c5_next = 5'd0;
 
