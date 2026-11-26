@@ -319,7 +319,7 @@ module asic_regs
 				5'd10: legacy_colour_gbr = {4'd15, 4'd15, 4'd0 };
 				5'd11: legacy_colour_gbr = {4'd15, 4'd15, 4'd15};
 				5'd12: legacy_colour_gbr = {4'd0,  4'd15, 4'd0 };
-				5'd13: legacy_colour_gbr = {4'd15, 4'd15, 4'd0 };
+				5'd13: legacy_colour_gbr = {4'd0,  4'd15, 4'd15};
 				5'd14: legacy_colour_gbr = {4'd6,  4'd15, 4'd0 };
 				5'd15: legacy_colour_gbr = {4'd6,  4'd15, 4'd15};
 				5'd16: legacy_colour_gbr = {4'd0,  4'd0,  4'd6 };

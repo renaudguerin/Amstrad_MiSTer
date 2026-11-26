@@ -302,15 +302,17 @@ void a03_palette(Regs& r) {
 void a04_legacy_translation(Regs& r) {
 	r.reset_pulse();
 	uint8_t inks[16];
-	for (unsigned k = 0; k < 16; ++k) inks[k] = uint8_t(k < 8 ? k : 31 - k);
 	const uint8_t border_hw = 20; // black per [KT]
-	r.set_legacy(inks, border_hw);
-	for (unsigned k = 0; k < 16; ++k) {
-		const RGB c = kt_table(inks[k]);
-		const uint16_t got = r.pal_read(uint8_t(k));
-		if (got != ((c.g << 8) | (c.r << 4) | c.b)) // stored {G,R,B} (§6 word)
-			fail("a04: legacy pen " + std::to_string(k) + " -> " +
-			     std::to_string(got));
+	for (unsigned base = 0; base < 32; base += 16) {
+		for (unsigned k = 0; k < 16; ++k) inks[k] = uint8_t(base + (15 - k));
+		r.set_legacy(inks, border_hw);
+		for (unsigned k = 0; k < 16; ++k) {
+			const RGB c = kt_table(inks[k]);
+			const uint16_t got = r.pal_read(uint8_t(k));
+			if (got != ((c.g << 8) | (c.r << 4) | c.b)) // stored {G,R,B} (§6 word)
+				fail("a04: legacy colour " + std::to_string(inks[k]) +
+				     " -> " + std::to_string(got));
+		}
 	}
 	const RGB cb = kt_table(border_hw);
 	if (r.pal_read(16) != ((cb.g << 8) | (cb.r << 4) | cb.b))
