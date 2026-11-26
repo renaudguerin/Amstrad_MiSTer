@@ -46,7 +46,7 @@ reg hs4,shift;
 // period/SHIFT reference remains independent of this output offset.
 reg legacy_hsync;
 reg phase_epoch, phase_pair_valid;
-reg signed [10:0] phase_first, phase_pending, phase_active;
+reg [4:0] phase_first, phase_pending, phase_active;
 reg [9:0] phase_age;
 reg [8:0] phase_period;
 
@@ -57,6 +57,7 @@ reg [8:0] phase_period;
 // (French ACCC v1.11 §16.6 pp.174-176). Recover the ordinary Full display
 // window without changing the measured period or the vertical line clock.
 reg signed [10:0] relock_phase, relock_sample, relock_previous;
+reg [8:0] relock_rise_count, relock_fall_count;
 reg [1:0] relock_complete;
 reg [4:0] relock_pulse_left;
 reg relock_sample_valid, relock_departure, relock_covered;
@@ -64,6 +65,8 @@ initial begin
     relock_phase = 0;
     relock_sample = 0;
     relock_previous = 0;
+    relock_rise_count = 0;
+    relock_fall_count = 0;
     relock_complete = 0;
     relock_pulse_left = 0;
     relock_sample_valid = 0;
@@ -250,10 +253,13 @@ always @(posedge CLK) begin : syncgen
 	reg [9:0] hSyncCount2x;
 	reg [3:0] vSyncCount;
 	reg [8:0] vSyncFlt;
-	integer phase_value, phase_sum, phase_effective;
-    integer phase_length, relock_target, regular_rise, output_rise, output_fall;
+	reg signed [10:0] phase_value;
+	reg [5:0] phase_sum;
+    reg [4:0] phase_effective;
+    reg [5:0] regular_rise, regular_fall, output_rise, output_fall;
+    reg [9:0] relock_fall_target;
     reg relock_rise, relock_fall, relock_open, relock_regular;
-    reg relock_source_bad, relock_ordinary, relock_release;
+    reg relock_source_bad, relock_ordinary, relock_release, relock_acquire;
 	reg phase_anchor;
 
 	localparam HFLT_SZ = 50*4;
@@ -333,13 +339,13 @@ always @(posedge CLK) begin : syncgen
         // Measurement uses the updated legacy count; output phase never
         // feeds back into that counter, training, width or SHIFT logic.
         phase_anchor = (~old_vs & VSYNC_I & ~old_hsync & hsync_i);
-        phase_value = $signed({23'd0, hSyncCount});
-        if (phase_value > ($signed({23'd0, hSyncSize}) >>> 1))
-            phase_value = phase_value - $signed({23'd0, hSyncSize});
-        phase_sum = $signed({{21{phase_first[10]}}, phase_first}) + phase_value;
-        phase_effective = $signed({{21{phase_active[10]}}, phase_active});
+        phase_value = $signed({2'd0, hSyncCount});
+        if (hSyncCount > {1'b0, hSyncSize[8:1]})
+            phase_value = phase_value - $signed({2'd0, hSyncSize});
+        phase_sum = {phase_first[4], phase_first} + phase_value[5:0];
+        phase_effective = phase_active;
         if (hSyncCount == 0) begin
-            phase_effective = $signed({{21{phase_pending[10]}}, phase_pending});
+            phase_effective = phase_pending;
             phase_active <= phase_pending;
         end
         if (phase_age != 1023) phase_age <= phase_age + 1'd1;
@@ -366,13 +372,13 @@ always @(posedge CLK) begin : syncgen
                         phase_age + 1 >= hSyncSize - 16 &&
                         phase_age + 1 <= hSyncSize + 16) begin
                     if (!phase_pair_valid) begin
-                        phase_first <= phase_value[10:0];
+                        phase_first <= phase_value[4:0];
                         phase_pair_valid <= 1;
                     end else begin
                         phase_pair_valid <= 0;
-                        if ((phase_sum % 2) == 0)
-                            // Even signed /2, narrowed explicitly to11bits.
-                            phase_pending <= phase_sum[11:1];
+                        if (!phase_sum[0])
+                            // Divide the even sum in the signed +/-8 cohort.
+                            phase_pending <= phase_sum[5:1];
                         else phase_pending <= 0;
                     end
                 end else begin
@@ -385,9 +391,6 @@ always @(posedge CLK) begin : syncgen
                 phase_pending <= 0;
             end
         end
-        phase_length = $signed({23'd0, hSyncSize});
-        relock_target = 8 + phase_value;
-        if (relock_target < 0) relock_target = relock_target + phase_length;
         relock_rise = ~old_hsync & hsync_i;
         relock_fall = old_hsync & ~hsync_i;
         relock_source_bad = no_hsync || hSyncSize < 32 || phase_period != hSyncSize;
@@ -400,12 +403,10 @@ always @(posedge CLK) begin : syncgen
                          (relock_source_bad || (relock_ordinary && relock_departure));
         relock_regular = (phase_age + 10'd1 == {1'b0,hSyncSize});
         relock_open = !VSYNC_I && VBLANK && !relock_source_bad && syncs == 3;
-        regular_rise = 8 + phase_effective;
-        if (relock_phase != 0 && !relock_release)
-            phase_effective = $signed({{21{relock_phase[10]}},relock_phase});
+        relock_acquire = 0;
         if (phase_anchor || relock_release) relock_departure <= 0;
         else if (relock_rise)
-            relock_departure <= relock_phase != 0 && relock_phase != phase_value[10:0];
+            relock_departure <= relock_phase != 0 && relock_phase != phase_value;
         else if (relock_fall) relock_departure <= 0;
         if (phase_anchor || relock_release) begin
             relock_phase <= 0;
@@ -415,16 +416,20 @@ always @(posedge CLK) begin : syncgen
             relock_complete <= 0;
             relock_sample_valid <= 0;
         end else if (relock_rise) begin
-            relock_sample <= phase_value[10:0];
+            relock_sample <= phase_value;
             relock_sample_valid <= relock_regular &&
-                                   phase_value < -8;
+                                   phase_value < -11'sd8;
             if (relock_regular && relock_complete == 2 &&
-                    relock_previous == phase_value[10:0] && !HSYNC_O &&
-                    relock_target > $signed({23'd0,hSyncCount})) begin
-                // Both old and new pulses are low here, and the new rise
-                // is still ahead in this count cycle.
-                relock_phase <= phase_value[10:0];
-                phase_effective = phase_value;
+                    relock_previous == phase_value && !HSYNC_O) begin
+                // A completed sample has phase < -8. Its rise is eight
+                // counts ahead before wrap. Only the fall can wrap.
+                relock_phase <= phase_value;
+                relock_rise_count <= hSyncCount + 9'd8;
+                relock_fall_target = {1'b0, hSyncCount} + 10'd24;
+                if (relock_fall_target >= {1'b0, hSyncSize})
+                    relock_fall_target = relock_fall_target - {1'b0, hSyncSize};
+                relock_fall_count <= relock_fall_target[8:0];
+                relock_acquire = 1;
             end
         end else if (relock_fall) begin
             if (relock_sample_valid && relock_ordinary) begin
@@ -435,34 +440,41 @@ always @(posedge CLK) begin : syncgen
             end else relock_complete <= 0;
         end
 
-        // Ordinary phase remains inside its original non-wrapping range.
-        // A wide correction can put the rise before the legacy counter wrap.
-        output_rise = 8 + phase_effective;
-        output_fall = 24 + phase_effective;
-        if (output_rise < 0) output_rise = output_rise + phase_length;
-        if (output_fall < 0) output_fall = output_fall + phase_length;
-        if (output_rise >= phase_length && relock_phase != 0)
-            output_rise = output_rise - phase_length;
-        if (output_fall >= phase_length && relock_phase != 0)
-            output_fall = output_fall - phase_length;
+        // The ordinary adjustment is in [-8, 8]. Keep the original one
+        // wrap on retirement if the trained period has become short.
+        regular_rise = 6'd8 + {phase_effective[4], phase_effective};
+        regular_fall = 6'd24 + {phase_effective[4], phase_effective};
+        output_rise = regular_rise;
+        output_fall = regular_fall;
+        if (relock_phase != 0) begin
+            if (hSyncSize <= {3'd0, regular_rise})
+                output_rise = regular_rise - hSyncSize[5:0];
+            if (hSyncSize <= {3'd0, regular_fall})
+                output_fall = regular_fall - hSyncSize[5:0];
+        end
         // The pre-wrap wide pulse already supplied the upcoming regular
         // line. Consume that slot even if the wide owner retires first.
-        if ($signed({23'd0,hSyncCount}) == regular_rise) relock_covered <= 0;
+        if (hSyncCount == {3'd0, regular_rise}) relock_covered <= 0;
         // Complete a pulse started in the recovered phase when its owner
         // retires or when the next raw VS anchor resets the legacy count.
+        // A new owner takes over while output is low. Neither new wide
+        // target equals the acquisition count for a period of at least 32.
         if (relock_pulse_left != 0) begin
             relock_pulse_left <= relock_pulse_left - 5'd1;
             if (relock_pulse_left == 1) HSYNC_O <= 0;
-        end else begin
-            if ($signed({23'd0, hSyncCount}) == output_rise &&
-                    (phase_effective < -8 || !relock_covered)) begin
-                HSYNC_O <= 1;
-                if (phase_effective < -8) begin
+        end else if (!relock_acquire) begin
+            if (relock_phase != 0 && !relock_release) begin
+                if (hSyncCount == relock_rise_count) begin
+                    HSYNC_O <= 1;
                     relock_pulse_left <= 5'd16;
                     relock_covered <= 1;
                 end
+                if (hSyncCount == relock_fall_count) HSYNC_O <= 0;
+            end else begin
+                if (hSyncCount == {3'd0, output_rise} && !relock_covered)
+                    HSYNC_O <= 1;
+                if (hSyncCount == {3'd0, output_fall}) HSYNC_O <= 0;
             end
-            if ($signed({23'd0, hSyncCount}) == output_fall) HSYNC_O <= 0;
         end
 
 	end
