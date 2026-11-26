@@ -317,34 +317,46 @@ void test_out_r0_type1_widen() {
   b.check(b.d.pending == 1, "pending must be 1 on current engine");
 }
 
-// SHAKER 019D: hardware observes 1E for the fifth-us call and 1F for
-// the fourth-us call, one character earlier. See
-// hardware observations.
+enum class R7WritePhase { Fourth, Fifth, AfterCarry };
+
+// SHAKER 019D hardware reports 1E for the fifth-us call and 1F one
+// character earlier. B6C1 repeats the same OUTI timing on a nonterminal line.
 // French ACCC v1.11 section 16.4.2 p.171 describes the immediate R7=C4
-// VSYNC effect, but does not specify the bus sampling edge within a character.
-// The frame and write value preserve the hardware test's matching row and
-// last raster; the short program reproduces the authentic write phase.
-bool outi_r7_boundary_vsync(bool earlier) {
+// effect. The OUT (C), A control compares the same C4 and R7 on the new
+// line with a later I/O phase within the same first character.
+bool r7_boundary_vsync(unsigned line, R7WritePhase phase) {
   Bench b(true, 7, 63, 25, 38, 30, 7);
-  // Select R7, then OUTI writes RAM[0x40] to port BD00.
-  b.load_prog(0, {0x01, 0x07, 0xbc,  // LD BC, BC07
-                  0xed, 0x49,        // OUT (C), C
-                  0x01, 0x00, 0xbe,  // LD BC, BE00
-                  0x21, 0x40, 0x00,  // LD HL, 0040
-                  0xed, 0xa3,        // OUTI
-                  0x76});            // HALT
-  b.prog_byte(0x40, 32);
-  b.pos(32, 7, earlier ? 45 : 46);
+  const bool outi = phase != R7WritePhase::AfterCarry;
+  const bool earlier = phase == R7WritePhase::Fourth;
+  b.load_prog(0, {0x01, 0x07, 0xbc, 0xed, 0x49}); // Select R7.
+  if (outi) {
+    // LD BC,&BE00; LD HL,&0040; OUTI; HALT.
+    b.load_prog(5, {0x01, 0x00, 0xbe, 0x21, 0x40, 0x00, 0xed, 0xa3, 0x76});
+    b.prog_byte(0x40, 32);
+    b.pos(32, line, earlier ? 45 : 46);
+  } else {
+    // LD BC,&BD00; LD A,32; OUT (C), A; HALT.
+    b.load_prog(5, {0x01, 0x00, 0xbd, 0x3e, 0x20, 0xed, 0x79, 0x76});
+    b.pos(32, line, 49);
+  }
   b.d.cpu_reset = 0;
-  b.until([&] { return b.d.write_active && b.d.crtc_addr == 7 && b.d.t80_a == 0xbd00; });
-  b.check(b.d.t80_dout == 32, "OUTI R7 data mismatch");
-  b.check(b.d.row == 32 && b.d.line == 7 && b.d.c0 == (earlier ? 62 : 63),
-          "OUTI did not land at the expected character");
-  b.check(!b.d.vsync, "VSYNC active before OUTI acceptance");
-  const unsigned old_c0 = b.d.c0;
+  unsigned last_cclk = 0;
+  b.until([&] {
+    if (b.d.cclk_n) last_cclk = b.ticks;
+    return b.d.write_active && b.d.crtc_addr == 7 && b.d.t80_a == 0xbd00;
+  });
+  b.check(b.d.t80_dout == 32 && b.d.row == 32, "matching R7 write precondition failed");
+  b.check(!b.d.vsync, "VSYNC active before the R7 write");
   const unsigned start = b.ticks;
-  b.until([&] { return b.d.c0 != old_c0; });
-  b.check(b.ticks - start == 8, "OUTI phase differs from authentic replay");
+  if (outi) {
+    const unsigned old_c0 = earlier ? 62 : 63;
+    b.check(b.d.line == line && b.d.c0 == old_c0, "OUTI arrived at the wrong character");
+    b.until([&] { return b.d.c0 != old_c0; });
+    b.check(b.ticks - start == 8, "OUTI phase differs from the original caller");
+  } else {
+    b.check(b.d.line == line + 1 && b.d.c0 == 0, "OUT (C), A missed the first character");
+    b.check(last_cclk && start - last_cclk > 1, "OUT (C), A must arrive after the carry");
+  }
   b.run(6 * 64 - (b.ticks - start));
   return b.d.vsync;
 }
@@ -452,14 +464,23 @@ int main(int argc, char **argv) {
   // OUTI strobe attributed to the character it occupies (FR §4.4.3 p26,
   // §4.4.4 p31), the write lands on C4=33 and no VSYNC starts.
   run_case("SHAKER 019D fifth-us OUTI", [] {
-    if (outi_r7_boundary_vsync(false))
+    if (r7_boundary_vsync(7, R7WritePhase::Fifth))
       throw std::runtime_error("VSYNC high; hardware expects low");
   });
   run_case("SHAKER 019D fourth-us OUTI", [] {
-    if (!outi_r7_boundary_vsync(true))
+    if (!r7_boundary_vsync(7, R7WritePhase::Fourth))
       throw std::runtime_error("VSYNC low; hardware expects high");
   });
+  run_case("B6C1 nonterminal fifth-us OUTI", [] {
+    if (r7_boundary_vsync(3, R7WritePhase::Fifth))
+      throw std::runtime_error("VSYNC high; AmSpirit reports low at the carry");
+  });
+  run_case("B6C1 nonterminal later write in the same character", [] {
+    if (!r7_boundary_vsync(3, R7WritePhase::AfterCarry))
+      throw std::runtime_error("later matching R7 write did not start VSYNC");
+  });
 
-  std::cout << "Summary: " << passes << " passed, " << failures << " failed (total 10)\n";
+  std::cout << "Summary: " << passes << " passed, " << failures << " failed (total "
+            << passes + failures << ")\n";
   return failures == 0 ? 0 : 1;
 }
