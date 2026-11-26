@@ -273,6 +273,7 @@ assign line_vma  = {line[3:0], parity_c9};
 reg        type0_r4_adjust_switch;
 reg        type0_r9_live_compare;
 reg        type0_r9_at_r0_pending;
+reg        type0_r9_early_write_held;
 reg        type0_c0_1_adjust;
 reg        type0_r0_zero_entry_consumed;
 reg        type0_zero_adj_entry;
@@ -652,10 +653,11 @@ assign type0_r4_window_write = !CRTC_TYPE && register_write && addr == 5'd04 &&
 								  hcc >= 2 && hcc <= R0_h_total &&
 								  type0_adjustment_selected && !in_adj;
 assign type0_r4_switch_write = type0_r4_window_write && DI[6:0] != row;
-assign type0_r9_compare_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
+wire       type0_r9_data_write = register_write && addr == 5'd09;
+assign type0_r9_compare_write = !CRTC_TYPE && type0_r9_data_write &&
 								  hcc >= 2 && hcc < R0_h_total &&
 								  type0_adjustment_selected && !in_adj;
-assign type0_r9_at_r0_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
+assign type0_r9_at_r0_write = !CRTC_TYPE && type0_r9_data_write && !type0_r9_early_write_held &&
 								 hcc_last && hcc >= 2 && type0_adjustment_selected && !in_adj;
 
 assign in_adj_route = !CRTC_TYPE && line_new && !type0_adjust_end &&
@@ -695,6 +697,7 @@ always @(posedge CLOCK) begin
 		type0_adj_r4_broken <= 0;
 		type0_r9_live_compare <= 0;
 		type0_r9_at_r0_pending <= 0;
+		type0_r9_early_write_held <= 0;
 		type0_c0_1_adjust <= 0;
 		type0_r0_zero_entry_consumed <= 0;
 		type0_zero_adj_entry <= 0;
@@ -725,6 +728,12 @@ always @(posedge CLOCK) begin
 		// a restored match on the first boundary. An unequal R4 write above
 		// selects R5 even if R4 is subsequently restored to C4.
 		else if(CLKEN && row_new) type0_r9_live_compare <= 0;
+		// MODEL LIMIT (B26): French ACCC v1.11 §11.2.2 p83 distinguishes an R9 update
+		// through R0-1 from one at R0. One OUT can span both characters.
+		// Preserve its pre-terminal classification until the strobe ends.
+		// The exact sub-character write aperture on original silicon is unmeasured.
+		if(!type0_r9_data_write) type0_r9_early_write_held <= 0;
+		else if(type0_r9_compare_write) type0_r9_early_write_held <= 1;
 		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
 		else if(CLKEN && line_new) type0_r9_at_r0_pending <= 0;
 		// A line boundary consumes the current-line override.  An accepted
