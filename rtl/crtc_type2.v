@@ -110,6 +110,7 @@ reg [4:0] raster;
 reg [4:0] adjustment;
 reg in_adjustment;
 reg [13:0] line_addr, next_line_addr;
+reg [13:0] video_addr;
 reg last_line, previous_last_line, last_line_enabled;
 reg [3:0] hsc, vsc;
 reg hsync_released;
@@ -132,6 +133,9 @@ wire display_end = next_hcc == h_displayed;
 wire [13:0] line_addr_on_wrap =
 	frame_end && h_displayed == 0 ? next_line_addr & start_addr :
 	frame_end || raster_end ? next_line_addr : line_addr;
+// FR §17.1 p.178: VMA runs through every character, even if a late
+// R0 write forces C0 to overflow without starting a new line.
+wire [13:0] next_video_addr = video_addr + 14'd1;
 
 // FR §14.6 p.142: counting from zero wraps back to zero after 16
 // characters. The running comparator also sees later R3 writes.
@@ -160,7 +164,7 @@ wire vsync_end = CLKEN && line_end && vsc == 4'd15;
 wire vsync_hidden = CLKEN && line_end ? HSYNC :
                     CLKEN ? hsync_next || hsync_end : HSYNC || hsync_released;
 
-assign MA = line_addr + {6'd0, hcc};
+assign MA = video_addr;
 assign RA = raster;
 assign DE = horizontal_display && vertical_display;
 
@@ -173,6 +177,7 @@ always @(posedge CLOCK) begin
 		in_adjustment <= 0;
 		line_addr <= 0;
 		next_line_addr <= 0;
+		video_addr <= 0;
 		last_line <= 0;
 		previous_last_line <= 0;
 		last_line_enabled <= 0;
@@ -204,6 +209,7 @@ always @(posedge CLOCK) begin
 
 		if (CLKEN) begin
 			hcc <= next_hcc;
+			video_addr <= line_end ? line_addr_on_wrap : next_video_addr;
 			HSYNC <= hsync_next;
 			hsc <= HSYNC ? hsc + 4'd1 : 4'd0;
 			hsync_released <= hsync_end;
@@ -217,7 +223,7 @@ always @(posedge CLOCK) begin
 				if (frame_end)
 					next_line_addr <= start_addr;
 				else if (raster_end)
-					next_line_addr <= line_addr + {6'd0, next_hcc};
+					next_line_addr <= next_video_addr;
 			end
 			if (line_end) begin
 				row <= next_row;

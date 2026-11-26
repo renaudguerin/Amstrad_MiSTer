@@ -178,6 +178,29 @@ module crtc_type2_test;
 			$fatal(1, "R1=0 discarded the pending row pointer, MA=%04x", ma);
 	endtask
 
+	task automatic verify_hcc_overflow_address;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'h03);
+		find_origin();
+		repeat (32 + 25) step(1);
+		write_reg(0, 9);
+
+		// C0 overruns the new R0 and wraps from 255 to 0. This is
+		// still the same raster. FR §17.1 p.178 advances MA for
+		// every character whether or not it can be displayed.
+		repeat (256 - 25) step(1);
+		if (ma !== 14'h1380 || ra !== 1 || de)
+			$fatal(1, "character overflow rewound MA or started a line, MA=%04x", ma);
+
+		// The second R1 match on the same raster captures the
+		// advanced address. The real R0 seam transfers it to the next row.
+		repeat (10) step(1);
+		if (ma !== 14'h1388 || ra !== 0 || !de)
+			$fatal(1, "post-overflow R1 did not capture advanced MA, MA=%04x", ma);
+	endtask
+
 	initial begin
 		step(0);
 		nreset = 1;
@@ -245,6 +268,7 @@ module crtc_type2_test;
 		verify_line_start_sync(18, 15, 1, 0, 0);
 		verify_zero_r1_pointer();
 		verify_zero_r1_row_advance();
+		verify_hcc_overflow_address();
 
 		$display("PASS CRTC2 progressive timing and I/O");
 		$finish;
