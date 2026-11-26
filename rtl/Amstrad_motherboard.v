@@ -315,7 +315,25 @@ wire MREQ_n;
 wire IORQ_n;
 wire RFSH_n;
 wire ga_int_n;
-wire INT_n = plus_mode ? plus_int_n : ga_int_n;
+
+// MODEL LIMIT (B26): Delay assertion on the classic GA-to-Z80 path by
+// eight 64 MHz clocks (two GA periods). The stock SHAKER DEC DE tables
+// on CRTC0 and CRTC1 require the later sampling aperture. The physical
+// split between CRTC edge phase, GA propagation and CPU setup is unmeasured.
+// Keep the raw request with the GA counter and acknowledge logic.
+reg [7:0] classic_irq_assertion;
+reg classic_irq_crtc_type;
+wire classic_irq_clear = reset || sna_load || plus_mode ||
+                         (crtc_type != classic_irq_crtc_type);
+always @(posedge clk) begin
+	classic_irq_crtc_type <= crtc_type;
+	if (classic_irq_clear || ga_int_n) classic_irq_assertion <= 8'hFF;
+	else classic_irq_assertion <= {classic_irq_assertion[6:0], 1'b0};
+end
+
+// The live GA deassertion releases /INT immediately, including after IACK.
+wire classic_cpu_int_n = classic_irq_clear || ga_int_n || classic_irq_assertion[7];
+wire INT_n = plus_mode ? plus_int_n : classic_cpu_int_n;
 wire M1_n;
 wire [7:0] ppi_dout;
 wire [7:0] ppi_cpu_dout;
