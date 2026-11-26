@@ -466,8 +466,9 @@ wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
 // rule. The E6C0 disk on an original CRTC0 remains the discriminator.
 // MODEL LIMIT (B26): the rematch is also excluded (a) on a line whose
 // comparator an exact-R0 R9 write selected (type0_r9_at_r0_active): its C4
-// step comes from the latched Last Line, so a live C9 reset there would
-// split from the C4 advance or mask its frame end; and (b) while IVM
+// step uses latched Last Line unless an earlier R4 switch still sees
+// C4 != R4. A live C9 reset on rematch could split from the latched C4
+// advance or mask its frame end; and (b) while IVM
 // counting or an R8 toggle owns the line: the F15 ParityC9 row-end update
 // (§19.8.1 p220) is defined for ordinary row ends, not this re-entered
 // comparator. Both are unmeasured coverage limits, not chip rules; E6
@@ -505,8 +506,16 @@ wire       type0_entry_zero_end = !in_adj && frame_adj_r && hcc > 2 &&
                                   !type0_r9_compare_active && !type0_r9_at_r0_active;
 wire       type0_adjust_end = type0_r9_zero_adjust_end | type0_c0_1_r5_end |
                               type0_entry_zero_end;
-wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
-									 type0_rollover_line_last;
+// French ACCC v1.11 §11.2.2 p83: an unequal R4 selects C9/R5.
+// MODEL LIMIT (B26): SHAKER 03FC agrees with holding C4 on a terminal
+// R9 write while R4 remains unequal. The paired progressive-mode probe
+// restores R4 earlier on the line and recovers the first positive R7=39
+// poll in AmSpirit. The original-chip sub-character R4 write aperture at
+// the same rollover and the interaction with IVM remain unmeasured.
+wire       type0_r9_use_latched_row_step = type0_r9_at_r0_active &&
+                                         (!type0_r4_adjust_switch || row == R4_v_total);
+wire       type0_rollover_row_last = type0_r9_use_latched_row_step ? line_last_r :
+                                     type0_rollover_line_last;
 
 assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
