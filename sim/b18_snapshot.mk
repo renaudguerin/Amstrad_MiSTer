@@ -40,6 +40,19 @@ $(CRTC2_BOARD_BIN): $(B18_SNAPSHOT_RTL) crtc2_board_test.cpp b18_snapshot.mk Mak
 		--Mdir $(@D) -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o crtc2_board_tests $(B18_SNAPSHOT_RTL) crtc2_board_test.cpp
 
+# Experimental CRTC4 through the production T80 and motherboard.
+CRTC4_BOARD_BIN := $(OBJ_DIR)/crtc4_board/crtc4_board_tests
+.PHONY: crtc4-board-test
+crtc4-board-test: $(CRTC4_BOARD_BIN)
+	$<
+
+$(CRTC4_BOARD_BIN): $(B18_SNAPSHOT_RTL) crtc4_board_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(@D)
+	$(VERILATOR) --cc --exe --build --top-module b18_snapshot_top -UVERILATOR \
+		-GEXPERIMENTAL_CRTC4=1 -GVIDEO_RAM=1 +1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(@D) -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		-o crtc4_board_tests $(B18_SNAPSHOT_RTL) crtc4_board_test.cpp
+
 # Same real CPU/motherboard/SNA owners, with Plus selected at elaboration.
 # This fixture parameter leaves all classic B18 runs unchanged by default.
 .PHONY: asic-r0-terminal-test

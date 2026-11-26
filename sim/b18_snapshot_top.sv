@@ -7,7 +7,8 @@
 module b18_snapshot_top #(
     parameter PLUS_MODE = 1'b0,
     parameter VIDEO_RAM = 1'b0,
-    parameter EXPERIMENTAL_CRTC2 = 1'b0
+    parameter EXPERIMENTAL_CRTC2 = 1'b0,
+    parameter EXPERIMENTAL_CRTC4 = 1'b0
 ) (
     input clk, reset_btn,
     input pause,
@@ -70,6 +71,7 @@ module b18_snapshot_top #(
     end
     assign mem_bank = sna_load ? sna_hdr_model : active_model;
     wire mb_mem_rd, mb_mem_wr;
+    wire [11:0] board_rgb;
     assign mem_rd = !owner_reset && mb_mem_rd;
     assign mem_wr = !owner_reset && mb_mem_wr;
     wire [7:0] cpu_din = mem_rd ? mem_din : 8'hff;
@@ -205,7 +207,10 @@ sna_cpu_header sna_cpu_header
         .sna_hold(sna_hold), .owner_reset_hold(owner_reset_hold)
     );
 
-    Amstrad_motherboard #(.EXPERIMENTAL_CRTC2(EXPERIMENTAL_CRTC2)) motherboard (
+    Amstrad_motherboard #(
+        .EXPERIMENTAL_CRTC2(EXPERIMENTAL_CRTC2),
+        .EXPERIMENTAL_CRTC4(EXPERIMENTAL_CRTC4)
+    ) motherboard (
         .reset(owner_reset),
         .clk(clk),
         .ce_16(ce_16),
@@ -287,9 +292,9 @@ sna_cpu_header sna_cpu_header
         .audio_l(),
         .audio_r(),
         .mode(),
-        .red(),
-        .green(),
-        .blue(),
+        .red(board_rgb[11:8]),
+        .green(board_rgb[7:4]),
+        .blue(board_rgb[3:0]),
         .ssm_m1_fetch(),
         .ssm_bus_data(),
         .ssm_sync_observation(),
@@ -415,14 +420,19 @@ sna_hw_header save_hw_header
     assign plus_raster = PLUS_MODE ? motherboard.asic_vid.raster : 5'd0;
     assign plus_cclk = PLUS_MODE ? motherboard.plus_cclk_en_n : 1'b0;
 
-    // The experimental classic run observes the actual GA pins and raw RGB.
+    // CRTC2 observes the discrete GA pins. CRTC4 checks the active
+    // board-level RGB and its selected CRTC sync and display pins.
     localparam OBSERVE_CLASSIC = EXPERIMENTAL_CRTC2 && !PLUS_MODE;
-    assign video_rgb = OBSERVE_CLASSIC ? {6'd0, motherboard.ga_red, motherboard.ga_green, motherboard.ga_blue} :
+    assign video_rgb = EXPERIMENTAL_CRTC4 ? board_rgb :
+                       OBSERVE_CLASSIC ? {6'd0, motherboard.ga_red, motherboard.ga_green, motherboard.ga_blue} :
                        {motherboard.plus_rgb_r, motherboard.plus_rgb_g, motherboard.plus_rgb_b};
     assign video_pen = motherboard.asic_vid.PEN;
-    assign video_hs = OBSERVE_CLASSIC ? motherboard.GateArray.HSYNC_I : motherboard.plus_crtc_hs;
-    assign video_vs = OBSERVE_CLASSIC ? motherboard.GateArray.VSYNC_I : motherboard.plus_crtc_vs;
-    assign video_de = OBSERVE_CLASSIC ? motherboard.GateArray.DISPEN : motherboard.asic_vid.eff_de;
+    assign video_hs = EXPERIMENTAL_CRTC4 ? motherboard.hs_sel :
+                      OBSERVE_CLASSIC ? motherboard.GateArray.HSYNC_I : motherboard.plus_crtc_hs;
+    assign video_vs = EXPERIMENTAL_CRTC4 ? motherboard.vs_sel :
+                      OBSERVE_CLASSIC ? motherboard.GateArray.VSYNC_I : motherboard.plus_crtc_vs;
+    assign video_de = EXPERIMENTAL_CRTC4 ? motherboard.de_sel :
+                      OBSERVE_CLASSIC ? motherboard.GateArray.DISPEN : motherboard.asic_vid.eff_de;
 
     wire [2047:0] save_header;
     assign saved_header = save_header;

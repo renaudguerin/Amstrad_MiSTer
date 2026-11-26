@@ -17,7 +17,8 @@
 
 module Amstrad_motherboard #(
 	parameter ENABLE_CRT_RESPONSE = 0,
-	parameter EXPERIMENTAL_CRTC2 = 1'b0
+	parameter EXPERIMENTAL_CRTC2 = 1'b0,
+	parameter EXPERIMENTAL_CRTC4 = 1'b0
 )
 (
 	input         reset,
@@ -318,8 +319,10 @@ wire MREQ_n;
 wire IORQ_n;
 wire RFSH_n;
 wire ga_int_n;
-wire classic_crtc2 = EXPERIMENTAL_CRTC2 && !plus_mode;
-wire classic_type1 = crtc_type && !classic_crtc2;
+wire classic_crtc4 = EXPERIMENTAL_CRTC4 && !plus_mode;
+wire integrated_timing = plus_mode || classic_crtc4;
+wire classic_crtc2 = EXPERIMENTAL_CRTC2 && !integrated_timing;
+wire classic_type1 = crtc_type && !classic_crtc2 && !classic_crtc4;
 
 // MODEL LIMIT (B26): Delay assertion on the classic GA-to-Z80 path by
 // eight 64 MHz clocks (two GA periods). The stock SHAKER DEC DE tables
@@ -328,7 +331,7 @@ wire classic_type1 = crtc_type && !classic_crtc2;
 // Keep the raw request with the GA counter and acknowledge logic.
 reg [7:0] classic_irq_assertion;
 reg classic_irq_crtc_type;
-wire classic_irq_clear = reset || sna_load || plus_mode ||
+wire classic_irq_clear = reset || sna_load || integrated_timing ||
                          (classic_type1 != classic_irq_crtc_type);
 always @(posedge clk) begin
 	classic_irq_crtc_type <= classic_type1;
@@ -338,7 +341,8 @@ end
 
 // The live GA deassertion releases /INT immediately, including after IACK.
 wire classic_cpu_int_n = classic_irq_clear || ga_int_n || classic_irq_assertion[7];
-wire INT_n = plus_mode ? plus_int_n : classic_cpu_int_n;
+wire INT_n = plus_mode ? plus_int_n :
+             classic_crtc4 ? plus_ga_int_n : classic_cpu_int_n;
 wire M1_n;
 wire [7:0] ppi_dout;
 wire [7:0] ppi_cpu_dout;
@@ -425,9 +429,14 @@ assign snap_printer_data = printer_data;
 wire legacy_crtc_hs, legacy_crtc_vs, legacy_crtc_de, legacy_crtc_field;
 wire legacy_crtc_restart, legacy_crtc_frame_field, legacy_cursor;
 wire type2_crtc_hs, type2_crtc_vs, type2_crtc_de;
+wire type4_crtc_hs, type4_crtc_vs, type4_crtc_de, type4_field;
 wire [13:0] legacy_ma, type2_ma;
 wire  [4:0] legacy_ra, type2_ra;
 wire  [7:0] legacy_crtc_dout, type2_crtc_dout;
+wire [13:0] type4_ma;
+wire  [4:0] type4_ra;
+wire  [7:0] type4_crtc_dout;
+wire  [3:0] type4_rgb_r, type4_rgb_g, type4_rgb_b;
 wire crtc_hs = classic_crtc2 ? type2_crtc_hs : legacy_crtc_hs;
 wire crtc_vs = classic_crtc2 ? type2_crtc_vs : legacy_crtc_vs;
 wire crtc_de = classic_crtc2 ? type2_crtc_de : legacy_crtc_de;
@@ -437,11 +446,12 @@ wire crtc_hsync_restart = !classic_crtc2 && legacy_crtc_restart;
 wire [13:0] MA = classic_crtc2 ? type2_ma : legacy_ma;
 wire  [4:0] RA = classic_crtc2 ? type2_ra : legacy_ra;
 wire  [7:0] crtc_dout = classic_crtc2 ? type2_crtc_dout : legacy_crtc_dout;
-assign cursor = !classic_crtc2 && legacy_cursor;
+assign cursor = !classic_crtc2 && !classic_crtc4 && legacy_cursor;
 wire  [7:0] plus_crtc_dout;
 // Only the selected machine's CRTC may participate in the wired-AND CPU
 // data bus. The explicit mux also keeps plus_mode=0 invariant.
-wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
+wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout :
+                            classic_crtc4 ? type4_crtc_dout : crtc_dout;
 
 wire classic_crtc_enable = (io_rd | io_wr) & ~crtc_wr_deferred;
 wire [7:0] classic_crtc_di = ~RD_n ? 8'hFF : D;
@@ -453,7 +463,7 @@ CRTC crtc
 	.nRESET(~reset),
 	.CRTC_TYPE(crtc_type),
 
-	.ENABLE(classic_crtc_enable && !classic_crtc2),
+	.ENABLE(classic_crtc_enable && !classic_crtc2 && !classic_crtc4),
 	.nCS(A[14]),
 	.R_nW(A[9]),
 	.RS(A[8]),
@@ -559,25 +569,27 @@ wire [179:0] plus_spr_pal;
 wire   [4:0] plus_pal_raddr;
 wire  [11:0] plus_pal_rdata;
 
-// Selected raster sources: classic path when Plus model = Off.
-wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
-wire [4:0]  ra_sel = plus_mode ? plus_ra : RA;
-wire        hs_sel = plus_mode ? plus_crtc_hs : crtc_hs;
-wire        vs_sel = plus_mode ? plus_crtc_vs : crtc_vs;
-wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;
+// The cost-reduced classic board has integrated video and timing while
+// retaining the classic MMU and peripherals (French ACCC §29.1 pp.294–295).
+wire [13:0] ma_sel = plus_mode ? plus_ma : classic_crtc4 ? type4_ma : MA;
+wire [4:0]  ra_sel = plus_mode ? plus_ra : classic_crtc4 ? type4_ra : RA;
+wire        hs_sel = plus_mode ? plus_crtc_hs : classic_crtc4 ? type4_crtc_hs : crtc_hs;
+wire        vs_sel = plus_mode ? plus_crtc_vs : classic_crtc4 ? type4_crtc_vs : crtc_vs;
+wire        de_sel = plus_mode ? plus_crtc_de : classic_crtc4 ? type4_crtc_de : crtc_de;
 // B8-2: raw FIELD belongs to the selected machine.
 // Classic FIELD stays with the classic CRTC; Plus FIELD comes from the ASIC's
 // own frame parity (see asic_video FIELD). Unselected-engine perturbation must
 // not reach the pin.
 wire        plus_field;
-wire source_field = plus_mode ? plus_field : crtc_field;
+wire source_field = plus_mode ? plus_field : classic_crtc4 ? type4_field : crtc_field;
 assign field = crt_response_active ? crt_field_aligned : source_field;
 // Classic R8 pulses must not advertise interlace to the platform scaler.
 // Preserve the existing Plus FIELD export; this repair concerns classic R8.
-wire source_frame_field = plus_mode ? plus_field : crtc_frame_field;
+wire source_frame_field = plus_mode ? plus_field : classic_crtc4 ? type4_field : crtc_frame_field;
 assign frame_field = crt_response_active ? crt_frame_field_aligned : source_frame_field;
 
 wire plus_mode_update_en;
+wire integrated_romen_n;
 
 asic_ga_timing asic_ga
 (
@@ -587,21 +599,23 @@ asic_ga_timing asic_ga
 	.RESET_N(~reset),
 
 	.A(A[15:14]),
-	.D(plus_io_data),
+	// AmSpirit's 40226 returns FF on a legacy GA read and keeps the
+	// selected ink. Use the classic bus convention pending stock tests.
+	.D(classic_crtc4 ? classic_crtc_di : plus_io_data),
 	.MREQ_N(MREQ_n),
 	.M1_N(M1_n),
 	.RD_N(RD_n),
 	.IORQ_N(board_iorq_n),
 
-	.HSYNC_I(plus_crtc_hs),
-	.VSYNC_I(plus_crtc_vs),
+	.HSYNC_I(classic_crtc4 ? type4_crtc_hs : plus_crtc_hs),
+	.VSYNC_I(classic_crtc4 ? type4_crtc_vs : plus_crtc_vs),
 
 	// P3 programmable raster interrupt: {VC5..VC0, RC2..RC0} per the
 	// reference comparison; the shaped-monitor trailing edge fires.
-	.pri(asic_pri),
+	.pri(classic_crtc4 ? 8'd0 : asic_pri),
 	.crtc_line({plus_vc[5:0], plus_rc[2:0]}),
 	.crtc_adj(plus_adj),
-	.intack(plus_mode & ~M1_n & asic_iorq),
+	.intack(integrated_timing & ~M1_n & asic_iorq),
 	.int_last_raster(asic_int_last_raster),
 
 	.CCLK(),
@@ -620,8 +634,8 @@ asic_ga_timing asic_ga
 	// The Plus MMU owns cartridge ROM windows.  Its lock state is shared
 	// with the GA register decoder so an unlocked RMR2 byte cannot alter
 	// this legacy control register.
-	.plus_unlocked(plus_unlocked),
-	.ROMEN_N(),
+	.plus_unlocked(plus_unlocked && !classic_crtc4),
+	.ROMEN_N(integrated_romen_n),
 	.RAMRD_N(),
 	.ROM(),
 
@@ -743,6 +757,51 @@ asic_video asic_vid
 	.SNA_ADJ(sna_crtc_adj),
 	.SNA_MODE(sna_ga_config[1:0])
 );
+
+generate
+if (EXPERIMENTAL_CRTC4) begin : cost_reduced_video
+	// Cold-boot prototype. The existing snapshot header has only the
+	// discrete classic state. Qualify 40226 restore before exposing it.
+	asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
+		.CLOCK(clk),
+		.CLKEN(plus_cclk_en_n),
+		.nRESET(~reset && classic_crtc4),
+		.ENABLE(io_rd | io_wr),
+		.nCS(A[14]),
+		.R_nW(A[9]),
+		.RS(A[8]),
+		.DI(classic_crtc_di),
+		.DO(type4_crtc_dout),
+		.HSYNC(type4_crtc_hs),
+		.VSYNC(type4_crtc_vs),
+		.DE(type4_crtc_de),
+		.FIELD(type4_field),
+		.MA(type4_ma),
+		.RA(type4_ra),
+		.HCC(), .LINE(), .ROW(), .ADJ(),
+		.SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
+		.PIXEN(ce_16),
+		.VIDEOD(plus_vidword),
+		.MODE_UPDATE_EN(plus_mode_update_en),
+		.GAMODE(plus_gamode),
+		.BORDER_I(asic_border),
+		.INKR_I(asic_inkr),
+		.RGB_R(type4_rgb_r),
+		.RGB_G(type4_rgb_g),
+		.RGB_B(type4_rgb_b),
+		.PEN(), .HWRAP(), .SPR_EN(1'b0), .SPR_RGB(12'd0),
+		.PAL_EN(1'b0), .PAL_ADDR(), .PAL_RGB(12'd0),
+		.SNA_LOAD(1'b0), .SNA_ADDR(5'd0), .SNA_REGS(144'd0),
+		.SNA_HCC(8'd0), .SNA_LINE(7'd0), .SNA_RASTER(5'd0), .SNA_VTA(5'd0),
+		.SNA_HSW(4'd0), .SNA_VSW(4'd0), .SNA_VS(1'b0), .SNA_HS(1'b0),
+		.SNA_ADJ(1'b0), .SNA_MODE(2'd0)
+	);
+end else begin : no_cost_reduced_video
+	assign type4_crtc_dout = 8'hff;
+	assign {type4_crtc_hs, type4_crtc_vs, type4_crtc_de, type4_field,
+	        type4_ma, type4_ra, type4_rgb_r, type4_rgb_g, type4_rgb_b} = 35'd0;
+end
+endgenerate
 
 // ASIC register page (P2). The accepted legacy palette write event comes
 // straight from asic_ga_timing, so PENR/INKR writes land in the 12-bit
@@ -1072,8 +1131,8 @@ end
 
 wire cclk_en_n, cclk_en_p;
 wire ga_cclk_en_n, ga_cclk_en_p;
-assign cclk_en_p = plus_mode ? plus_cclk_en_p : ga_cclk_en_p;
-assign cclk_en_n = plus_mode ? plus_cclk_en_n : ga_cclk_en_n;
+assign cclk_en_p = integrated_timing ? plus_cclk_en_p : ga_cclk_en_p;
+assign cclk_en_n = integrated_timing ? plus_cclk_en_n : ga_cclk_en_n;
 
 // Classic CRTC write acceptance (French ACCC v1.11 section 4.4.3 p26 and
 // section 4.4.4 Diagram B p31). OUTI/OUTD update a CRTC register in their
@@ -1106,13 +1165,14 @@ wire crtc_wr_deferred = crtc_wr & ~crtc_type1_r0_write &
 
 wire e244_n;
 wire ga_cpu_n, ga_ras_n, ga_cas_n;
-wire cpu_n = plus_mode ? plus_cpu_n : ga_cpu_n;
-wire ras_n = plus_mode ? plus_ras_n : ga_ras_n;
-wire cas_n = plus_mode ? plus_cas_n : ga_cas_n;
+wire cpu_n = integrated_timing ? plus_cpu_n : ga_cpu_n;
+wire ras_n = integrated_timing ? plus_ras_n : ga_ras_n;
+wire cas_n = integrated_timing ? plus_cas_n : ga_cas_n;
 wire [7:0] ga_din = e244_n ? vram_d : D;
 wire ga_ready_o;
-wire ready = plus_mode ? plus_ready : ga_ready_o;
-wire romen_n;
+wire ready = integrated_timing ? plus_ready : ga_ready_o;
+wire ga_romen_n;
+wire romen_n = classic_crtc4 ? integrated_romen_n : ga_romen_n;
 
 wire ga_hsync_o, hsync_filtered;
 wire ga_vsync_o, vsync_filtered;
@@ -1125,9 +1185,9 @@ assign dt_trace_state={ga_vblank_o,vsync_ga,crtc_vs,crtc_hs};
 `endif
 `endif
 
-wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
-wire vsync_ga = plus_mode ? plus_vsync_o : ga_vsync_o;
-wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
+wire hsync_ga = integrated_timing ? plus_hsync_o : ga_hsync_o;
+wire vsync_ga = integrated_timing ? plus_vsync_o : ga_vsync_o;
+wire vblank_ga = integrated_timing ? plus_vblank : ga_vblank_o;
 
 // A changed request is committed only while the Full vertical blank is
 // asserted and the selected GA is in its CPU-owned phase.  That phase
@@ -1244,11 +1304,21 @@ crt_filter crt_filter
 // channel bits; ASIC pixels retain all twelve bits after palette/sprites.
 wire [1:0] ga_mode;
 wire [1:0] ga_red, ga_green, ga_blue;
-assign mode  = plus_mode ? plus_gamode : ga_mode;
+assign mode = integrated_timing ? plus_gamode : ga_mode;
+
+// The classic output converter accepts DAC pairs. The 40226's legacy
+// palette produces 0, 6 or 15, corresponding to the pairs 00, 01 and 10.
+function [1:0] legacy_dac_pair(input [3:0] level);
+	legacy_dac_pair = {level[3], level[2] && !level[3]};
+endfunction
+
 // French ACCC v1.11 section14.4 pp134-135: correct the rendered
 // ordinary4/5 relative position, retaining Full5/6's coarse baseline.
 // This is output history, not a literal monitor/silicon-stage model.
 wire [11:0] selected_source_rgb = plus_mode ? {plus_rgb_r, plus_rgb_g, plus_rgb_b} :
+    classic_crtc4 ? {2'b00, legacy_dac_pair(type4_rgb_r),
+                     2'b00, legacy_dac_pair(type4_rgb_g),
+                     2'b00, legacy_dac_pair(type4_rgb_b)} :
     {2'b00, ga_red, 2'b00, ga_green, 2'b00, ga_blue};
 // Frozen qualitative renderer. No producer/filter state consumes its output.
 // Compile out its clocked history when the private profile is disabled.
@@ -1365,9 +1435,9 @@ assign blue  = rendered_rgb[3:0];
 // the Plus-mode owner so any deliberate Plus timing delta lands everywhere
 // at once (CPU, crt_filter CE, expansion header).
 wire ga_phi_n, ga_phi_en_n, ga_phi_en_p;
-assign phi_n    = plus_mode ? plus_phi_n    : ga_phi_n;
-assign phi_en_n = plus_mode ? plus_phi_en_n : ga_phi_en_n;
-assign phi_en_p = plus_mode ? plus_phi_en_p : ga_phi_en_p;
+assign phi_n    = integrated_timing ? plus_phi_n    : ga_phi_n;
+assign phi_en_n = integrated_timing ? plus_phi_en_n : ga_phi_en_n;
+assign phi_en_p = integrated_timing ? plus_phi_en_p : ga_phi_en_p;
 
 ga40010 GateArray (
 	.clk(clk),
@@ -1397,7 +1467,7 @@ ga40010 GateArray (
 	.CPU_N(ga_cpu_n),
 	.MWE_N(),
 	.E244_N(e244_n),
-	.ROMEN_N(romen_n),
+	.ROMEN_N(ga_romen_n),
 	.RAMRD_N(),
 	.HSYNC_O(ga_hsync_o),
 	.VSYNC_O(ga_vsync_o),
