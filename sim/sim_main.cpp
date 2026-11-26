@@ -2592,6 +2592,38 @@ void test_type0_03fd_r9_write_spans_terminal_character(TestBench& test) {
     test.expect_ra("03FD resets C9 on the row advance", 0);
 }
 
+// SHAKER 2.7 Module E 03FC last group. R4 breaks equality at C0=49,
+// fourteen characters before the terminal R9 write. French ACCC v1.11
+// §11.2.2 p83 describes the R4 switch and exact-terminal R9 exception.
+// The AmSpirit probe restores R4 before the same R9 OUT as a control.
+void test_type0_03fc_terminal_r9_after_r4_break(TestBench& test) {
+    for (bool restored : {false, true}) {
+        test.set_crtc_type(0);
+        test.write_register(0, 63);
+        test.write_register(4, 38);
+        test.write_register(5, 20);
+        test.write_register(7, 39);
+        test.write_register(8, 0);
+        test.write_register(9, 7);
+        test.reset();
+        test.run_characters((39 * 8 - 1) * 64);
+        if (restored) {
+            test.run_to_c0(39);
+            test.write_register(4, 50);
+        }
+        test.run_to_c0(49);
+        test.write_register(4, restored ? 38 : 50);
+        test.select_register(9);
+        test.run_to_c0(63);
+        test.run_clock_ticks(1);
+        test.hold_selected_register_now(12, 22);
+        test.expect_c4("03FC row at the terminal R9 write", restored ? 39 : 38);
+        test.expect_ra("03FC R5 counting continues on the next raster", 8);
+        if (restored) test.expect_vsync_high("03FC restored R4 reaches R7=39");
+        else test.expect_vsync_low("03FC unequal R4 misses R7=39");
+    }
+}
+
 void test_type0_adjustment_completion_resets_the_next_line(TestBench& test) {
     test.set_crtc_type(0);
 
@@ -10632,6 +10664,9 @@ int main(int argc, char** argv) {
         {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
          "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; pending R9/R5 completion", false,
          test_type0_r9_write_within_c0_1_enters_zero_adjustment},
+        {"type0_03fc_terminal_r9_after_r4_break",
+         "French ACCC v1.11 §11.2.2 p83 and §13.2.1 p106; terminal R9 with broken or restored R4", false,
+         test_type0_03fc_terminal_r9_after_r4_break},
         {"type0_03fd_r9_write_spans_terminal_character",
          "French ACCC v1.11 §11.2.2 p83; Module E R9 write crossing into C0=R0", false,
          test_type0_03fd_r9_write_spans_terminal_character},
