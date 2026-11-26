@@ -16,9 +16,36 @@ The multi-machine system ROM bundle. The core **will not boot without this file*
   /media/fat/Games/Amstrad/boot.rom
   ```
 
-### 2. `cpc464nd.eZ0` (Optional)
-Expansion ROM image for CPC 464.
-- Copy to `/media/fat/Games/Amstrad/` if utilizing 464 expansion ROM slots.
+You can also select the bundle using **Load Main ROM**. MiSTer Main's CPC
+startup looks for `boot.rom`. Its separate `boot0.rom` through `boot3.rom`
+search applies to other cores. If your CPC system bundle is named `boot0.rom`,
+select it manually or copy it to `boot.rom` for automatic loading.
+
+### Load an expansion ROM
+
+For a raw 16 KiB upper ROM, give the file an `.eNN` extension where `NN` is
+the two-digit slot number in hexadecimal. For example, rename a ROM for
+slot 10 to `myrom.e0A` and select it using **Load expansion**. This writes the
+slot in both the CPC 6128 and 664 banks. Use **Load CPC464 ROM** to write the
+same slot in the CPC 464 bank. Slot 0 is normally BASIC, and slot 7 is
+normally AMSDOS on the disk models.
+
+The `.eZZ` extension selects the lower OS ROM. For a combined image with
+the lower ROM followed by upper slots starting at 0, use `.eZ0`. The
+included `cpc464nd.eZ0` uses that format. Copy it into the Amstrad games
+directory and select it through **Load CPC464 ROM** to load its CPC 464 bank.
+
+### Load ROM overrides at startup
+
+Place overrides in `/media/fat/Games/Amstrad/` alongside `boot.rom`. For
+example, Main loads `boot.e0A` into upper slot 10 on both disk models,
+`boot0.e0A` into the 6128 bank, and `boot1.e0A` into the 664 bank. The same
+prefixes work with `.eZZ` and `.eZ0`. Use the manual CPC 464 picker for its
+overrides.
+
+The **Distributor** setting changes the PPI jumpers read by the firmware.
+The installed OS/BASIC pair supplies the CPC's keyboard layout. **Right
+Shift** and **Keypad** are separate host key mapping options.
 
 ---
 
