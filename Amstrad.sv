@@ -1495,7 +1495,10 @@ plus_cartridge_memory cartridge_memory
 	.mem_rdata(cart_mem_rdata)
 );
 
-Amstrad_motherboard #(.ENABLE_CRT_RESPONSE(ENABLE_CRT_RESPONSE)) motherboard
+Amstrad_motherboard #(
+	.ENABLE_CRT_RESPONSE(ENABLE_CRT_RESPONSE),
+	.EXPERIMENTAL_CRTC2(1'b1)
+) motherboard
 (
 	.reset(reset),
 	.clk(clk_sys),
