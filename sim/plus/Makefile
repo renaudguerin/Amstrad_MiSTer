@@ -167,6 +167,7 @@ MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/CRTC.v) \
 	$(abspath ../../rtl/crtc_type0_engine.v) \
 	$(abspath ../../rtl/crtc_type1_engine.v) \
+	$(abspath ../../rtl/crtc_type2.v) \
 	$(abspath ../../rtl/plus/asic_ga_timing.v) \
 	$(abspath ../../rtl/plus/asic_video.v) \
 	$(abspath ../../rtl/plus/asic_sprites.v) \
@@ -378,6 +379,7 @@ P10DMAMOBO_RTL      := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/CRTC.v) \
 	$(abspath ../../rtl/crtc_type0_engine.v) \
 	$(abspath ../../rtl/crtc_type1_engine.v) \
+	$(abspath ../../rtl/crtc_type2.v) \
 	$(abspath ../../rtl/Amstrad_MMU.v) \
 	$(abspath ../../rtl/i8255.v) \
 	$(abspath ../../rtl/YM2149.sv) \

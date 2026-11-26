@@ -15,7 +15,10 @@
 --
 */
 
-module Amstrad_motherboard #(parameter ENABLE_CRT_RESPONSE = 0)
+module Amstrad_motherboard #(
+	parameter ENABLE_CRT_RESPONSE = 0,
+	parameter EXPERIMENTAL_CRTC2 = 1'b0
+)
 (
 	input         reset,
 
@@ -315,6 +318,8 @@ wire MREQ_n;
 wire IORQ_n;
 wire RFSH_n;
 wire ga_int_n;
+wire classic_crtc2 = EXPERIMENTAL_CRTC2 && !plus_mode;
+wire classic_type1 = crtc_type && !classic_crtc2;
 
 // MODEL LIMIT (B26): Delay assertion on the classic GA-to-Z80 path by
 // eight 64 MHz clocks (two GA periods). The stock SHAKER DEC DE tables
@@ -324,9 +329,9 @@ wire ga_int_n;
 reg [7:0] classic_irq_assertion;
 reg classic_irq_crtc_type;
 wire classic_irq_clear = reset || sna_load || plus_mode ||
-                         (crtc_type != classic_irq_crtc_type);
+                         (classic_type1 != classic_irq_crtc_type);
 always @(posedge clk) begin
-	classic_irq_crtc_type <= crtc_type;
+	classic_irq_crtc_type <= classic_type1;
 	if (classic_irq_clear || ga_int_n) classic_irq_assertion <= 8'hFF;
 	else classic_irq_assertion <= {classic_irq_assertion[6:0], 1'b0};
 end
@@ -417,16 +422,29 @@ assign snap_printer_data = printer_data;
 	.DIR(sna_cpu_dir)
 );
 
-wire crtc_hs, crtc_vs, crtc_de, crtc_field;
-wire [13:0] MA;
-wire  [4:0] RA;
-wire  [7:0] crtc_dout;
+wire legacy_crtc_hs, legacy_crtc_vs, legacy_crtc_de, legacy_crtc_field;
+wire legacy_crtc_restart, legacy_crtc_frame_field, legacy_cursor;
+wire type2_crtc_hs, type2_crtc_vs, type2_crtc_de;
+wire [13:0] legacy_ma, type2_ma;
+wire  [4:0] legacy_ra, type2_ra;
+wire  [7:0] legacy_crtc_dout, type2_crtc_dout;
+wire crtc_hs = classic_crtc2 ? type2_crtc_hs : legacy_crtc_hs;
+wire crtc_vs = classic_crtc2 ? type2_crtc_vs : legacy_crtc_vs;
+wire crtc_de = classic_crtc2 ? type2_crtc_de : legacy_crtc_de;
+wire crtc_field = !classic_crtc2 && legacy_crtc_field;
+wire crtc_frame_field = !classic_crtc2 && legacy_crtc_frame_field;
+wire crtc_hsync_restart = !classic_crtc2 && legacy_crtc_restart;
+wire [13:0] MA = classic_crtc2 ? type2_ma : legacy_ma;
+wire  [4:0] RA = classic_crtc2 ? type2_ra : legacy_ra;
+wire  [7:0] crtc_dout = classic_crtc2 ? type2_crtc_dout : legacy_crtc_dout;
+assign cursor = !classic_crtc2 && legacy_cursor;
 wire  [7:0] plus_crtc_dout;
 // Only the selected machine's CRTC may participate in the wired-AND CPU
 // data bus. The explicit mux also keeps plus_mode=0 invariant.
 wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
 
-wire crtc_hsync_restart, crtc_frame_field;
+wire classic_crtc_enable = (io_rd | io_wr) & ~crtc_wr_deferred;
+wire [7:0] classic_crtc_di = ~RD_n ? 8'hFF : D;
 CRTC crtc
 (
 	.CLOCK(clk),
@@ -435,27 +453,27 @@ CRTC crtc
 	.nRESET(~reset),
 	.CRTC_TYPE(crtc_type),
 
-	.ENABLE((io_rd | io_wr) & ~crtc_wr_deferred),
+	.ENABLE(classic_crtc_enable && !classic_crtc2),
 	.nCS(A[14]),
 	.R_nW(A[9]),
 	.RS(A[8]),
-	.DI(~RD_n ? 8'hFF : D),
-	.DO(crtc_dout),
+	.DI(classic_crtc_di),
+	.DO(legacy_crtc_dout),
 
 	.SNA_LOAD(sna_load),
 	.SNA_ADDR(sna_crtc_addr),
 	.SNA_REGS(sna_crtc_regs),
 
-	.VSYNC(crtc_vs),
-	.HSYNC(crtc_hs),
-	.HSYNC_RESTART(crtc_hsync_restart),
-	.DE(crtc_de),
-	.FIELD(crtc_field),
-	.FRAME_FIELD(crtc_frame_field),
-	.CURSOR(cursor),
+	.VSYNC(legacy_crtc_vs),
+	.HSYNC(legacy_crtc_hs),
+	.HSYNC_RESTART(legacy_crtc_restart),
+	.DE(legacy_crtc_de),
+	.FIELD(legacy_crtc_field),
+	.FRAME_FIELD(legacy_crtc_frame_field),
+	.CURSOR(legacy_cursor),
 
-	.MA(MA),
-	.RA(RA),
+	.MA(legacy_ma),
+	.RA(legacy_ra),
 
 	.SNAP_ADDR(snap_crtc_addr),
 	.SNAP_REGS(snap_crtc_regs),
@@ -471,6 +489,26 @@ CRTC crtc
 `ifdef SSM_S_PASSIVE_TRACE
  , .S_TRACE_STATE(s_trace_crtc_state)
 `endif
+);
+
+// The experimental build uses the discrete GA and classic CPU decode.
+// Type 2 currently supports progressive timing. Leave the board parameter
+// disabled in the public core while port timing and SNA ownership are open.
+crtc_type2 crtc2 (
+	.CLOCK(clk),
+	.CLKEN(cclk_en_n),
+	.nRESET(~reset && classic_crtc2),
+	.ENABLE(classic_crtc_enable && classic_crtc2),
+	.nCS(A[14]),
+	.R_nW(A[9]),
+	.RS(A[8]),
+	.DI(classic_crtc_di),
+	.DO(type2_crtc_dout),
+	.VSYNC(type2_crtc_vs),
+	.HSYNC(type2_crtc_hs),
+	.DE(type2_crtc_de),
+	.MA(type2_ma),
+	.RA(type2_ra)
 );
 
 // -----------------------------------------------------------------------
@@ -1054,7 +1092,7 @@ assign cclk_en_n = plus_mode ? plus_cclk_en_n : ga_cclk_en_n;
 // its own B31 strobe-end store.
 reg  crtc_wr_late_phase, crtc_wr_d, crtc_wr_hold;
 wire crtc_wr = io_wr & ~A[14];
-wire crtc_type1_r0_write = crtc_type && A[8] && !A[9] && (snap_crtc_addr == 5'd0);
+wire crtc_type1_r0_write = classic_type1 && A[8] && !A[9] && (snap_crtc_addr == 5'd0);
 always @(posedge clk) begin
 	if (cclk_en_p) crtc_wr_late_phase <= 1'b1;
 	else if (cclk_en_n) crtc_wr_late_phase <= 1'b0;

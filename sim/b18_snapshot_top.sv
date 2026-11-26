@@ -6,7 +6,8 @@
 // Only standard uncompressed classic snapshots are accepted (no chunks).
 module b18_snapshot_top #(
     parameter PLUS_MODE = 1'b0,
-    parameter VIDEO_RAM = 1'b0
+    parameter VIDEO_RAM = 1'b0,
+    parameter EXPERIMENTAL_CRTC2 = 1'b0
 ) (
     input clk, reset_btn,
     input pause,
@@ -204,7 +205,7 @@ sna_cpu_header sna_cpu_header
         .sna_hold(sna_hold), .owner_reset_hold(owner_reset_hold)
     );
 
-    Amstrad_motherboard motherboard (
+    Amstrad_motherboard #(.EXPERIMENTAL_CRTC2(EXPERIMENTAL_CRTC2)) motherboard (
         .reset(owner_reset),
         .clk(clk),
         .ce_16(ce_16),
@@ -414,11 +415,14 @@ sna_hw_header save_hw_header
     assign plus_raster = PLUS_MODE ? motherboard.asic_vid.raster : 5'd0;
     assign plus_cclk = PLUS_MODE ? motherboard.plus_cclk_en_n : 1'b0;
 
-    assign video_rgb = {motherboard.plus_rgb_r, motherboard.plus_rgb_g, motherboard.plus_rgb_b};
+    // The experimental classic run observes the actual GA pins and raw RGB.
+    localparam OBSERVE_CLASSIC = EXPERIMENTAL_CRTC2 && !PLUS_MODE;
+    assign video_rgb = OBSERVE_CLASSIC ? {6'd0, motherboard.ga_red, motherboard.ga_green, motherboard.ga_blue} :
+                       {motherboard.plus_rgb_r, motherboard.plus_rgb_g, motherboard.plus_rgb_b};
     assign video_pen = motherboard.asic_vid.PEN;
-    assign video_hs = motherboard.plus_crtc_hs;
-    assign video_vs = motherboard.plus_crtc_vs;
-    assign video_de = motherboard.asic_vid.eff_de;
+    assign video_hs = OBSERVE_CLASSIC ? motherboard.GateArray.HSYNC_I : motherboard.plus_crtc_hs;
+    assign video_vs = OBSERVE_CLASSIC ? motherboard.GateArray.VSYNC_I : motherboard.plus_crtc_vs;
+    assign video_de = OBSERVE_CLASSIC ? motherboard.GateArray.DISPEN : motherboard.asic_vid.eff_de;
 
     wire [2047:0] save_header;
     assign saved_header = save_header;
