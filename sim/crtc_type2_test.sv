@@ -179,11 +179,20 @@ module crtc_type2_test;
 		verify_ghost_vsync();
 		verify_adjustment_wrap();
 
-		// Compendium §28.1.9's chip-identification rule, pending stock readback.
-		write_reg(8'h2e, 8'h3f);
-		verify_read(1, 8'h00);
+		// AmSpirit 1.18.3 and FR §21.2.2 p.245 preserve cursor
+		// readback through the five-bit register-select aliases.
+		write_reg(14, 8'hff);
+		verify_read(1, 8'h3f);
 		verify_read(0, 8'hff);
-		write_reg(8'h2f, 8'hff);
+		write_reg(15, 8'ha5);
+		verify_read(1, 8'ha5);
+		bus_write(0, 8'h2e);
+		verify_read(1, 8'h3f);
+		bus_write(0, 8'h2f);
+		verify_read(1, 8'ha5);
+		write_reg(16, 8'hff);
+		verify_read(1, 8'h00);
+		write_reg(17, 8'hff);
 		verify_read(1, 8'h00);
 		write_reg(31, 8'hff);
 		verify_read(1, 8'h00);

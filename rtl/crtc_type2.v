@@ -56,11 +56,16 @@ reg [3:0] h_sync_width;
 reg [6:0] v_total, v_displayed, v_sync_pos;
 reg [4:0] v_adjust, max_raster;
 reg [13:0] start_addr;
+reg [5:0] cursor_addr_high;
+reg [7:0] cursor_addr_low;
 
-// FR §21.3.2 p.247 and §28.1.9 p.293. The wired-AND bus uses FF to
-// represent an undriven port. With no light pen attached, R16/17 are zero.
-// Follow the chip-identification rule for R14/15 pending stock readback.
-assign DO = ENABLE && !nCS && R_nW && RS ? 8'h00 : 8'hff;
+// FR §21.2.2 p.245 maps R14/15 and §28.1.9 p.293 omits them.
+// Provisionally follow the readback measured on AmSpirit Lite 1.18.3.
+// FR §21.3.2 p.247: no status driver; FF is neutral on the wired-AND bus.
+wire read_data = ENABLE && !nCS && R_nW && RS;
+assign DO = !read_data ? 8'hff :
+            selected == 5'd14 ? {2'b00, cursor_addr_high} :
+            selected == 5'd15 ? cursor_addr_low : 8'h00;
 
 wire write_selected = ENABLE && !nCS && !R_nW && RS;
 always @(posedge CLOCK) begin
@@ -76,6 +81,8 @@ always @(posedge CLOCK) begin
 		v_adjust <= 0;
 		max_raster <= 0;
 		start_addr <= 0;
+		cursor_addr_high <= 0;
+		cursor_addr_low <= 0;
 	end else if (ENABLE && !nCS && !R_nW) begin
 		if (!RS) selected <= DI[4:0];
 		else case (selected)
@@ -90,6 +97,8 @@ always @(posedge CLOCK) begin
 			5'd9: max_raster <= DI[4:0];
 			5'd12: start_addr[13:8] <= DI[5:0];
 			5'd13: start_addr[7:0] <= DI;
+			5'd14: cursor_addr_high <= DI[5:0];
+			5'd15: cursor_addr_low <= DI;
 			default: ;
 		endcase
 	end
