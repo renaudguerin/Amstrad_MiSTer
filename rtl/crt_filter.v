@@ -321,6 +321,10 @@ always @(posedge CLK) begin : syncgen
     reg [9:0] relock_fall_target;
     reg relock_rise, relock_fall, relock_open, relock_regular;
     reg relock_source_bad, relock_ordinary, relock_release, relock_acquire;
+    reg h_midpoint_busy, h_relock_busy, h_wide_owner, h_arbitrate_open;
+    reg h_suppress_ordinary, h_launch_wide, h_launch_ordinary, h_launch_midpoint;
+    reg h_complete_timed, h_complete_compare;
+    reg h_cover_set, h_cover_clear;
 	reg phase_anchor;
     reg stretch_start, stretch_pending, stretch_confirm, shadow_start;
     reg admitted_rise, raw_h_rise, retain_h, use_shadow;
@@ -329,6 +333,9 @@ always @(posedge CLK) begin : syncgen
 
 	localparam HFLT_SZ = 50*4;
 	localparam VFLT_SZ = 260;
+	localparam [4:0] WIDE_PULSE_TICKS    = 5'd16;
+	localparam [4:0] MIDPOINT_SLOT_TICKS = 5'd18;
+	localparam [4:0] MIDPOINT_FALL_LEFT  = 5'd3;
 
 
     if (!byte_recovery_live) begin
@@ -712,6 +719,15 @@ always @(posedge CLK) begin : syncgen
             end else relock_complete <= 0;
         end
 
+        // Final selected-H arbitration separates three lifetimes:
+        //  1. Acquiring/selecting a phase owner (wide relock vs ordinary or
+        //     CF midpoint; held off on the relock_acquire sample).
+        //  2. Finishing a launched timed pulse (16 CE4 for wide relock and
+        //     CF midpoint; midpoint retains slot occupancy 2 ticks past its
+        //     fall through the ordinary +18 compare).
+        //  3. Occupying/suppressing the nominal slot (relock_covered across
+        //     a wide wrap or mid-slot re-anchor, plus DT same-sample use_shadow).
+        // legacy_hsync and its vertical-age consumer stay separate above.
         // The ordinary adjustment is in [-8, 8]. Keep the original one
         // wrap on retirement if the trained period has become short.
         regular_rise = 6'd8 + {phase_effective[4], phase_effective};
@@ -725,39 +741,47 @@ always @(posedge CLK) begin : syncgen
             if (hSyncSize <= {3'd0, regular_fall})
                 output_fall = regular_fall - hSyncSize[5:0];
         end
-        // An early pulse already supplied this line. A raw VS anchor
-        // before or on the ordinary fall compare must consume the first slot
-        // on its new grid, even after the advanced pulse has ended.
-        if (hSyncCount == {3'd0, regular_rise}) relock_covered <= 0;
-        if (phase_anchor && midpoint_slot_left != 0) relock_covered <= 1;
-        // Complete a pulse started in the recovered phase when its owner
-        // retires or when the next raw VS anchor resets the legacy count.
-        // A new owner takes over while output is low. Neither new wide
-        // target equals the acquisition count for a period of at least 32.
-        if (midpoint_slot_left != 0) begin
-            midpoint_slot_left <= midpoint_slot_left - 5'd1;
-            // The midpoint starts two ticks early. Keep the legacy slot
-            // occupied for those last two ticks after the 16-tick pulse.
-            if (midpoint_slot_left == 5'd3) HSYNC_O <= 0;
-        end else if (relock_pulse_left != 0) begin
-            relock_pulse_left <= relock_pulse_left - 5'd1;
-            if (relock_pulse_left == 1) HSYNC_O <= 0;
-        end else if (!relock_acquire) begin
-            if (relock_phase != 0 && !relock_release) begin
-                if (hSyncCount == relock_rise_count) begin
-                    HSYNC_O <= 1;
-                    relock_pulse_left <= 5'd16;
-                    relock_covered <= 1;
-                end
-                if (hSyncCount == relock_fall_count) HSYNC_O <= 0;
-            end else begin
-                if (hSyncCount == {3'd0, output_rise} && !relock_covered && !use_shadow) begin
-                    HSYNC_O <= 1;
-                    if (phase_midpoint) midpoint_slot_left <= 5'd18;
-                end
-                if (hSyncCount == {3'd0, output_fall}) HSYNC_O <= 0;
-            end
-        end
+
+        h_midpoint_busy  = (midpoint_slot_left != 0);
+        h_relock_busy    = !h_midpoint_busy && (relock_pulse_left != 0);
+        h_wide_owner     = (relock_phase != 0) && !relock_release;
+        h_arbitrate_open = !h_midpoint_busy && !h_relock_busy && !relock_acquire;
+
+        // Launch and suppress decisions.
+        h_suppress_ordinary = relock_covered || use_shadow;
+        h_launch_wide       = h_arbitrate_open && h_wide_owner &&
+                              (hSyncCount == relock_rise_count);
+        h_launch_ordinary   = h_arbitrate_open && !h_wide_owner &&
+                              (hSyncCount == {3'd0, output_rise}) &&
+                              !h_suppress_ordinary;
+        h_launch_midpoint   = h_launch_ordinary && phase_midpoint;
+
+        // Nominal-slot coverage: cover across a wide wrap or any raw VS/H
+        // anchor during an occupied midpoint slot (+1..+18), and release when
+        // regular_rise passes (+19/+20 anchors stay uncovered).
+        h_cover_set         = h_launch_wide || (phase_anchor && h_midpoint_busy);
+        h_cover_clear       = (hSyncCount == {3'd0, regular_rise});
+
+        // Completion decisions: timed 16-CE4 falls own active launches;
+        // comparator falls run when arbitration is open and win over a
+        // same-sample rise.
+        h_complete_timed    = (h_midpoint_busy && midpoint_slot_left == MIDPOINT_FALL_LEFT) ||
+                              (h_relock_busy   && relock_pulse_left == 5'd1);
+        h_complete_compare  = h_arbitrate_open &&
+                              (h_wide_owner ? (hSyncCount == relock_fall_count)
+                                            : (hSyncCount == {3'd0, output_fall}));
+
+        if (h_midpoint_busy)        midpoint_slot_left <= midpoint_slot_left - 5'd1;
+        else if (h_launch_midpoint) midpoint_slot_left <= MIDPOINT_SLOT_TICKS;
+
+        if (h_relock_busy)          relock_pulse_left <= relock_pulse_left - 5'd1;
+        else if (h_launch_wide)     relock_pulse_left <= WIDE_PULSE_TICKS;
+
+        if (h_cover_set)            relock_covered <= 1;
+        else if (h_cover_clear)     relock_covered <= 0;
+
+        if (h_complete_timed || h_complete_compare)  HSYNC_O <= 0;
+        else if (h_launch_wide || h_launch_ordinary) HSYNC_O <= 1;
 
         // The retained count cannot wrap or reach an output compare
         // in this window. Squash the provisional +8 rise on this edge,
