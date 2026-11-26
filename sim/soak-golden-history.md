@@ -4,6 +4,7 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 
 | Hash | Set on | Scope |
 |---|---|---|
+| `0x7248cd9cba31b96b` | 2026-11-26 | CRTC0 ordinary adjustment entry ends when the R9 rollover produces C9=0 and R5 has been cleared (SHAKER 03FA). |
 | `0x8860eabba62aca89` | 2026-11-26 | Combined classic CRTC changes with the provisional nonterminal R7 write aperture at a raster carry. |
 | `0x9e40e4b32dd115e2` | 2026-11-26 | Provisional CRTC1 R7 onset at a nonterminal raster carry (B26, AmSpirit B6C1 fifth-slot control) |
 | `0xcd4b8f6d197f3dbd` | 2026-11-26 | Combined classic write aperture, CRTC1 S recovery and CRTC0 E6 held R4 rematch and scoped added-line handling. |
@@ -13,4 +14,4 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 | `0x6bb49f9262b5c886` | 2026-11-13 | CRTC1 active VSYNC width held at R0=0; bounded B26 candidate for original SHAKER AI/008D high samples, with C4/C9 still advancing (French ACCC 13.3 p115) |
 | `0x974e5c048eb7f877` | 2026-11-06 | Current type 0 and type 1 behaviour |
 
-Run `make -C sim soak SOAK_EXPECT=0x8860eabba62aca89` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.
+Run `make -C sim soak SOAK_EXPECT=0x7248cd9cba31b96b` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.
