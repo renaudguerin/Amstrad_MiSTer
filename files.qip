@@ -22,6 +22,7 @@ set_global_assignment -name VERILOG_FILE rtl/amx_mouse.v
 set_global_assignment -name VERILOG_FILE rtl/CRTC.v
 set_global_assignment -name VERILOG_FILE rtl/crtc_type0_engine.v
 set_global_assignment -name VERILOG_FILE rtl/crtc_type1_engine.v
+set_global_assignment -name VERILOG_FILE rtl/crtc_type2.v
 set_global_assignment -name VERILOG_FILE rtl/crt_filter.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/crt_response.sv
 set_global_assignment -name VERILOG_FILE rtl/ssm_marker.v
