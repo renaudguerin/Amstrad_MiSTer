@@ -844,6 +844,80 @@ void test_type0_r7_hcc_blocked(TestBench& test, unsigned hcc) {
     test.expect_vsync_low("type 0 blocked R7 comparison remains consumed");
 }
 
+// SHAKER 2.7 D/R 02EA, French ACCC v1.11 §§16.3–16.4.1.2 pp.169–170.
+// The early equal write blocks the current row. Changing R7 to the next
+// row can start VSYNC when C4 reaches that value at a qualifying seam.
+void test_type0_blocked_vsync_next_row(TestBench& test) {
+    for (const bool short_predecessor : {false, true}) {
+        test.set_crtc_type(0);
+        const std::array<std::uint8_t, 10> registers = {
+            63, 40, 46, 0x0e, 38, 0, 25, 30, 0, 7,
+        };
+        for (unsigned reg = 0; reg < registers.size(); ++reg)
+            test.write_register(reg, registers[reg]);
+        test.select_register(7);
+        test.reset();
+        write_r7_zero_at_hcc(test, 0);
+
+        test.run_to_c0(6);
+        test.expect_vsync_low("BLQ first PPI tap sees the blocked row");
+        test.run_to_c0(15);
+        test.write_selected_register_now(1);
+        test.run_characters(7 * 64 - 15);
+        test.expect_c4("BLQ preceding row", 0);
+        test.expect_ra("BLQ preceding raster", 7);
+        test.expect_vsync_low("R7=1 cannot start VSYNC during row zero");
+
+        if (short_predecessor) {
+            // French §16.4.1.2: this last raster never reaches C0=2.
+            test.run_to_c0(1);
+            test.write_register(0, 1);
+        } else {
+            test.run_to_c0(63);
+        }
+        test.expect_vsync_low("BLQ last character of preceding row");
+        test.run_to_c0(0);
+        test.expect_c4("BLQ target row", 1);
+        test.expect_ra("BLQ target first raster", 0);
+
+        if (short_predecessor) {
+            test.expect_vsync_low("short preceding line blocks the new equality");
+            test.write_register(0, 63);
+            test.run_to_c0(3);
+            test.write_register(7, 1);
+            test.run_clock_ticks(1);
+            test.expect_vsync_low("blocked next-row equality stays consumed");
+        } else {
+            test.run_to_c0(3);
+            test.expect_vsync_high("BLQ original target tap sees the new VSYNC");
+        }
+    }
+}
+
+// Preserve the accepted VSYNC behavior on the R5 entry described in French
+// ACCC v1.11 §11.2.2 pp.82–83. C4 increments on the same edge that enters
+// adjustment, so a consumed comparison cannot use the ordinary-row rearm.
+void test_type0_blocked_vsync_adjustment_entry(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::uint8_t, 10> registers = {
+        63, 40, 46, 0x0e, 0, 2, 25, 30, 0, 7,
+    };
+    for (unsigned reg = 0; reg < registers.size(); ++reg)
+        test.write_register(reg, registers[reg]);
+    test.select_register(7);
+    test.reset();
+    write_r7_zero_at_hcc(test, 0);
+    test.run_to_c0(15);
+    test.expect_vsync_low("early R7=0 write blocks the current row");
+    test.write_selected_register_now(1);
+    test.run_characters(8 * 64 - 15);
+    test.run_to_c0(3);
+    test.expect_adjustment_active("row entry starts R5 adjustment");
+    test.expect_c4("adjustment entry increments C4 into the R7 match", 1);
+    test.expect_ra("adjustment entry resets C9", 0);
+    test.expect_vsync_low("ordinary-row rearm does not fire on adjustment entry");
+}
+
 void test_type0_r7_hcc0_blocked(TestBench& test) {
     test_type0_r7_hcc_blocked(test, 0);
 }
@@ -8556,6 +8630,32 @@ void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
     t22_walk(test, "t30 even recovered row", recovered_steps);
 }
 
+// Same exit sequence as t30b (French ACCC v1.11 §19.8.1 p.221), with a
+// consumed R7 comparison and an even R7 target. The departing IVM raster
+// still owns the row transition after the guest clears R8.
+void test_type0_blocked_vsync_ivm_exit(TestBench& test) {
+    t22_configure(test, false);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.write_register(8, 3);
+    test.run_characters(5 * 64 - 3);
+    test.expect_c4("t30 even exit starts from row 1", 1);
+    test.expect_line("t30 even exit starts from C9=1", 1);
+    test.expect_ra("exit starts from IVM raster 2", 2);
+    test.expect_byte("early equal R7 write lands at C0=1", 1, test.c0());
+    test.write_register(7, 1);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.expect_vsync_low("early R7=1 write blocks the IVM row");
+    test.write_register(7, 2);
+    test.write_register(8, 0);
+    test.expect_ra("exit still displays the departing IVM raster", 2);
+    test.write_register(9, 2);
+    test.run_to_c0(0);
+    test.run_to_c0(3);
+    test.expect_c4("exit-line R9 match increments C4 into the R7 match", 2);
+    test.expect_line("exit-line R9 match resets C9", 0);
+    test.expect_vsync_low("ordinary-row rearm does not fire on the IVM exit");
+}
+
 // ---------------------------------------------------------------------------
 // t23: F10 type-1 follow-up vectors from the independent review (B-2 and the
 // self-found IVM-activation gap), plus the R8=1 RA pin (N-9).
@@ -10351,6 +10451,10 @@ int main(int argc, char** argv) {
          false, test_register_readback_table},
         {"t02a_type0_r7_hcc0_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc0_blocked},
+        {"type0_blocked_vsync_next_row", "French ACCC v1.11 §§16.3–16.4.1.2 pp.169–170; SHAKER 02EA BLQ",
+         false, test_type0_blocked_vsync_next_row},
+        {"type0_blocked_vsync_adjustment_entry", "Preserve adjustment entry, French ACCC v1.11 §11.2.2 pp.82–83",
+         false, test_type0_blocked_vsync_adjustment_entry},
         {"t02b_type0_r7_hcc1_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc1_blocked},
         {"t02r1_type0_r7_row_end_write_blocked", "French ACCC v1.11 sections 16.4 and 16.4.1.1 p170; SHAKER 019D",
@@ -11062,6 +11166,8 @@ int main(int argc, char** argv) {
         {"t30c_type0_ivm_exit_frozen_mismatch_resumes_frames",
          "Hardware SHAKER B1 00FB/00FC; ACCC v1.11 FR section 19.8.1 p.221", false,
          test_type0_ivm_exit_frozen_mismatch_resumes_frames},
+        {"type0_blocked_vsync_ivm_exit", "Preserve t30b IVM exit, French ACCC v1.11 §19.8.1 p.221",
+         false, test_type0_blocked_vsync_ivm_exit},
         // t31: F13 exact half-character border pulse.
         {"t31a_type0_half_character_border_no_skew",
          "ACCC v1.11 sections 17.6.2 p.187 (FR p.188) and 19.2.4 p.196 (FR p.196); F13",

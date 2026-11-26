@@ -794,9 +794,24 @@ wire vsync_holdoff = CRTC_TYPE ? (VSYNC_r && (R0_h_total == 8'd0)) :
                                e0_vsync_holdoff;
 wire vsync_type0_mid_fire = ((row == R7_v_sync_pos && !line &&
     e0_vsync_c0_2_qualified && !e0_vsync_delay_suppress) || e0_vsync_delay_half);
+// French ACCC v1.11 §§16.3–16.4.1.2 pp.169–170 and SHAKER 02EA BLQ:
+// an ordinary C4 advance can leave the blocked equality and reach a
+// new match on the same seam. Use the row rearm for this comparison,
+// including when the preceding line was too short and consumes it.
+// MODEL LIMIT (B26): the PPI samples bound onset to this row entry.
+// Same-edge R7 writes, frame origin, adjustment and IVM use their
+// existing rules. The physical ordering within the seam is unmeasured.
+// Use the incoming adjustment decisions and the departing raster's
+// latched IVM state to exclude both transitions from ordinary rearm.
+wire type0_vsync_row_entry_rearm = !CRTC_TYPE && !VSYNC_r &&
+    (R8_interlace == 2'b00) && !e0_ivm_disp && !vsync_mid && !frame_new &&
+    !in_adj && !frame_adj && !e0_in_adj_route &&
+    row_new && (line_next == 0) && (row_next != row) &&
+    (row_next == R7_v_sync_pos) && !r7_write_hit;
+wire vsync_compare_allowed = vsync_allow || type0_vsync_row_entry_rearm;
 // An old pulse may count at a different phase from the next comparison.
 // Do not consume a seam predicate on that pulse's midpoint tick (or vice versa).
-wire vsync_fire = (vsync_allow && (vsync_mid == vsync_tick_mid) && (vsync_mid ?
+wire vsync_fire = (vsync_compare_allowed && (vsync_mid == vsync_tick_mid) && (vsync_mid ?
     (CRTC_TYPE ? (R8_interlace[0] ? vsync_mid_arm :
         (row == R7_v_sync_pos && !line)) : vsync_type0_mid_fire) : vsync_line_fire)) ||
     e1_r7_mid_fire;
@@ -911,7 +926,7 @@ always @(posedge CLOCK) begin
 			// English ACCC v1.11 section 16.4.1.2 p.169 (FR §16.4.1.2 p.170): a type-0
 			// C4=R7 comparison whose preceding line never reached C0=2 is
 			// consumed as blocked even though no VSYNC pulse was produced.
-			if(!CRTC_TYPE && vsync_allow && vsync_line_blocked)
+			if(!CRTC_TYPE && vsync_compare_allowed && vsync_line_blocked)
 				vsync_allow <= 0;
 			// Type 0 skips the partial first line after a late R7=C4
 			// write; its engine clears that holdoff on this tick. Type 1
