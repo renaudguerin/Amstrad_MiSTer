@@ -294,7 +294,11 @@ wire       type1_add_intercept = line_new && type1_add_armed &&
                                  (in_adj ? crtc1_adj_end :
                                   ((row == R4_v_total) && !(|crtc1_rollover_r5) &&
                                    (count_ivm ? ivm_row_end : (line == crtc1_line_max))));
-wire       crtc1_adj_end_eff = crtc1_adj_end ||
+// Retired-state origin of a lost R5 terminal; defined after r6_origin.
+reg        adj_exit_write_capture;
+reg        adj_state_retired;
+wire       adj_retired_origin;
+wire       crtc1_adj_end_eff = crtc1_adj_end || adj_retired_origin ||
 							   (type1_add_line_active && line_new);
 
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
@@ -459,6 +463,61 @@ wire       frame_new_w = row_new & row_frame_last;
 // p.87 supplies the R4 reset while R5=0 adjustment remains active.
 // A seven-bit C4 carry wrap alone is not this reset event.
 assign r6_origin = frame_new_w | crtc1_stuck_r5_row_reset_event;
+
+// French ACCC v1.11 section 11.3.2 p.87 separates the internal additional-
+// management state from the C5 counter: R5 becoming 0 during management
+// leaves the state armed, C5 loops, and only the ordinary C4/R4 reset
+// remains (author Q20). Section 11.2.4 p.85 latches the state's entry on
+// the C0==R0 position from the old C4/R4 and C9/R9 matches while the new
+// R4/R9 govern counting (adj_terminal_write_accept above).
+//
+// MODEL LIMIT (B26): the mirror exit is inferred, not documented. An R5=0
+// write landing on C0==R0 of the line where the old C5+1==R5 matches,
+// before the character edge, retires the state from the old match while
+// the stored zero still loses the C4/C9 reset at that line end: C5 keeps
+// counting and the state stays retired. The next C4==R4, C9==R9 line end
+// then has no armed state and starts a true frame (C4=C9=C5=0, adjustment
+// off) instead of the Q20 row-only reset. A write earlier in that line
+// stays the documented retention case (SHAKER CE 02C9 photograph, t08s).
+// Evidence: original SHAKER CRTC1 E->S caller writes R5=0 at C0=R0=63 on
+// E 02CA's terminal line; this rule keeps E's N store and makes S print
+// the photographed 4E40 (CS/02D3 SHA256 3738bf22...), as both peer
+// emulators do. The original-chip rule is open: CPCSyntaxError ends every
+// zero-R5 retention at the next R4/R9 match, which contradicts Q20, and an
+// immediate origin (previous-R5 comparison) changes E 02CA to Y. Scope is
+// progressive only: interlace sync, IVM or the added line clear it because
+// the section 19.6.2 added-line interception of this origin is unpinned.
+// A positive R5 write clears it and the section 11.3.2 C5+1=R5 route then
+// governs. Investigation: local/dev/docs/investigations/hardware-runs/
+// c1-s-late-rematch-candidate-2026-11-24.md (private).
+wire adj_exit_progressive = !R8_interlace[0] && !(r8_write_hit && DI[0]) &&
+                            !ivm && !count_ivm && !type1_add_line_active;
+wire adj_exit_write_accept = nRESET && !SNA_LOAD && r5_write_hit && !CLKEN &&
+                             hcc_last && crtc1_adj_end && adj_exit_progressive &&
+                             !(|DI[4:0]);
+wire adj_exit_terminal_lost = adj_exit_write_capture && CLKEN && hcc_end &&
+                              in_adj && adj_exit_progressive &&
+                              !(|R5_v_total_adj);
+assign adj_retired_origin = nRESET && !SNA_LOAD && adj_state_retired &&
+                            adj_exit_progressive &&
+                            crtc1_stuck_r5_row_reset_event;
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || CLKEN || !adj_exit_progressive)
+        adj_exit_write_capture <= 0;
+    else if(r5_write_hit && (|DI[4:0]))
+        adj_exit_write_capture <= 0;
+    else if(adj_exit_write_accept)
+        adj_exit_write_capture <= 1;
+
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || !adj_exit_progressive)
+        adj_state_retired <= 0;
+    else if(r5_write_hit && (|DI[4:0]))
+        adj_state_retired <= 0;
+    else if(CLKEN && frame_new_w)
+        adj_state_retired <= 0;
+    else if(adj_exit_terminal_lost)
+        adj_state_retired <= 1;
+end
 
 
 // French v1.11 section 19.5.3 p.209 aligns ParityC9 to the new frame
