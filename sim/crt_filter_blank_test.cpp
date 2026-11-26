@@ -531,6 +531,76 @@ void test_masked_retrigger_preserves_watchdog_period() {
     }
 }
 
+// A rejected early VS can carry several raw H pulses inside one admission
+// window. Two short edges corroborate the burst before the provisional H
+// becomes visible. The ordinary phase and period come from the wire history.
+void test_full_ignores_corroborated_retrace_for_horizontal_lock() {
+    constexpr unsigned period = 248;
+    constexpr unsigned normal_h = 160;
+    constexpr unsigned early_h = 132;
+    constexpr unsigned h_lag = 8;
+    constexpr unsigned pulse = 16;
+    const auto check_h = [](const Sample& sample, unsigned tick,
+                           unsigned rise, const char* label) {
+        if (sample.hsync_selected != (tick >= rise && tick < rise + pulse)) {
+            std::ostringstream out;
+            out << label << " at CE " << tick << ", expected HS at " << rise;
+            fail(out.str());
+        }
+    };
+
+    // Only the early pulse shape changes. A late confirmation cannot
+    // retract the original H. A single ordinary pulse still reacquires.
+    struct Case {
+        const char* label;
+        unsigned first_width;
+        unsigned second;
+        unsigned selected_h;
+        unsigned repeats;
+    };
+    for (const auto& test : {
+            Case{"no corroboration", 4, 0, early_h, 1},
+            Case{"late corroboration", 4, 16, early_h, 1},
+            Case{"ordinary reanchor", 24, 0, early_h, 1},
+            Case{"early corroboration", 4, 8, normal_h, 2}}) {
+        CrtFilterBench tb;
+        for (unsigned row = 0; row < 312; ++row)
+            tb.run_line_ce(period, normal_h, 24, row < 16);
+        for (unsigned epoch = 0; epoch < test.repeats; ++epoch) {
+            // A fresh ordinary VS and settled raw H provide a learned 248-CE
+            // grid. The injected VS follows only 100 lines later.
+            for (unsigned row = 0; row < 100; ++row) {
+                const auto line = tb.run_line_ce(period, normal_h, 24, row < 16);
+                if (row >= 20)
+                    for (unsigned tick = 0; tick < period; ++tick)
+                        check_h(line[tick], tick, normal_h + h_lag, "established grid");
+            }
+
+            for (unsigned tick = 0; tick < period; ++tick) {
+                const bool first = tick >= early_h && tick < early_h + test.first_width;
+                const bool second = test.second && tick >= early_h + test.second &&
+                                    tick < early_h + test.second + 4;
+                const bool ordinary = tick >= normal_h && tick < normal_h + 24;
+                const auto sample = tb.tick_ce(first || second || ordinary,
+                                               tick >= early_h && tick < early_h + 32);
+                check_h(sample, tick, test.selected_h + h_lag, test.label);
+                if (sample.vsync_selected) fail("early retrace was selected as a vertical sync");
+            }
+
+            // The externally selected phase on every following raw line
+            // pins both the restart decision and the full learned period.
+            for (unsigned row = 0; row < 5; ++row) {
+                const auto line = tb.run_line_ce(period, test.selected_h, 24);
+                for (unsigned tick = 0; tick < period; ++tick)
+                    check_h(line[tick], tick, test.selected_h + h_lag, test.label);
+            }
+            if (epoch + 1 < test.repeats)
+                for (unsigned row = 106; row < 312; ++row)
+                    tb.run_line_ce(period, normal_h, 24);
+        }
+    }
+}
+
 void test_production_mode_selector() {
     CrtFilterBench tb;
     tb.settle();
@@ -579,7 +649,7 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 11> kTests = {{
+constexpr std::array<TestCase, 12> kTests = {{
     {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
     {"Full crop preserves the BU fixed monitor-sync grid", test_full_preserves_bu_crop_phase},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
@@ -590,6 +660,7 @@ constexpr std::array<TestCase, 11> kTests = {{
     {"missing raw sync falls back to the established Full HBLANK", test_missing_sync_uses_full_blank},
     {"stuck-high raw sync without VSYNC falls back to Full HBLANK", test_stuck_high_without_vsync_uses_full_blank},
     {"masked short retrigger preserves the learned watchdog cadence", test_masked_retrigger_preserves_watchdog_period},
+    {"Full horizontal lock survives corroborated early retrace", test_full_ignores_corroborated_retrace_for_horizontal_lock},
     {"production selector pins Full, Raw pixels, Raw CRT and reserved tuples", test_production_mode_selector},
 }};
 

@@ -1277,12 +1277,19 @@ crt_filter_output_select crt_filter_output_select
 wire [15:0] filter_sync_observation;
 assign ssm_sync_observation = {1'b0, filter_sync_observation, sync_filter_applied, sync_filter};
 
+// Horizontal acquisition speculation belongs to this live timing owner.
+reg [2:0] filter_h_owner;
+always @(posedge clk) filter_h_owner <= {plus_mode, crtc_type};
+wire filter_h_clear = reset | sna_load | sync_filter_commit |
+                      (filter_h_owner != {plus_mode, crtc_type});
+
 crt_filter crt_filter
 (
 	.CLK(clk),
 	.CE_4(phi_en_n),
 	.HSYNC_I(hs_sel),
 	.VSYNC_I(vs_sel),
+	.H_CONTEXT_CLEAR(filter_h_clear),
 	.HSYNC_O(hsync_filtered),
 	.VSYNC_O(vsync_filtered),
 	.HBLANK(hblank_filtered),

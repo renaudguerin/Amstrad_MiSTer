@@ -25,6 +25,7 @@ module crt_filter
 	input      CE_4,
 	input      HSYNC_I,
 	input      VSYNC_I,
+    input      H_CONTEXT_CLEAR,
 	output reg HSYNC_O,
 	output reg VSYNC_O,
 	output reg HBLANK,
@@ -189,24 +190,24 @@ always @(posedge CLK) begin : hsyncgen
 end
 
 reg hsync_mask;
+reg raw_hs_delayed;
 initial hsync_mask = 0; // separate from the decl: newer Verilator flags
                         // declaration initializers later assigned in
                         // always blocks (PROCASSINIT), older ones reject
                         // the lint name — this form is portable.
 // check for too frequent HSYNCs (S&KOH)
 always @(posedge CLK) begin : hsyncfilt
-	reg old_hsync;
 	reg [8:0] line_time;
 
 	if(CE_4) begin
-		old_hsync <= HSYNC_I;
+		raw_hs_delayed <= HSYNC_I;
 		if (hsync_mask) begin
 			if (~&line_time) line_time <= line_time + 1'd1;
 			if (!HSYNC_I & line_time >= 190) hsync_mask <= 0; // clear the mask after enough time
 		end
 
-		if (HSYNC_I & ~old_hsync & !hsync_mask) line_time <= 0; // new line detected
-		if (~HSYNC_I & old_hsync & !hsync_mask) hsync_mask <= 1; // start to mask after the first hsync seen
+		if (HSYNC_I & ~raw_hs_delayed & !hsync_mask) line_time <= 0; // new line detected
+		if (~HSYNC_I & raw_hs_delayed & !hsync_mask) hsync_mask <= 1; // start to mask after the first hsync seen
 	end
 end
 
@@ -250,6 +251,28 @@ assign SYNC_OBSERVATION = {syncs, hSyncReg, hsync_mask, no_hsync, SHIFT, hs4, hS
 // Generate HSync,VSync for monitor
 // HSync: delayed by 2us for set, immediate reset and limited by 4us.
 // VSync: delayed by 2 lines for set, immediate reset and limited by 2 lines.
+    // MODEL LIMIT (B26): the DT B1/B2 acquisition aperture is provisional.
+    // The +8 CE4 handoff is from original production pin replay checked
+    // against the settled peer picture. Stock photos do not resolve edge
+    // timing. Limit the shadow to ordinary, off-grid anchors whose first
+    // observable change can occur at count 8.
+    reg raw_vs_delayed, stretch_open, stretch_chosen;
+    reg short_h_open, short_h_complete;
+    reg [2:0] short_h_width;
+    reg shadow_live;
+    reg [8:0] shadow_count, shadow_phase_period;
+    initial begin
+        raw_vs_delayed = 0;
+        stretch_open = 0;
+        stretch_chosen = 0;
+        short_h_open = 0;
+        short_h_complete = 0;
+        short_h_width = 0;
+        shadow_live = 0;
+        shadow_count = 0;
+        shadow_phase_period = 0;
+    end
+
 always @(posedge CLK) begin : syncgen
 	reg       old_hsync;
 	reg       old_vsync,old_vs;
@@ -267,19 +290,100 @@ always @(posedge CLK) begin : syncgen
     reg relock_rise, relock_fall, relock_open, relock_regular;
     reg relock_source_bad, relock_ordinary, relock_release, relock_acquire;
 	reg phase_anchor;
+    reg stretch_start, stretch_pending, stretch_confirm, shadow_start;
+    reg admitted_rise, raw_h_rise, retain_h, use_shadow;
+
 
 	localparam HFLT_SZ = 50*4;
 	localparam VFLT_SZ = 260;
 
+
+    if (H_CONTEXT_CLEAR) begin
+        raw_vs_delayed <= 1'b1;
+        stretch_open <= 0;
+        stretch_chosen <= 0;
+        short_h_open <= 0;
+        short_h_complete <= 0;
+        shadow_live <= 0;
+    end
+
 	if(CE_4) begin
 		old_hsync <= hsync_i;
+        admitted_rise = ~old_hsync & hsync_i;
+        raw_h_rise = ~raw_hs_delayed & HSYNC_I;
+        stretch_start = VSYNC_I && !raw_vs_delayed && !no_hsync &&
+                        syncs == 3 && hSyncSize >= 32 &&
+                        (old_vsync || vSyncFlt <= VFLT_SZ);
+        stretch_pending = !H_CONTEXT_CLEAR && VSYNC_I && !no_hsync &&
+                          (stretch_open || stretch_start) && !stretch_chosen;
+        stretch_confirm = !H_CONTEXT_CLEAR && VSYNC_I && !no_hsync &&
+                          stretch_open && !stretch_chosen && raw_h_rise &&
+                          hsync_mask && short_h_complete;
+        // The confirming rise is masked. Retention can become active
+        // for the subsequent admitted-H consumers on the next sample.
+        retain_h = !H_CONTEXT_CLEAR && VSYNC_I && !no_hsync && stretch_chosen;
+
+        // The shadow is only needed if the legacy anchor arrives before
+        // corroboration. During this aperture the established phase cannot
+        // wrap, fire a pulse, change vertical age, or own a wide pulse.
+        shadow_start = stretch_pending && !stretch_confirm && admitted_rise &&
+                       !old_vs && !HSYNC_O && !legacy_hsync && !hSyncReg &&
+                       phase_active == 0 && phase_pending == 0 &&
+                       relock_phase == 0 &&
+                       relock_pulse_left == 0 && !relock_covered &&
+                       (&hSyncCount2x) && hSyncCount >= 9'd24 &&
+                       ({1'b0,hSyncCount} + 10'd9 < {1'b0,hSyncSize});
+        use_shadow = stretch_confirm && shadow_live;
+        if (!H_CONTEXT_CLEAR) begin
+            raw_vs_delayed <= VSYNC_I;
+            if (!VSYNC_I || no_hsync) begin
+                stretch_open <= 0;
+                stretch_chosen <= 0;
+                short_h_open <= 0;
+                short_h_complete <= 0;
+                shadow_live <= 0;
+            end else if (stretch_pending) begin
+                if (stretch_start) stretch_open <= 1;
+                if (raw_h_rise) begin
+                    short_h_open <= 1;
+                    short_h_width <= 1;
+                    short_h_complete <= 0;
+                end else if (short_h_open) begin
+                    if (!HSYNC_I) begin
+                        short_h_open <= 0;
+                        short_h_complete <= short_h_width == 4;
+                    end else if (!(&short_h_width))
+                        short_h_width <= short_h_width + 1'd1;
+                end
+
+                if (stretch_confirm) begin
+                    stretch_chosen <= 1;
+                    shadow_live <= 0;
+                end else if (shadow_start) begin
+                    shadow_live <= 1;
+                    shadow_count <= hSyncCount + 1'd1;
+                    shadow_phase_period <= phase_period;
+                end else if (shadow_live) begin
+                    shadow_count <= shadow_count + 1'd1;
+                    if (hSyncCount == 9'd7) begin
+                        shadow_live <= 0;
+                        stretch_open <= 0;
+                    end
+                end else if (admitted_rise) begin
+                    // An unshadowed legacy decision owns this epoch.
+                    stretch_open <= 0;
+                end
+            end
+        end
+
+
 
 		if(resync) begin
 			if(~&hSyncCount) hSyncCount = hSyncCount + 1'd1;
 			if(~old_hsync & hsync_i) old_vs <= VSYNC_I;
 
 			//re-align restored hsync to the first hsync of vsync
-			if((~old_vs & VSYNC_I & ~old_hsync & hsync_i) || (hSyncCount >= hSyncSize)) begin
+			if((~retain_h & ~old_vs & VSYNC_I & ~old_hsync & hsync_i) || (hSyncCount >= hSyncSize)) begin
 				hSyncCount = 0;
 				if(~old_hsync & hsync_i) begin
 					hSyncReg <= 1;
@@ -294,7 +398,7 @@ always @(posedge CLK) begin : syncgen
 				// Preserve the existing blocking order after exposing syncs for observation.
 				/* verilator lint_off BLKSEQ */
 				if(~VSYNC_I & ~&syncs) syncs = syncs + 1'd1;
-				if(VSYNC_I) {syncs,hSyncCount2x} = 0;
+				if(VSYNC_I && !retain_h) {syncs,hSyncCount2x} = 0;
 				/* verilator lint_on BLKSEQ */
 				if(syncs == 2) hSyncSize <= hSyncCount2x[9:1];
 			end
@@ -318,7 +422,7 @@ always @(posedge CLK) begin : syncgen
 			end
 		end
 
-		if(hSyncCount == 2*4) begin
+		if(hSyncCount == 2*4 && !use_shadow) begin
 			legacy_hsync <= 1;
 			shift <= 0;
 			old_vsync <= VSYNC_I;
@@ -344,7 +448,7 @@ always @(posedge CLK) begin : syncgen
 
         // Measurement uses the updated legacy count; output phase never
         // feeds back into that counter, training, width or SHIFT logic.
-        phase_anchor = (~old_vs & VSYNC_I & ~old_hsync & hsync_i);
+        phase_anchor = (~retain_h & ~old_vs & VSYNC_I & ~old_hsync & hsync_i);
         phase_value = $signed({2'd0, hSyncCount});
         if (hSyncCount > {1'b0, hSyncSize[8:1]})
             phase_value = phase_value - $signed({2'd0, hSyncSize});
@@ -510,10 +614,27 @@ always @(posedge CLK) begin : syncgen
                 end
                 if (hSyncCount == relock_fall_count) HSYNC_O <= 0;
             end else begin
-                if (hSyncCount == {3'd0, output_rise} && !relock_covered)
+                if (hSyncCount == {3'd0, output_rise} && !relock_covered && !use_shadow)
                     HSYNC_O <= 1;
                 if (hSyncCount == {3'd0, output_fall}) HSYNC_O <= 0;
             end
+        end
+
+        // The retained count cannot wrap or reach an output compare
+        // in this window. Squash the provisional +8 rise on this edge,
+        // and restore learned state at writeback so the cue does not
+        // feed through the normal count increment and phase arithmetic.
+        if (use_shadow) begin
+            hSyncCount = shadow_count + 1'd1;
+            hSyncCount2x = 10'h3ff;
+            // Retire the training override in the existing blocking sequence.
+            /* verilator lint_off BLKSEQ */
+            syncs = 2'd3;
+            /* verilator lint_on BLKSEQ */
+            phase_epoch <= 0;
+            phase_period <= shadow_phase_period;
+            // Old phase-fall history is inert with this epoch retired.
+            // A later phase anchor invalidates it before reuse.
         end
 
 	end
