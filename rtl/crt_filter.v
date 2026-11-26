@@ -54,6 +54,9 @@ end
 reg legacy_hsync;
 reg phase_epoch, phase_pair_valid;
 reg [4:0] phase_first, phase_pending, phase_active;
+reg phase_midpoint_pending, phase_midpoint_active;
+reg phase_midpoint_epoch, phase_first_short;
+reg [4:0] midpoint_slot_left;
 reg [9:0] phase_age;
 reg [8:0] phase_period;
 reg [8:0] phase_previous_fall;
@@ -85,6 +88,9 @@ end
 initial begin
     phase_epoch = 0; phase_pair_valid = 0;
     phase_first = 0; phase_pending = 0; phase_active = 0;
+    phase_midpoint_pending = 0; phase_midpoint_active = 0;
+    phase_midpoint_epoch = 0; phase_first_short = 0;
+    midpoint_slot_left = 0;
     phase_age = 1023; phase_period = 0;
     phase_previous_fall = 0;
     phase_fall_valid = 0; phase_check_fall = 0; phase_hold_step = 0;
@@ -310,7 +316,7 @@ always @(posedge CLK) begin : syncgen
 	reg [5:0] phase_sum;
     reg [4:0] phase_effective;
     reg [9:0] phase_interval;
-    reg phase_one_tick;
+    reg phase_one_tick, phase_midpoint;
     reg [5:0] regular_rise, regular_fall, output_rise, output_fall;
     reg [9:0] relock_fall_target;
     reg relock_rise, relock_fall, relock_open, relock_regular;
@@ -336,6 +342,8 @@ always @(posedge CLK) begin : syncgen
         short_h_open <= 0;
         short_h_complete <= 0;
         shadow_live <= 0;
+        phase_midpoint_pending <= 0;
+        phase_midpoint_epoch <= 0;
     end
 
     if (!short_v_live) begin
@@ -551,7 +559,10 @@ always @(posedge CLK) begin : syncgen
         phase_interval = phase_age + 10'd1;
         phase_one_tick = phase_value == 11'sd1 || phase_value == -11'sd1;
         phase_effective = phase_active;
+        phase_midpoint = phase_midpoint_active;
         if (hSyncCount == 0) begin
+            phase_midpoint = !H_CONTEXT_CLEAR && phase_midpoint_pending && EXTRA_BYTE;
+            phase_midpoint_active <= phase_midpoint;
             phase_effective = phase_pending;
             phase_active <= phase_pending;
         end
@@ -560,13 +571,18 @@ always @(posedge CLK) begin : syncgen
             phase_epoch <= 0;
             phase_pair_valid <= 0;
             phase_pending <= 0;
+            phase_midpoint_pending <= 0;
         end
         if (phase_anchor) begin
             phase_epoch <= !no_hsync;
             phase_pair_valid <= 0;
             phase_pending <= 0;
+            phase_midpoint_pending <= 0;
             phase_active <= 0;
             phase_effective = 0;
+            phase_midpoint = 0;
+            phase_midpoint_active <= 0;
+            phase_midpoint_epoch <= !H_CONTEXT_CLEAR && !no_hsync;
             phase_period <= hSyncSize;
         end
         if (phase_anchor || no_hsync || hSyncSize < 32 || phase_period != hSyncSize) begin
@@ -603,6 +619,7 @@ always @(posedge CLK) begin : syncgen
                         phase_age + 1 <= hSyncSize + 16) begin
                     if (!phase_pair_valid) begin
                         phase_first <= phase_value[4:0];
+                        phase_first_short <= EXTRA_BYTE;
                         phase_pair_valid <= 1;
                     end else begin
                         phase_pair_valid <= 0;
@@ -615,18 +632,35 @@ always @(posedge CLK) begin : syncgen
                         if (!phase_sum[0] &&
                                 (!phase_hold_step ||
                                  (phase_sum != 6'd2 && phase_sum != 6'd62) ||
-                                 phase_first != phase_value[4:0]))
+                                 phase_first != phase_value[4:0])) begin
                             phase_pending <= phase_sum[5:1];
-                        else phase_pending <= 0;
+                            // MODEL LIMIT (B26): B0 00CF
+                            // recovers an early stationary short4 phase in
+                            // vertical blank. Complete its C-HSYNC midpoint
+                            // displacement (French ACCC v1.11 §14.4 pp.134-135).
+                            // Both shifted targets fit within the legacy line.
+                            phase_midpoint_pending <= !H_CONTEXT_CLEAR &&
+                                phase_midpoint_epoch && phase_first_short &&
+                                EXTRA_BYTE && phase_first == phase_value[4:0] &&
+                                phase_interval == {1'b0,hSyncSize} &&
+                                phase_value >= -11'sd6 && phase_value < 0 &&
+                                (VBLANK || (phase_midpoint_pending &&
+                                            phase_pending == phase_value[4:0]));
+                        end else begin
+                            phase_pending <= 0;
+                            phase_midpoint_pending <= 0;
+                        end
                     end
                 end else begin
                     phase_epoch <= 0;
                     phase_pair_valid <= 0;
                     phase_pending <= 0;
+                    phase_midpoint_pending <= 0;
                 end
             end else begin
                 phase_pair_valid <= 0;
                 phase_pending <= 0;
+                phase_midpoint_pending <= 0;
             end
         end
         relock_rise = ~old_hsync & hsync_i;
@@ -682,7 +716,8 @@ always @(posedge CLK) begin : syncgen
         // wrap on retirement if the trained period has become short.
         regular_rise = 6'd8 + {phase_effective[4], phase_effective};
         regular_fall = 6'd24 + {phase_effective[4], phase_effective};
-        output_rise = regular_rise;
+        output_rise = (phase_midpoint ? 6'd6 : 6'd8) +
+                      {phase_effective[4], phase_effective};
         output_fall = regular_fall;
         if (relock_phase != 0) begin
             if (hSyncSize <= {3'd0, regular_rise})
@@ -690,14 +725,21 @@ always @(posedge CLK) begin : syncgen
             if (hSyncSize <= {3'd0, regular_fall})
                 output_fall = regular_fall - hSyncSize[5:0];
         end
-        // The pre-wrap wide pulse already supplied the upcoming regular
-        // line. Consume that slot even if the wide owner retires first.
+        // An early pulse already supplied this line. A raw VS anchor
+        // before or on the ordinary fall compare must consume the first slot
+        // on its new grid, even after the advanced pulse has ended.
         if (hSyncCount == {3'd0, regular_rise}) relock_covered <= 0;
+        if (phase_anchor && midpoint_slot_left != 0) relock_covered <= 1;
         // Complete a pulse started in the recovered phase when its owner
         // retires or when the next raw VS anchor resets the legacy count.
         // A new owner takes over while output is low. Neither new wide
         // target equals the acquisition count for a period of at least 32.
-        if (relock_pulse_left != 0) begin
+        if (midpoint_slot_left != 0) begin
+            midpoint_slot_left <= midpoint_slot_left - 5'd1;
+            // The midpoint starts two ticks early. Keep the legacy slot
+            // occupied for those last two ticks after the 16-tick pulse.
+            if (midpoint_slot_left == 5'd3) HSYNC_O <= 0;
+        end else if (relock_pulse_left != 0) begin
             relock_pulse_left <= relock_pulse_left - 5'd1;
             if (relock_pulse_left == 1) HSYNC_O <= 0;
         end else if (!relock_acquire) begin
@@ -709,8 +751,10 @@ always @(posedge CLK) begin : syncgen
                 end
                 if (hSyncCount == relock_fall_count) HSYNC_O <= 0;
             end else begin
-                if (hSyncCount == {3'd0, output_rise} && !relock_covered && !use_shadow)
+                if (hSyncCount == {3'd0, output_rise} && !relock_covered && !use_shadow) begin
                     HSYNC_O <= 1;
+                    if (phase_midpoint) midpoint_slot_left <= 5'd18;
+                end
                 if (hSyncCount == {3'd0, output_fall}) HSYNC_O <= 0;
             end
         end

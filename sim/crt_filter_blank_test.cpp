@@ -285,6 +285,68 @@ void test_full_relocks_early_phase_and_releases_without_vsync() {
     }
 }
 
+// SHAKER B0 00CF parks a short horizontal pulse two enables ahead of
+// the nominal selected phase. A fresh H/VS anchor can arrive in the
+// portion of the nominal pulse that the output has already finished.
+void test_full_keeps_midpoint_slot_through_vsync_anchor() {
+    constexpr unsigned retrace_period = 312 * kLineCeTicks - 4;
+    constexpr unsigned first_retrace = 23448;
+    constexpr unsigned final_retrace = first_retrace + 6 * retrace_period;
+    constexpr unsigned source_rise = final_retrace + 1972 + 21 * kLineCeTicks;
+    constexpr unsigned midpoint_rise = source_rise + 6;
+    constexpr unsigned pulse_width = 16;
+
+    for (unsigned anchor_delay : {1, 13, 17, 18, 19}) {
+        CrtFilterBench tb;
+        const unsigned anchor = midpoint_rise + anchor_delay;
+        const unsigned stop = anchor + 3 * kLineCeTicks + 32;
+        std::vector<unsigned> rises, falls;
+        bool previous = false;
+        for (unsigned tick = 0; tick < stop; ++tick) {
+            bool hs = false, vs = false;
+            if (tick >= anchor) {
+                hs = (tick - anchor) % kLineCeTicks < pulse_width;
+                vs = true;
+            } else if (tick < first_retrace) {
+                hs = tick >= 80 && (tick - 80) % kLineCeTicks < pulse_width;
+            } else {
+                const unsigned field = (tick - first_retrace) / retrace_period;
+                const unsigned t = (tick - first_retrace) % retrace_period;
+                const unsigned early = 460 + 4 * (field / 2);
+                const unsigned early_width = field % 2 ? 20 : pulse_width;
+                vs = t < 4092;
+                if (tick < source_rise) {
+                    hs = (t < 184 && (t + 72) % kLineCeTicks < pulse_width) ||
+                         (t >= 184 && t < 184 + pulse_width) ||
+                         (t >= early && t < early + early_width) ||
+                         (t >= 932 && t < 1716 && (t - 932) % kLineCeTicks <
+                            (t < 952 ? early_width : pulse_width)) ||
+                         (t >= 1972 && (t - 1972) % kLineCeTicks < pulse_width);
+                }
+            }
+            const bool high = tb.tick_ce(hs, vs).hsync_o;
+            if (tick >= midpoint_rise - 2 && high != previous)
+                (high ? rises : falls).push_back(tick);
+            previous = high;
+        }
+
+        std::vector<unsigned> expected{midpoint_rise};
+        // After the nominal pulse has fallen, a fresh anchor owns its slot.
+        for (unsigned slot = anchor_delay == 19 ? 0 : 1; slot <= 3; ++slot)
+            expected.push_back(anchor + slot * kLineCeTicks + 8);
+        if (rises != expected || rises.size() != falls.size()) {
+            std::ostringstream out;
+            out << "wrong Full HSYNC slots after midpoint anchor +" << anchor_delay;
+            for (auto rise : rises) out << " rise@" << rise - midpoint_rise;
+            for (auto fall : falls) out << " fall@" << fall - midpoint_rise;
+            fail(out.str());
+        }
+        for (unsigned index = 0; index < rises.size(); ++index)
+            if (falls[index] != rises[index] + pulse_width)
+                fail("fresh VSYNC changed the width of a selected HSYNC pulse");
+    }
+}
+
 // SHAKER BU 021B enters a 55-CE4 raw pulse one enable later, on the
 // clock of the next legacy origin. The preceding pulse is 56 CE4 wide,
 // leaving the raw fall and the shaped monitor sync on their old grid.
@@ -804,8 +866,9 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 15> kTests = {{
+constexpr std::array<TestCase, 16> kTests = {{
     {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
+    {"Full keeps the short-pulse midpoint slot through a VSYNC anchor", test_full_keeps_midpoint_slot_through_vsync_anchor},
     {"Full crop preserves the BU fixed monitor-sync grid", test_full_preserves_bu_crop_phase},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
     {"Live HBLANK preserves master phase and the +3-pixel R2.JIT shift", test_live_blank_master_phase_and_r2jit},
