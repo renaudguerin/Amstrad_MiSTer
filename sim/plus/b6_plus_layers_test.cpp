@@ -112,8 +112,10 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
         if(ce) {
             gamma_output=gamma_input; go_valid=gi_valid;
             gamma_input=converted; gi_valid=converted_valid;
-            expected_color=raw_tag&&mode?0:expand(rendered);
+            // The sampled Plus GA vertical blank masks RGB in every mode.
+            expected_color=raw_tag?0:expand(rendered);
             color_valid=rendered_valid;
+            r.masked_color+=color_valid&&raw_tag&&rendered;
             raw_tag=d.b6_raw_vblank;
             const unsigned dot=d.dbg_video_pixcnt;
             // Mode-2 byte layout: MSB first, one dot per bit, eight dots
@@ -146,7 +148,6 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
                 r.border_sprite+=!blank&&!de&&spr;
                 r.screen0+=de&&!blank&&!spr&&!delayed;
                 r.screen1+=de&&!blank&&!spr&&delayed;
-                r.masked_color+=mode&&d.b6_pixel_vblank&&rendered;
             }
             // Input latches consume the OLD assembled word on this edge.
             if(d.dbg_video_cclk_n) {even=oldword&255;even_valid=true;}
@@ -181,9 +182,9 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
 bool errors(const Layers&r) {
     return r.byte_bad||r.word_bad||r.pixel_bad||r.color_bad||r.mixer_bad||r.sprite_bad;
 }
-bool empty_case(const Layers&r,unsigned mode) {
+bool empty_case(const Layers&r) {
     return !r.nonzero_words||!r.asymmetric||!r.scroll_changes||!r.opaque||!r.blank_sprite||
-           !r.border_sprite||!r.screen0||!r.screen1||!r.mixed_color||(mode&&!r.masked_color);
+           !r.border_sprite||!r.screen0||!r.screen1||!r.mixed_color||!r.masked_color;
 }
 uint64_t differences(const std::vector<uint32_t>&a,const std::vector<uint32_t>&b) {
     if(a.size()!=b.size()) throw AuditFailure("control changed pixel sample count");
@@ -209,12 +210,12 @@ int main(int argc,char**argv) {
         if(argc==3&&std::string(argv[1])=="--mode") {
             const unsigned mode=std::stoul(argv[2]);
             auto r=layers_run(mode,5,true); report(r,mode,5,true);
-            return errors(r)||empty_case(r,mode);
+            return errors(r)||empty_case(r);
         }
         Layers raw;
         for(unsigned mode=0;mode<3;++mode) {
             auto r=layers_run(mode,5,true); report(r,mode,5,true);
-            bad|=errors(r)||empty_case(r,mode);
+            bad|=errors(r)||empty_case(r);
             if(mode==1) raw=r;
             if(mode==2) bad|=raw.pixels!=r.pixels||raw.final_pixels!=r.final_pixels;
         }
