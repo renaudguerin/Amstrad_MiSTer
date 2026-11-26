@@ -170,6 +170,10 @@ public:
         while (tick_in_character_ != kClkEnPhase) {
             clock_tick();
         }
+        hold_selected_register_now(value, clock_ticks);
+    }
+
+    void hold_selected_register_now(std::uint8_t value, unsigned clock_ticks) {
         dut_->ENABLE = 1;
         dut_->nCS = 0;
         dut_->R_nW = 0;
@@ -2484,6 +2488,34 @@ void test_type0_adjustment_r9_write_at_r0_increments_c4_and_c9(TestBench& test) 
     test.expect_adjustment_active("type 0 exact-R0 R9 write enters adjustment");
     test.expect_c4("type 0 exact-R0 R9 write increments C4", 3);
     test.expect_ra("type 0 exact-R0 R9 write increments C9 against R5", 4);
+}
+
+// SHAKER 2.7 Module E 03FD writes R9=10 on the last raster before
+// adjustment. French ACCC v1.11 §11.2.2 p83, example 3: an update
+// before R0 keeps C9 counting up to the new R9 before C4 advances.
+void test_type0_03fd_r9_write_spans_terminal_character(TestBench& test) {
+    test.set_crtc_type(0);
+    test.write_register(0, 63);
+    test.write_register(4, 38);
+    test.write_register(5, 20);
+    test.write_register(7, 39);
+    test.write_register(8, 0);
+    test.write_register(9, 7);
+    test.select_register(9);
+    test.reset();
+    test.run_characters((39 * 8 - 1) * 64);
+    test.run_to_c0(62);
+    // The board asserts the write 9/64 of a character after the edge
+    // and holds it for 88/64. Use the equivalent 16-tick pin waveform.
+    test.run_clock_ticks(1);
+    test.expect_ra("03FD starts on the final raster", 7);
+    test.hold_selected_register_now(10, 22);
+    test.run_to_c0(0);
+    test.expect_c4("03FD spanning write holds C4 on the first adjustment line", 38);
+    test.expect_ra("03FD next raster", 8);
+    test.run_characters(3 * 64);
+    test.expect_c4("03FD advances C4 when the programmed raster ends", 39);
+    test.expect_ra("03FD resets C9 on the row advance", 0);
 }
 
 void test_type0_adjustment_completion_resets_the_next_line(TestBench& test) {
@@ -10496,6 +10528,9 @@ int main(int argc, char** argv) {
         {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
          "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; pending R9/R5 completion", false,
          test_type0_r9_write_within_c0_1_enters_zero_adjustment},
+        {"type0_03fd_r9_write_spans_terminal_character",
+         "French ACCC v1.11 §11.2.2 p83; Module E R9 write crossing into C0=R0", false,
+         test_type0_03fd_r9_write_spans_terminal_character},
         {"type0_03fa_zero_on_entry",
          "French ACCC v1.11 §11.2.2 pp82–83 and §19.6.1 p217; SHAKER 03FA", false,
          test_type0_03fa_zero_on_entry},
