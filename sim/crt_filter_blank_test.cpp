@@ -53,6 +53,7 @@ struct Sample {
     uint8_t hblank_selected;
     uint8_t vblank_selected;
     uint8_t no_hsync;
+    uint8_t shift;
 };
 
 class CrtFilterBench {
@@ -64,6 +65,8 @@ public:
         dut_->CE_4 = 0;
         dut_->HSYNC_I = 0;
         dut_->VSYNC_I = 0;
+        dut_->BYTE_OWNER = 1;
+        dut_->H_CONTEXT_CLEAR = 0;
         dut_->SYNC_FILTER = 0;
         dut_->HSYNC_RAW = 0;
         dut_->VSYNC_RAW = 0;
@@ -145,6 +148,13 @@ public:
             run_line_ce();
     }
 
+    Sample configure_byte_owner(bool eligible, bool clear) {
+        dut_->BYTE_OWNER = eligible;
+        dut_->H_CONTEXT_CLEAR = clear;
+        dut_->eval();
+        return sample();
+    }
+
     Sample selector(unsigned mode, bool raw_hs, bool raw_vs,
                     bool raw_hblank, bool raw_vblank) {
         dut_->SYNC_FILTER = mode;
@@ -179,6 +189,7 @@ private:
             static_cast<uint8_t>(dut_->HBLANK_SELECTED),
             static_cast<uint8_t>(dut_->VBLANK_SELECTED),
             static_cast<uint8_t>(dut_->NO_HSYNC_DEBUG),
+            static_cast<uint8_t>(dut_->SHIFT),
         };
     }
 
@@ -601,6 +612,107 @@ void test_full_ignores_corroborated_retrace_for_horizontal_lock() {
     }
 }
 
+// SHAKER D3 0326 and 0331 supply an early 20/16-CE pulse, then
+// the ordinary pulse at the usual origin. The stock ruler phase is
+// stationary relative to the blue border through the split-sync band.
+void test_full_keeps_byte_phase_after_split_sync() {
+    constexpr unsigned normal_h = 160;
+    constexpr unsigned early_fall = normal_h - 24;
+    constexpr unsigned probe_start = normal_h + 64;
+
+    struct Case {
+        const char* label;
+        unsigned width;
+        unsigned primary_width;
+        unsigned primary_offset;
+        unsigned mode;
+        bool retained;
+    };
+    for (const auto& test : {
+             Case{"width-5 split", 20, 20, 0, 0, true},
+             Case{"width-4 split", 16, 16, 0, 0, true},
+             Case{"off-origin pulse", 20, 20, 1, 0, false},
+             Case{"short primary", 16, 12, 0, 0, false},
+             Case{"missing primary", 20, 0, 0, 0, false},
+             Case{"Raw pixels", 20, 20, 0, 1, false},
+             Case{"Raw CRT", 16, 16, 0, 2, false}}) {
+        CrtFilterBench tb;
+        tb.selector(test.mode, false, false, false, false);
+        for (unsigned row = 0; row < 312; ++row)
+            tb.run_line_ce(kLineCeTicks, normal_h, test.width, row < 16);
+
+        for (unsigned row = 0; row < 100; ++row)
+            tb.run_line_ce(kLineCeTicks, normal_h, test.width, row < 15);
+        const auto baseline = tb.run_line_ce(kLineCeTicks, normal_h, test.width);
+        if (!baseline[probe_start].shift || baseline[probe_start].hblank ||
+            baseline[probe_start].vblank) fail("unqualified ordinary capture");
+
+        for (unsigned row = 0; row < 4; ++row) {
+            for (unsigned dot = 0; dot < kLineCeTicks; ++dot) {
+                const bool extra = dot >= early_fall - test.width && dot < early_fall;
+                const unsigned primary = normal_h + test.primary_offset;
+                const bool original = dot >= primary && dot < primary + test.primary_width;
+                const auto sample = tb.tick_ce(extra || original, false);
+                if (sample.hsync_o != baseline[dot].hsync_o ||
+                    sample.hblank != baseline[dot].hblank)
+                    fail(std::string(test.label) + ": acquisition phase changed");
+                if (dot == normal_h + 8 && sample.shift != baseline[dot].shift)
+                    fail(std::string(test.label) + ": stale byte phase at the next ordinary HS strobe");
+                if (dot >= probe_start && sample.shift != test.retained)
+                    fail(std::string(test.label) + ": wrong byte phase in active display");
+            }
+        }
+    }
+}
+
+// A valid split pulse arms Full recovery. Owners and mode requests can
+// change on a master clock outside CE4, before any further normal HS strobe.
+void test_full_discards_recovered_byte_phase_on_context_change() {
+    constexpr unsigned normal_h = 160;
+    constexpr unsigned early_fall = normal_h - 24;
+    constexpr unsigned width = 20;
+    struct Context {
+        const char* label;
+        bool eligible;
+        bool clear;
+        unsigned mode;
+    };
+    for (const auto& change : {
+            Context{"classic owner change", true, true, 0},
+            Context{"other timing owner", false, true, 0},
+            Context{"owner disabled", false, false, 0},
+            Context{"Raw pixels", true, false, 1},
+            Context{"Raw CRT", true, false, 2}}) {
+        CrtFilterBench tb;
+        CrtFilterBench legacy;
+        legacy.configure_byte_owner(false, false);
+        for (unsigned row = 0; row < 68; ++row) {
+            tb.run_line_ce(kLineCeTicks, normal_h, width, row < 16);
+            legacy.run_line_ce(kLineCeTicks, normal_h, width, row < 16);
+        }
+        Sample recovered{}, plain{};
+        for (unsigned dot = 0; dot <= normal_h + width; ++dot) {
+            const bool early = dot >= early_fall - width && dot < early_fall;
+            const bool primary = dot >= normal_h && dot < normal_h + width;
+            recovered = tb.tick_ce(early || primary, false);
+            plain = legacy.tick_ce(early || primary, false);
+        }
+        if (!recovered.shift || plain.shift)
+            fail("fixture did not distinguish a confirmed recovery from ordinary SHIFT");
+
+        tb.selector(change.mode, false, false, false, false);
+        const auto switched = tb.configure_byte_owner(change.eligible, change.clear);
+        if (switched.shift != plain.shift)
+            fail(std::string(change.label) + ": stale phase before the next master edge");
+        tb.tick_clk(false, false, false, false, false);
+        legacy.tick_clk(false, false, false, false, false);
+        tb.selector(0, false, false, false, false);
+        const auto returned = tb.configure_byte_owner(true, false);
+        if (returned.shift != plain.shift)
+            fail(std::string(change.label) + ": stale phase after returning to Full");
+    }
+}
+
 void test_production_mode_selector() {
     CrtFilterBench tb;
     tb.settle();
@@ -649,7 +761,7 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 12> kTests = {{
+constexpr std::array<TestCase, 14> kTests = {{
     {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
     {"Full crop preserves the BU fixed monitor-sync grid", test_full_preserves_bu_crop_phase},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
@@ -661,6 +773,8 @@ constexpr std::array<TestCase, 12> kTests = {{
     {"stuck-high raw sync without VSYNC falls back to Full HBLANK", test_stuck_high_without_vsync_uses_full_blank},
     {"masked short retrigger preserves the learned watchdog cadence", test_masked_retrigger_preserves_watchdog_period},
     {"Full horizontal lock survives corroborated early retrace", test_full_ignores_corroborated_retrace_for_horizontal_lock},
+    {"Full byte phase survives an on-origin ordinary split sync", test_full_keeps_byte_phase_after_split_sync},
+    {"Full retires the recovered byte phase on a context change", test_full_discards_recovered_byte_phase_on_context_change},
     {"production selector pins Full, Raw pixels, Raw CRT and reserved tuples", test_production_mode_selector},
 }};
 

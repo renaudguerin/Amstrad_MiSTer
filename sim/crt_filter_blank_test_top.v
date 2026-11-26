@@ -6,6 +6,8 @@ module crt_filter_blank_test_top (
 	input  CE_4,
 	input  HSYNC_I,
 	input  VSYNC_I,
+	input  BYTE_OWNER,
+	input  H_CONTEXT_CLEAR,
 	input  [1:0] SYNC_FILTER,
 	input  HSYNC_RAW,
 	input  VSYNC_RAW,
@@ -37,7 +39,8 @@ module crt_filter_blank_test_top (
 		.SHIFT(SHIFT),
 		.EXTRA_BYTE(), .START_GEN(), .END_GEN(),
 		.SYNC_OBSERVATION(),
-		.H_CONTEXT_CLEAR(1'b0)
+		.H_CONTEXT_CLEAR(H_CONTEXT_CLEAR),
+		.BYTE_PHASE_RECOVERY(BYTE_OWNER && SYNC_FILTER == 2'd0)
 	);
 
 	assign NO_HSYNC_DEBUG = dut.no_hsync;

@@ -1290,6 +1290,7 @@ crt_filter crt_filter
 	.HSYNC_I(hs_sel),
 	.VSYNC_I(vs_sel),
 	.H_CONTEXT_CLEAR(filter_h_clear),
+	.BYTE_PHASE_RECOVERY(!plus_mode && !crtc_type[1] && sync_filter_applied == 2'd0),
 	.HSYNC_O(hsync_filtered),
 	.VSYNC_O(vsync_filtered),
 	.HBLANK(hblank_filtered),

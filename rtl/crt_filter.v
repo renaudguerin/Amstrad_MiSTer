@@ -26,6 +26,7 @@ module crt_filter
 	input      HSYNC_I,
 	input      VSYNC_I,
     input      H_CONTEXT_CLEAR,
+    input      BYTE_PHASE_RECOVERY,
 	output reg HSYNC_O,
 	output reg VSYNC_O,
 	output reg HBLANK,
@@ -43,6 +44,11 @@ module crt_filter
 
 wire resync = 1;
 reg hs4,shift;
+reg masked_byte_pulse, recovered_byte_phase;
+initial begin
+    masked_byte_pulse = 0;
+    recovered_byte_phase = 0;
+end
 // PRIVATE bounded measured-pair output phase experiment. The legacy
 // period/SHIFT reference remains independent of this output offset.
 reg legacy_hsync;
@@ -92,10 +98,13 @@ initial begin EXTRA_BYTE = 0; START_GEN = 0; END_GEN = 0; end
 reg [8:0] hSyncSize;
 reg       hSyncReg;
 reg [1:0] syncs;
-assign SHIFT = shift ^ hs4;
+assign SHIFT = effective_byte_shift ^ hs4;
 
 // generate HSync if original is absent for almost whole frame
 reg hsync, no_hsync;
+wire byte_recovery_live = BYTE_PHASE_RECOVERY && !H_CONTEXT_CLEAR &&
+                          !no_hsync && !VSYNC_I;
+wire effective_byte_shift = shift | (recovered_byte_phase & byte_recovery_live);
 assign SOURCE_MISSING = no_hsync;
 
 // Hybrid live blanking diagnostic. HSYNC_I is the selected raw CRTC HS
@@ -298,6 +307,10 @@ always @(posedge CLK) begin : syncgen
 	localparam VFLT_SZ = 260;
 
 
+    if (!byte_recovery_live) begin
+        masked_byte_pulse <= 0;
+        recovered_byte_phase <= 0;
+    end
     if (H_CONTEXT_CLEAR) begin
         raw_vs_delayed <= 1'b1;
         stretch_open <= 0;
@@ -422,9 +435,27 @@ always @(posedge CLK) begin : syncgen
 			end
 		end
 
+        // MODEL LIMIT (B26): preserve an established ordinary Full byte
+        // phase when an early split sync masks the real pulse at the trained
+        // line origin. D3 R3=5/4 each retain that origin pulse and width.
+        // Only the live Full owner sees the recovered byte phase. Keep the
+        // underlying legacy classifier available during a context change.
+        if (byte_recovery_live) begin
+            if (hSyncCount == 0) begin
+                masked_byte_pulse <= syncs == 3 && hSyncSize >= 32 &&
+                                     raw_h_rise && hsync_mask && !hSyncReg &&
+                                     effective_byte_shift && !hs4;
+            end else if (masked_byte_pulse && !HSYNC_I) begin
+                masked_byte_pulse <= 0;
+                if (hSyncCount == 9'd16 || hSyncCount == 9'd20)
+                    recovered_byte_phase <= 1;
+            end
+        end
+
 		if(hSyncCount == 2*4 && !use_shadow) begin
 			legacy_hsync <= 1;
 			shift <= 0;
+            recovered_byte_phase <= 0;
 			old_vsync <= VSYNC_I;
 			
 			if(~&vSyncFlt) vSyncFlt <= vSyncFlt + 1'd1;
