@@ -31,9 +31,9 @@
 //  cite their ACCC section at the point of implementation.
 //============================================================================
 
-// Progressive timing, IVM addressing, natural MID-VSYNC and the natural
-// interlace extra line. Live IVM entry at the odd origin, cursor output
-// and the sub-character R0/R2/R3 and VSYNC aperture need qualification.
+// Progressive timing, IVM addressing, MID-VSYNC and interlace extra
+// lines. The stock odd-origin write aperture, cursor output and
+// sub-character R0/R2/R3 and VSYNC timing need qualification.
 module crtc_type2 (
 	input            CLOCK,
 	input            CLKEN,
@@ -116,7 +116,7 @@ reg [3:0] ivm_raster;
 reg frame_odd, next_frame_odd;
 reg [4:0] adjustment;
 reg in_adjustment;
-reg interlace_extra;
+reg interlace_extra, first_frame_line, odd_origin_ivm;
 reg [13:0] line_addr, next_line_addr;
 reg [13:0] video_addr;
 reg last_line, previous_last_line, last_line_enabled;
@@ -135,18 +135,27 @@ wire raster_end = raster == max_raster;
 wire [4:0] next_adjustment = adjustment + 5'd1;
 wire ordinary_frame_end = in_adjustment ? next_adjustment == v_adjust :
                           last_line && v_adjust == 0;
+// FR §19.6.3 p.218: entering IVM on the first line of an odd
+// frame repeats the origin with the current parity and line address.
+// The stock ordering at a coincident C0 rollover or R6=0 is unmeasured.
+wire r8_write = write_selected && selected == 5'd8;
+wire ivm_at_boundary = r8_write ? (&DI[1:0]) : ivm_mode;
+wire enter_odd_origin_ivm = first_frame_line && frame_odd &&
+                            r8_write && !ivm_mode && ivm_at_boundary;
+wire repeat_odd_origin = (odd_origin_ivm || enter_odd_origin_ivm) && ivm_at_boundary;
 // FR §19.6.3 pp.217–218: ParitéR6 selects an extra line after R5.
 // Clearing Interlace during that line releases ordinary C4/C9 counting.
-wire add_interlace_line = !interlace_extra && ordinary_frame_end &&
+wire add_interlace_line = !repeat_odd_origin && !interlace_extra && ordinary_frame_end &&
                           interlace_mode[0] && next_frame_odd;
-wire frame_end = interlace_extra ? interlace_mode[0] :
-                 ordinary_frame_end && !add_interlace_line;
-wire [6:0] next_row = frame_end ? 7'd0 : row + {6'd0, raster_end};
-wire [4:0] next_raster = frame_end || raster_end ? 5'd0 : raster + 5'd1;
+wire frame_end = !repeat_odd_origin && (interlace_extra ? interlace_mode[0] :
+                 ordinary_frame_end && !add_interlace_line);
+wire restart_origin = frame_end || repeat_odd_origin;
+wire [6:0] next_row = restart_origin ? 7'd0 : row + {6'd0, raster_end};
+wire [4:0] next_raster = restart_origin || raster_end ? 5'd0 : raster + 5'd1;
 // FR §19.8.3 pp.227–228: C9.IVM runs in every R8 mode, resetting
 // at C9=R9/2 and at the row end. C4 still uses the ordinary comparator.
 wire [3:0] ivm_limit = max_raster[4:1];
-wire ivm_raster_reset = frame_end || raster_end || raster == {1'b0, ivm_limit};
+wire ivm_raster_reset = restart_origin || raster_end || raster == {1'b0, ivm_limit};
 wire [3:0] next_ivm_raster = ivm_raster_reset ? 4'd0 : ivm_raster + 4'd1;
 // The address transfer compares C9.IVM without parity. With even R9
 // the row ends before that counter reaches its limit on the second half.
@@ -157,6 +166,7 @@ wire display_end = next_hcc == h_displayed;
 // FR §17.4.3 p.186: R1=0 compares before last-line evaluation.
 // On entry to a frame, only the AND half of the pointer reload runs.
 wire [13:0] line_addr_on_wrap =
+	repeat_odd_origin ? line_addr :
 	frame_end && h_displayed == 0 ? next_line_addr & start_addr :
 	frame_end || address_raster_end ? next_line_addr : line_addr;
 // FR §17.1 p.178: VMA runs through every character, even if a late
@@ -226,6 +236,8 @@ always @(posedge CLOCK) begin
 		adjustment <= 0;
 		in_adjustment <= 0;
 		interlace_extra <= 0;
+		first_frame_line <= 0;
+		odd_origin_ivm <= 0;
 		line_addr <= 0;
 		next_line_addr <= 0;
 		video_addr <= 0;
@@ -245,6 +257,8 @@ always @(posedge CLOCK) begin
 		horizontal_display <= 0;
 		vertical_display <= 0;
 	end else begin
+		if (vsync_line_tick) odd_origin_ivm <= 0;
+		else if (enter_odd_origin_ivm) odd_origin_ivm <= 1;
 		if (!vsync_match || vsync_admit) vsync_matched <= vsync_match;
 		if (vsync_line_tick || vsync_mid_tick || !vsync_match || !interlace_mode[0])
 			vsync_mid_pending <= vsync_arm_mid;
@@ -294,6 +308,7 @@ always @(posedge CLOCK) begin
 			end
 			if (line_end) begin
 				interlace_extra <= add_interlace_line;
+				first_frame_line <= frame_end;
 				opening_raster_match <= next_raster == max_raster;
 				row <= next_row;
 				raster <= next_raster;
@@ -312,7 +327,7 @@ always @(posedge CLOCK) begin
 				// The terminal transfer above uses the outgoing last-line state.
 				if (h_displayed == 0 && (frame_end || next_address_raster_end))
 					next_line_addr <= line_addr_on_wrap;
-				if (frame_end || add_interlace_line) in_adjustment <= 0;
+				if (restart_origin || add_interlace_line) in_adjustment <= 0;
 				else if (in_adjustment) adjustment <= next_adjustment;
 				else if (last_line) begin
 					in_adjustment <= 1;

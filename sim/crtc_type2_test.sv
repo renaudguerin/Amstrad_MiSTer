@@ -176,6 +176,61 @@ module crtc_type2_test;
 			$fatal(1, "clearing IVM prematurely reset C4/C9 after the extra line");
 	endtask
 
+	// FR §19.6.3 p.218: turning on IVM on line zero of an odd
+	// frame inserts a new line zero. The even frame advances normally.
+	task automatic verify_ivm_entry_on_origin(input int character, input bit odd,
+	                                         input bit on_wrap = 0, input bit clear_ivm = 0);
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'hf3);
+		write_reg(9, 3);
+		find_origin(3);
+		if (!odd) repeat (83 * 32) step(1);
+
+		repeat (character) step(1);
+		if (on_wrap) begin
+			bus_write(0, 8);
+			enable = 1;
+			rs = 1;
+			di = 8'h33;
+			step(1);
+			enable = 0;
+		end else begin
+			write_reg(8, 8'h33);
+			if (ra !== {4'd0, odd})
+				$fatal(1, "IVM entry at C0=%0d did not select the current field on RA", character);
+			if (clear_ivm) write_reg(8, 8'h30);
+			repeat (32 - character) step(1);
+		end
+		if (ma !== 14'h1280 || !de || ra !== (odd || clear_ivm ? 5'd1 : 5'd2))
+			$fatal(1, "IVM entry at C0=%0d odd=%0b started the next line at MA=%04x RA=%0d DE=%0b",
+			       character, odd, ma, ra, de);
+		if (odd && !clear_ivm) begin
+			repeat (32) step(1);
+			if (ma !== 14'h1280 || !de || ra !== 5'd3)
+				$fatal(1, "IVM entry inserted more than one odd origin line");
+		end
+	endtask
+
+	// With R9=1, IVM exposes RA=1 on both rasters of the odd row.
+	// R1 is the observable discriminator: an ordinary wrap would
+	// transfer the new pointer, while the repeated line keeps MA.
+	task automatic verify_ivm_entry_keeps_origin_address;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'hf3);
+		find_origin();
+		write_reg(8, 8'h33);
+		repeat (32) step(1);
+		if (ma !== 14'h1280 || ra !== 5'd1 || !de)
+			$fatal(1, "IVM repeat transferred MA=%04x RA=%0d DE=%0b", ma, ra, de);
+		repeat (32) step(1);
+		if (ma !== 14'h1288 || ra !== 5'd1 || !de)
+			$fatal(1, "IVM ordinary line lost its R1 transfer, MA=%04x RA=%0d DE=%0b", ma, ra, de);
+	endtask
+
 	task automatic verify_ghost_vsync;
 		// At x=15 the 3-character HSYNC has just fallen. The whole
 		// character still blocks the VSYNC pin (FR §16.4.3 p.171).
@@ -516,6 +571,13 @@ module crtc_type2_test;
 		verify_extra_interlace_line(8'h33, 0);
 		verify_extra_interlace_line(8'h33, 1);
 		verify_cancel_extra_interlace_line();
+		verify_ivm_entry_on_origin(0, 1);
+		verify_ivm_entry_on_origin(10, 1);
+		verify_ivm_entry_on_origin(31, 1);
+		verify_ivm_entry_on_origin(10, 0);
+		verify_ivm_entry_on_origin(31, 1, 1);
+		verify_ivm_entry_on_origin(10, 1, 0, 1);
+		verify_ivm_entry_keeps_origin_address();
 
 		$display("PASS CRTC2 progressive timing, I/O, IVM addressing, MID-VSYNC and extra line");
 		$finish;
