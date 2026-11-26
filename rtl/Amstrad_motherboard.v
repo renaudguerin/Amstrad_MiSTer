@@ -1100,7 +1100,8 @@ wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 reg vram_bs;
 reg [7:0] vram_d;
 reg [7:0] vram_din_shift;
-reg [15:0] vram_first_half_word = 16'd0;
+reg [15:0] vram_first_half_word;
+initial vram_first_half_word = 16'd0;
 wire [15:0] vram_pair_word = vram_bs ? vram_first_half_word : vram_din;
 always @(posedge clk) begin
 	// simulate two 8-bit fetches in the vram cycle
