@@ -4,6 +4,7 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 
 | Hash | Set on | Scope |
 |---|---|---|
+| `0x6e49dbfaaa09912a` | 2026-11-26 | Type0 compares elapsed VSYNC lines against live R3h (SHAKER 02EA, French ACCC §14.2 p.133). The first difference is a pulse at C3h=15 wrapping with live R3h=5 where the previous loaded width expired. |
 | `0xc16b325bacbe0cab` | 2026-11-26 | Combined CRTC0 03FA and 02DD fixes with CRTC1 03FC. The soak also samples the pending first adjustment row in CRTC1. |
 | `0xb344ce3e9c337d99` | 2026-11-26 | Standalone CRTC1 deferred first adjustment row (SHAKER 03FC, French ACCC v1.11 §11.2.4 p.85) with the earlier soak projection. |
 | `0xdbb46a42dd22fd14` | 2026-11-26 | Combined CRTC0 odd-R9 IVM entry parity (SHAKER 02DD) and ordinary R5 adjustment exit (SHAKER 03FA). |
@@ -18,4 +19,4 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 | `0x6bb49f9262b5c886` | 2026-11-13 | CRTC1 active VSYNC width held at R0=0; bounded B26 candidate for original SHAKER AI/008D high samples, with C4/C9 still advancing (French ACCC 13.3 p115) |
 | `0x974e5c048eb7f877` | 2026-11-06 | Current type 0 and type 1 behaviour |
 
-Run `make -C sim soak SOAK_EXPECT=0xc16b325bacbe0cab` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.
+Run `make -C sim soak SOAK_EXPECT=0x6e49dbfaaa09912a` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.
