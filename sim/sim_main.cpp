@@ -3856,6 +3856,36 @@ void check_type0_adjustment_rematch_zero_add_line(TestBench& test,
     test.expect_parity_frame("held adjustment row preserves odd parity", true);
 }
 
+// SHAKER 2.7 Module E 03FA cancels an admitted adjustment by writing R5=0
+// on the ordinary last raster. French ACCC v1.11 §11.2.2 pp82–83 uses
+// calculated C9 for the exit. §19.6.1 p217 still appends an armed interlace
+// line. Exercise the terminal-edge write, where stored R5 is still positive.
+void test_type0_03fa_zero_on_entry(TestBench& test) {
+    for (unsigned interlace : {0u, 1u}) {
+        test.set_crtc_type(0);
+        test.write_register(0, 63);
+        test.write_register(4, 38);
+        test.write_register(5, 20);
+        test.write_register(6, 25);
+        test.write_register(7, 0);
+        test.write_register(8, interlace);
+        test.write_register(9, 7);
+        test.select_register(5);
+        test.reset();
+        test.run_characters(39u * 8u * 64u - 1);
+        test.expect_c4("03FA write on the last row", 38);
+        test.expect_ra("03FA write on the last raster", 7);
+        test.write_selected_register_at_clken(0);
+        if (interlace) {
+            test.expect_c4("armed interlace line follows the last row", 39);
+            test.expect_ra("interlace line uses the new R5", 0);
+            test.run_characters(64);
+        }
+        test.expect_c4("03FA reaches the frame origin", 0);
+        test.expect_ra("03FA resets C9 at the origin", 0);
+    }
+}
+
 void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
     check_type0_adjustment_r4_rematch_r6_parity(test);
     check_type0_adjustment_r4_rematch(test, 3);
@@ -10363,6 +10393,9 @@ int main(int argc, char** argv) {
         {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
          "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; pending R9/R5 completion", false,
          test_type0_r9_write_within_c0_1_enters_zero_adjustment},
+        {"type0_03fa_zero_on_entry",
+         "French ACCC v1.11 §11.2.2 pp82–83 and §19.6.1 p217; SHAKER 03FA", false,
+         test_type0_03fa_zero_on_entry},
         {"t16n2_type0_adjustment_r4_rematch_reenables_r9",
          "French ACCC v1.11 §11.2.2 pp82–83, §13.2.4 p108; SHAKER E6 0409 case 28 dual comparator", false,
          test_type0_adjustment_r4_rematch_reenables_r9},

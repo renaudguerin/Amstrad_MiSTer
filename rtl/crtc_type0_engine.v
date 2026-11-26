@@ -491,7 +491,18 @@ wire       type0_r9_zero_adjust_end = (in_adj | type0_c0_1_r9_match) &&
                                      type0_r9_compare_active &&
                                      type0_rollover_line_last &&
                                      (type0_adjust_line_max == 5'd31);
-wire       type0_adjust_end = type0_r9_zero_adjust_end | type0_c0_1_r5_end;
+// French ACCC v1.11 §11.2.2 pp82–83: on ordinary entry R9 resets
+// C9, and adjustment ends when the calculated C9 reaches R5. R5 can
+// have become zero since the C0=2 admission sample (§13.2.1 pp105–106).
+// MODEL LIMIT (B26): SHAKER 03FA and AmSpirit agree on this ordinary
+// entry endpoint. A stock trace is outstanding. Forced entry (including
+// R0<2) and switched comparators retain their separate rollover rules.
+wire       type0_entry_zero_end = !in_adj && frame_adj_r && hcc > 2 &&
+                                  type0_last_line_armed && !(|type0_effective_r5) &&
+                                  !type0_c0_1_adjust_active && !type0_r4_switch_active &&
+                                  !type0_r9_compare_active && !type0_r9_at_r0_active;
+wire       type0_adjust_end = type0_r9_zero_adjust_end | type0_c0_1_r5_end |
+                              type0_entry_zero_end;
 wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 
@@ -502,7 +513,8 @@ assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // R9-derived end calculates C9=0 (§11.2.2 p82). A retained zero target
 // from C0<=2 can coexist with a later positive value in stored R5.
 wire       type0_add_line_write_zero = type0_r5_write && !(|DI[4:0]) &&
-                                      (type0_r9_zero_adjust_end || type0_adj_r9_zero_end);
+                                      (type0_entry_zero_end || type0_r9_zero_adjust_end ||
+                                       type0_adj_r9_zero_end);
 wire [4:0] type0_add_line_c9 = type0_add_line_write_zero ?
                               5'd0 : R5_v_total_adj;
 assign line_next = type0_add_intercept ? type0_add_line_c9 :
