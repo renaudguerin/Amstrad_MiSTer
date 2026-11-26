@@ -325,6 +325,8 @@ public:
         // Review N-10 (2026-08-25): the toggle direction latches complete
         // the stage machinery's sampled state.
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__tog_enter);
+        // A deferred first adjustment row can still suppress a later C5 restart.
+        mix(r.CRTC__DOT__crtc_type1_engine__DOT__adj_entry_row_pending);
         // F10 type-0 behavior commit: the seam-latched IVM mode and the
         // line-scoped toggle status join the projection with their
         // behavior; random R8 traffic now reaches the type-0 seams too.
