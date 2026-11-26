@@ -563,11 +563,12 @@ assign pf_value  = parity_r6;
 // off-seam zero/zero parity is unmeasured, so preserve its old behavior
 // independently of the display conflict rule. R4/R7 off-seam consumers
 // and adjustment/IVM landing generalization are not resolved by this R6 proof.
-// The adjustment R4 rematch is a genuine C4 increment (§13.2.4 p108), so a
-// landing it produces on R6 captures ParityR6 like an ordinary one
-// (§19.5.2 p206); this feeds the F14 added-line gate (§19.6.1 p217).
+// A rematch that advances C4 (§13.2.4 p108) can land on R6 and capture
+// ParityR6 (§19.5.2 p206). A rematch intercepted by the added line holds C4.
+wire       type0_adj_r9_row_step = row_new && type0_adj_r9_rollover &&
+                                  !type0_add_intercept;
 assign pr6_write = row_r6_landing && !frame_new_w &&
-                   (!in_adj || type0_adj_r9_rollover) &&
+                   (!in_adj || type0_adj_r9_row_step) &&
                    (row_new || !(R6_v_displayed == 0 && line == 0));
 assign pr6_value = parity_frame ^ 1'd1;
 

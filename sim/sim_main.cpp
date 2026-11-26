@@ -3706,7 +3706,8 @@ void check_type0_adjustment_r4_rematch_r6_parity(TestBench& test) {
 // C9 equals R5. §19.6.1 p217 adds one interlace line when ParityR6 is odd.
 // An R5=0 write on the seam where the rematch would reset C9 must produce
 // the added line at that calculated C9=0, followed by the frame origin.
-void check_type0_adjustment_rematch_zero_add_line(TestBench& test) {
+void check_type0_adjustment_rematch_zero_add_line(TestBench& test,
+                                                 bool r6_on_added_line) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
@@ -3723,6 +3724,7 @@ void check_type0_adjustment_rematch_zero_add_line(TestBench& test) {
     test.run_characters(normal_lines * 64);
     test.expect_c4("odd frame reaches additional row", 39);
     test.expect_ra("odd frame reaches additional line zero", 0);
+    if (r6_on_added_line) test.write_register(6, 39);
     test.write_register(4, 39);
     test.write_register(9, 3);
     test.select_register(5);
@@ -3738,6 +3740,9 @@ void check_type0_adjustment_rematch_zero_add_line(TestBench& test) {
     test.expect_c4("one interlace line then origin C4", 0);
     test.expect_ra("one interlace line then origin C9", 0);
     test.expect_adjustment_inactive("one interlace line completes adjustment");
+    // §19.5.2 p206: the origin inherits odd ParityR6. Writing R6 to the
+    // held row after entry cannot capture even parity at the intercept.
+    test.expect_parity_frame("held adjustment row preserves odd parity", true);
 }
 
 void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
@@ -3749,7 +3754,8 @@ void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
     check_type0_adjustment_r4_rematch_r5_zero_exit(test);
     check_type0_adjustment_r4_rematch_exact_r0_owner(test);
     check_type0_adjustment_r4_rematch_ivm_excluded(test);
-    check_type0_adjustment_rematch_zero_add_line(test);
+    check_type0_adjustment_rematch_zero_add_line(test, false);
+    check_type0_adjustment_rematch_zero_add_line(test, true);
 }
 
 void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
