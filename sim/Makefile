@@ -171,6 +171,7 @@ T80_VHDL_SRC := $(addprefix ../rtl/T80/,T80_Pack.vhd T80_ALU.vhd T80_MCode.vhd T
 T80_NETLIST  := $(OBJ_DIR)/t80/T80pa.v
 include b18_snapshot.mk
 include ssm_provider.mk
+include shaker_e_c1.mk
 
 .DELETE_ON_ERROR:
 

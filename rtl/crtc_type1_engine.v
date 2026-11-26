@@ -352,6 +352,23 @@ wire       line_row_structure_last = in_adj ? ordinary_row_last : line_limit_mat
 assign     line_last = line_limit_match;
 assign     line_new = hcc_end;
 
+// French ACCC v1.11 §11.2.4 p.85 describes a terminal R9 rewrite that
+// admits adjustment while the new R9 delays the first C4 advance. The rasters
+// before that advance already count toward R5. Remember the outstanding
+// row boundary so its eventual match does not restart that same adjustment.
+// An intervening R5=0 leaves the retained-management re-entry path eligible.
+reg adj_entry_row_pending;
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || !(|R5_v_total_adj))
+        adj_entry_row_pending <= 0;
+    else if(CLKEN && line_new) begin
+        if(!in_adj)
+            adj_entry_row_pending <= frame_adj && !ordinary_row_last;
+        else if(ordinary_row_last || crtc1_adj_end_eff)
+            adj_entry_row_pending <= 0;
+    end
+end
+
 // French ACCC v1.11 section 13.7.1.2 p.126: a second RFD
 // trigger route exists on CRTC 1.  Widening R0 with an OUT(C),reg8 write
 // landing exactly at C0==R0 on the last line of the frame (C9==R9, C4==R4,
@@ -407,15 +424,11 @@ always @(*) begin
 	if(line_new) begin
 		if(in_adj) begin
 			if(crtc1_adj_end_eff) c5_next = 5'd0;
-			// French ACCC v1.11 section 11.3.2 p.87 gives positive-R5
-			// R4/R9 engagement without an inactive-state qualification.
-			// SHAKER CE/02C9's photographed 0080 infers this abstract C5
-			// restart; it does not identify a physical silicon counter reset.
-			// Preserve completion priority and the interlace added-line owner;
-			// no wrapper-entry, row-0 arm or parity side effect is inferred.
-			// §§11.8/19.8.2 make this the actual IVM row boundary;
-			// only eligibility changes, not the inferred restart policy.
-			else if(row == R4_v_total && ordinary_row_last &&
+			// MODEL LIMIT (B26): SHAKER CE/02C9's photographed 0080
+			// supports the abstract restart after retained adjustment.
+			// Eligibility beyond the documented deferred first row remains
+			// provisional. §§11.8/19.8.2 supply the effective IVM row end.
+			else if(!adj_entry_row_pending && row == R4_v_total && ordinary_row_last &&
 			        (|crtc1_rollover_r5) && !type1_add_line_active)
 				c5_next = 5'd0;
 			else c5_next = c5 + 1'd1;
