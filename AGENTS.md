@@ -6,4 +6,10 @@ Real hardware is the final authority for behaviour. For classic CRTC rules, cons
 
 For behaviour changes, create a deterministic test that fails before the fix and passes after it. Index new benches in `sim/TESTS.md`. Run `python3 sim/select_tests.py --check` and `python3 sim/select_tests.py --run` before integrating code or test changes; pure documentation edits do not need simulation. Use `make -C sim crtc-test` for focused classic CRTC work. Review synthesis timing and test important changes on hardware.
 
+## Consolidate shared decisions
+
+When successive fixes touch the same decision or expose a regression where their cases overlap, examine the affected rules together. Identify the invariant and which state owns it. If the evidence supports one decision, proactively make the smallest consolidation that expresses it in one place. Keep distinct hardware mechanisms and timing boundaries separate.
+
+Commit behaviour changes separately from behaviour-preserving consolidation. For timing-sensitive logic, compare outputs and relevant state cycle by cycle on original caller traces, and include the overlapping transitions that exposed the problem. Check synthesis timing when the consolidation touches a critical path. If the evidence leaves ownership unresolved, record the observation that would distinguish the cases.
+
 If `local/dev/AGENTS.md` is installed, read it for the maintainer's additional private development context. The public checkout must remain usable without it.
