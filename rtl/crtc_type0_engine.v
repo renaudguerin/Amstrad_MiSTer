@@ -498,9 +498,12 @@ wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
 // its C9 continues the adjustment count to R5 (section 11.2 p.85).
-// An R9-derived zero end already calculated C9=0 (§11.2.2 p82), which
-// must also start the added line if a same-edge R5 write selected zero.
-wire [4:0] type0_add_line_c9 = (type0_r9_zero_adjust_end || type0_adj_r9_zero_end) ?
+// Bypass the stored R5 when a same-edge write selects R5=0 and the
+// R9-derived end calculates C9=0 (§11.2.2 p82). A retained zero target
+// from C0<=2 can coexist with a later positive value in stored R5.
+wire       type0_add_line_write_zero = type0_r5_write && !(|DI[4:0]) &&
+                                      (type0_r9_zero_adjust_end || type0_adj_r9_zero_end);
+wire [4:0] type0_add_line_c9 = type0_add_line_write_zero ?
                               5'd0 : R5_v_total_adj;
 assign line_next = type0_add_intercept ? type0_add_line_c9 :
                    type0_rollover_line_last ? 5'd0 : line + 5'd1;
@@ -543,6 +546,9 @@ assign     frame_adj = ((type0_adjustment_selected | type0_r9_compare_active) &
                        c1_last_line_validate |
                        type0_add_intercept;
 assign     row_frame_last = crtc0_row_frame_last & ~type0_add_intercept;
+// MODEL LIMIT (B26): reuse the ordinary added-line C4 hold (§19.6.1 p217)
+// when an R9-derived rematch exits into the intercept. This collision
+// remains unmeasured on original CRTC0 hardware.
 assign     row_next = type0_add_intercept ? (in_adj ? row : row + 7'd1) :
 									 row_frame_last ? 7'd0 : row + 1'd1;
 assign     row_new = line_new & type0_rollover_row_last;

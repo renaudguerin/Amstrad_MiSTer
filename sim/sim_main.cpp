@@ -3707,7 +3707,8 @@ void check_type0_adjustment_r4_rematch_r6_parity(TestBench& test) {
 // An R5=0 write on the seam where the rematch would reset C9 must produce
 // the added line at that calculated C9=0, followed by the frame origin.
 void check_type0_adjustment_rematch_zero_add_line(TestBench& test,
-                                                 bool r6_on_added_line) {
+                                                 bool r6_on_added_line,
+                                                 std::uint8_t late_r5 = 0) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
@@ -3728,14 +3729,27 @@ void check_type0_adjustment_rematch_zero_add_line(TestBench& test,
     test.write_register(4, 39);
     test.write_register(9, 3);
     test.select_register(5);
-    test.run_characters(3u * 64u + 63u - test.c0());
-    test.expect_byte("R5 write at R0", 63, test.c0());
-    test.expect_c4("R5 write on the rematch row", 39);
-    test.expect_ra("R5 write at C9==R9", 3);
-    test.write_selected_register_at_clken(0);
+    if (late_r5) {
+        // The C0<=2 write selects R5=0 for this rollover. A later write
+        // supplies the stored R5 used by the separate added-line selector.
+        test.run_characters(3u * 64u + 1u - test.c0());
+        test.expect_byte("early R5=0 write at C0=1", 1, test.c0());
+        test.expect_ra("early R5=0 write on the rematch line", 3);
+        test.write_selected_register_at_clken(0);
+        test.run_characters(12);
+        test.write_selected_register_now(late_r5);
+        test.run_characters(63u - test.c0());
+    } else {
+        test.run_characters(3u * 64u + 63u - test.c0());
+    }
+    test.expect_byte("rollover at R0", 63, test.c0());
+    test.expect_c4("rollover on the rematch row", 39);
+    test.expect_ra("rollover at C9==R9", 3);
+    if (late_r5) test.run_characters(1);
+    else test.write_selected_register_at_clken(0);
 
     test.expect_c4("zero-end interlace line holds C4", 39);
-    test.expect_ra("zero-end interlace line starts at calculated C9=0", 0);
+    test.expect_ra("zero-end interlace line starts at the effective added-line count", late_r5);
     test.run_characters(64);
     test.expect_c4("one interlace line then origin C4", 0);
     test.expect_ra("one interlace line then origin C9", 0);
@@ -3756,6 +3770,7 @@ void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
     check_type0_adjustment_r4_rematch_ivm_excluded(test);
     check_type0_adjustment_rematch_zero_add_line(test, false);
     check_type0_adjustment_rematch_zero_add_line(test, true);
+    check_type0_adjustment_rematch_zero_add_line(test, false, 5);
 }
 
 void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
