@@ -1362,7 +1362,31 @@ end
 // to the incoming byte and its coincident display qualification.
 wire mode2_display_seam = ASIC_40226 && mode_q == 2'b10 && CLKEN;
 wire eff_de   = (mode2_display_seam ? DE : de_hold) & ~(SSCR[7] & de_first_char);
-wire [4:0] hw_sel  = eff_de ? INKR_I[pen_delayed*5 +: 5] : BORDER_I;
+
+// FR §9.2.2 pp.49–50: the 40226 presents the new legacy colour on
+// the second video byte. Mode 2 presents that byte one dot earlier.
+// The input pins carry the accepted Gate Array values. Sample them
+// at the presentation boundary, including for the dot on that edge.
+wire [84:0] legacy_palette = {BORDER_I, INKR_I};
+reg type4_palette_restore;
+wire type4_ink_commit = type4_palette_restore ||
+                       (PIXEN && pix_cnt == (mode_q == 2'b10 ? 4'd7 : 4'd8));
+reg [84:0] type4_palette;
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		type4_palette_restore <= 0;
+		type4_palette <= {5'd16, 80'd0};
+	end else begin
+		// The Gate Array restores its shadows on the SNA_LOAD edge.
+		// Rebase to the settled palette before the first resumed dot.
+		type4_palette_restore <= SNA_LOAD;
+		if (!SNA_LOAD && type4_ink_commit) type4_palette <= legacy_palette;
+	end
+end
+wire [84:0] displayed_palette = ASIC_40226 && !type4_ink_commit ?
+                                type4_palette : legacy_palette;
+wire [4:0] hw_sel = eff_de ? displayed_palette[pen_delayed*5 +: 5] :
+                             displayed_palette[80 +: 5];
 
 // Palette entry for this dot: the decoded pen inside active display, entry
 // 16 (border) outside it (asic-reference §6).
