@@ -2,6 +2,7 @@
 // by Longshot (CC BY-NC-ND). Scripted legal CPU bus phases, not T80 execution.
 #include "Vcrtc_cpu_phase_top.h"
 #include "verilated.h"
+#include <array>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -39,7 +40,8 @@ struct Bench {
     if (!ok)
       throw std::runtime_error(why);
   }
-  Bench(bool type = 1, unsigned reg = 5, unsigned r0 = 15, unsigned r6 = 3) {
+  Bench(bool type = 1, unsigned reg = 5, unsigned r0 = 15, unsigned r6 = 3,
+        bool video = false) {
     d.reset = 1;
     d.sna_load = 1;
     d.launch = 0;
@@ -50,6 +52,8 @@ struct Bench {
     d.bus_rs = 1;
     d.sna_addr = reg;
     d.write_data = 1;
+    d.video_enable = video;
+    d.video_data = 0;
     for (int i = 0; i < 5; i++)
       d.sna_regs[i] = 0;
     const unsigned char r[18] = {static_cast<unsigned char>(r0),
@@ -59,13 +63,13 @@ struct Bench {
                                  3,
                                  0,
                                  static_cast<unsigned char>(r6),
-                                 2,
+                                 static_cast<unsigned char>(video ? 127 : 2),
                                  0,
                                  3,
                                  0,
                                  0,
-                                 0x12,
-                                 0x34,
+                                 static_cast<unsigned char>(video ? 0x30 : 0x12),
+                                 static_cast<unsigned char>(video ? 0 : 0x34),
                                  0,
                                  0,
                                  0,
@@ -316,6 +320,72 @@ void r6_zero_across_adjustment() {
   b.check(b.d.de_out, "a carried zero equality at the end of adjustment must reopen DE");
 }
 
+// Original BU 021B opens a frozen CRTC0 display half just after S03.
+// French v1.11 §17.6.2 p.188 and §18.3.2 p.191 describe the overlapping
+// DE conditions. The caller replay supplies the byte aperture, while
+// §9.1 p.47 and §9.3.4 pp.56–67 supply the Mode 2 bit and DAC mapping.
+void r6_frozen_video(bool open_half) {
+  Bench b(false, 0, 63, 13, true);
+  // Two full 16-line frames without VSYNC let the GA leave blanking.
+  b.pos(1, 0, 0);
+  b.pos(0, 0, 0);
+  b.write(0x0f, 0);
+  b.release();
+  b.write(0x0f, 6, false);
+  b.release();
+  b.d.bus_rs = 1;
+
+  constexpr unsigned previous_byte = 0x80, tail_byte = 0x04;
+  constexpr unsigned high_byte = 0xa1, following_byte = 0xf0;
+  constexpr unsigned border = 62, ink0 = 42, ink1 = 13;
+  constexpr unsigned dots_per_byte = 8, dots_per_word = 16;
+  // In the original seam the first visible dot is twenty master
+  // clocks (five Mode 2 dots) after the GA samples E0.
+  constexpr unsigned first_pixel = 5;
+  const std::array<unsigned, 3> even_bytes{previous_byte, tail_byte, following_byte};
+  std::array<unsigned, 2 * dots_per_word + first_pixel + dots_per_byte> rgb{};
+  unsigned even_fetches = 0, writes = 0;
+  b.until([&] { return b.d.cclk_p; });
+  for (unsigned dot = 0; dot < rgb.size(); ++dot) {
+    b.until([&] { return b.d.ce16; });
+    if (b.d.cclk_p)
+      b.d.video_data = even_bytes.at(even_fetches++);
+    if (b.d.cclk_n)
+      b.d.video_data = high_byte;
+    const bool write = open_half ? b.d.cclk_n && even_fetches == 1
+                                 : b.d.cclk_p && even_fetches == 1;
+    rgb[dot] = b.d.dac_rgb;
+    b.tick();
+    if (write) {
+      b.check(b.d.c0 == 0 && b.d.row == 0 && b.d.line == 0 && b.d.ma == 0x3000,
+              "R6 write must hit the frozen raster at C000");
+      b.check(bool(b.d.de_out) == open_half && !b.d.ce16,
+              "R6 write must start one master clock after the chosen CCLK edge");
+      b.d.write_data = 0;
+      b.d.direct_write = 1;
+      b.tick();
+      b.d.direct_write = 0;
+      ++writes;
+    }
+  }
+  b.check(even_fetches == even_bytes.size() && writes == 1,
+          "fixture must cover three even fetches and one R6 write");
+  for (unsigned dot = first_pixel; dot < rgb.size(); ++dot) {
+    const unsigned offset = dot - first_pixel;
+    const bool previous = offset < dots_per_byte;
+    const bool tail = offset >= dots_per_word && offset < dots_per_word + dots_per_byte;
+    unsigned expected = border;
+    if (previous || (open_half && tail)) {
+      const unsigned byte = previous ? previous_byte : tail_byte;
+      expected = (byte & (0x80 >> (offset % dots_per_byte))) ? ink1 : ink0;
+    }
+    if (rgb[dot] != expected)
+      throw std::runtime_error("DAC dot " + std::to_string(offset) + " was " +
+                               std::to_string(rgb[dot]) + ", expected " +
+                               std::to_string(expected));
+  }
+}
+
 int main() {
   unsigned failures = 0;
   auto test = [&](const std::string &name, auto fn) {
@@ -353,6 +423,9 @@ int main() {
     test("R5 terminal C9" + s, [&] { r5_last_line(phase); });
   }
   test("R6 zero equality at adjustment frame boundary", r6_zero_across_adjustment);
+  test("frozen R6 write completes the open Mode 2 byte", [] { r6_frozen_video(true); });
+  test("frozen R6 write in the closed half leaves subsequent bytes in border",
+       [] { r6_frozen_video(false); });
   std::cout << failures << " failures\n";
   return failures ? 1 : 0;
 }

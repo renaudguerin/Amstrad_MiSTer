@@ -843,10 +843,24 @@ wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
 localparam [1:0] R6_BORDER_IDLE = 2'd0, R6_BORDER_FROZEN = 2'd1,
                  R6_BORDER_TO_ORIGIN = 2'd2;
 reg [1:0] type0_r6_border;
+reg de_second_half;
+reg type0_r6_border_pending;
 wire type0_frozen_origin = e0_r0_frozen && (row == 0) && (line == 0);
 wire type0_frozen_r6_zero_write = type0_frozen_origin && reg_data_write &&
     (addr == 5'd6) && (DI[6:0] == 0) && (R6_v_displayed != 0);
-wire type0_r6_force_border = !CRTC_TYPE && !SNA_LOAD &&
+wire type0_r6_display_half = hde && vde && vde_r && !de_second_half && (R8_skew == 0);
+
+// MODEL LIMIT (B26): SHAKER BU 021B leaves the open, unskewed half
+// visible to the next GA byte fetch. The stock CRTC-to-GA aperture
+// is unmeasured. A write on that fetch takes the immediate path.
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || CRTC_TYPE || nCLKEN || !type0_frozen_origin)
+        type0_r6_border_pending <= 0;
+    else if ((type0_r6_border == R6_BORDER_IDLE) && type0_frozen_r6_zero_write &&
+             type0_r6_display_half)
+        type0_r6_border_pending <= 1;
+end
+wire type0_r6_force_border = !CRTC_TYPE && !SNA_LOAD && !type0_r6_border_pending &&
     ((type0_r6_border == R6_BORDER_TO_ORIGIN) ||
      ((type0_r6_border == R6_BORDER_FROZEN) && (type0_frozen_origin || (R6_v_displayed != 0))));
 always @(posedge CLOCK) begin
@@ -1046,7 +1060,6 @@ end
 // stages. This is deliberate: p.196 shows delay 1/2 rounding the deferred
 // event onto the full C0=0/C0=1 character respectively, while mode 2'b11
 // suppresses DISPTMG entirely. Type 1 has no substituted event.
-reg de_second_half;
 always @(posedge CLOCK) begin
 	if(~nRESET)       de_second_half <= 0;
 	else if(CLKEN)    de_second_half <= 0;
