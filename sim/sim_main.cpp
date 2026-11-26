@@ -146,8 +146,9 @@ public:
         bus_write(true, value);
     }
 
-    // Assert the selected data write now, before the next character edge,
-    // and keep it held through that edge, as the CPU bus does.
+    // Drive the CRTC data write pins within the current character and keep
+    // them asserted through its final CLKEN edge. Motherboard I/O timing is
+    // outside this direct-pin fixture.
     void hold_selected_register_through_next_clken(std::uint8_t value) {
         if (tick_in_character_ == kClkEnPhase) {
             throw TestFailure("held write must start within the character");
@@ -5813,9 +5814,8 @@ void test_type1_rfd_successful_save_retires_parity_management(
 // (C0=0..7), R4=1 gives rows C4={0,1}, R9=1 gives lines C9={0,1}, so the
 // frame is 4 lines and its true last line carries C4=1, C9=1 with R5=0.
 // After reset, run_characters(24) lands on that line's first character and
-// run_characters(7) reaches C0=R0=7.  A CLKEN-aligned write there lands on
-// the exact C0==R0 rollover edge, matching the OUT(C),reg8 alignment the
-// recipe requires.
+// run_characters(7) reaches C0=R0=7.  The fixture drives the write on the
+// CRTC rollover edge to exercise the recipe's C0=R0 boundary directly.
 // ---------------------------------------------------------------------------
 
 void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
