@@ -95,6 +95,7 @@ reg [8:0] border_line = 0;
 reg old_hblank = 1'b1;
 reg old_vblank = 1'b1;
 reg narrow_frame = 1'b0;
+reg narrow_hblank = 1'b1;
 always @(posedge CLK_VIDEO) begin
     if (ce_16) begin
         old_hblank <= hbl;
@@ -108,14 +109,19 @@ always @(posedge CLK_VIDEO) begin
 
         if (vbl && !old_vblank) narrow_frame <= narrow_border;
     end
+
+    // Register the mask beside the colour sample. Adaptive and HQ2x CE
+    // arrive one clock after the native dot counter has already advanced.
+    if (ce_pix) begin
+        narrow_hblank <= (border_dot < (ce_16 ? 10'd48 : 10'd49)) ||
+                         (border_dot >= (ce_16 ? 10'd720 : 10'd721));
+    end
 end
 
 // Raw CRT and CRT response need the full raster. Main passes zero HDMI
 // dimensions in Direct Video, which must also keep its original blanking.
 wire narrow_active = narrow_frame && !raw_crt && !native_cadence && (HDMI_HEIGHT != 0);
-// The first sampled dot has a count of one after the increment, alongside
-// the colour converter's registered sample.
-wire mixer_hblank = HBlank | (narrow_active && (border_dot < 10'd49 || border_dot >= 10'd721));
+wire mixer_hblank = HBlank | (narrow_active && narrow_hblank);
 wire mixer_vblank = VBlank | (narrow_active && (border_line < 9'd28 || border_line >= 9'd244));
 
 // Raw CRT forces the core's own post-processing off: native ce_16 (no

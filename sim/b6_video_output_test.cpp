@@ -173,8 +173,14 @@ int main(int argc,char**argv) {
         // At the adaptive 4 MHz input rate this is the same native-dot
         // aperture, sampled once every four dots.
         narrow.d.pixel_rate_select = 1;
+        full.d.pixel_rate_select = 1;
         for (unsigned f = 0; f < 3; ++f) narrow.frame();
+        for (unsigned f = 0; f < 3; ++f) full.frame();
         narrow.expect_window(168, 28, 216);
+        narrow.line(100);
+        full.line(100);
+        narrow.require(narrow.first_active_dot == full.first_active_dot + 48,
+                       "Adaptive Narrow shifted the aperture phase");
 
         narrow.d.pixel_rate_select = 0;
         narrow.d.vcrop_en = 0;
