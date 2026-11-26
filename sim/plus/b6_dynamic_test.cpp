@@ -20,11 +20,11 @@ Program dynamic_program() {
     };
     auto reg=[&](unsigned r,unsigned v){io(0xbc00,r);io(0xbd00,v);};
     // Acquire a regular 64-us HS cadence before the timed disturbances.
-    // Eight-row setup frames supply a genuine VSYNC within this bounded
-    // guest wait, replacing the filter's reset-time training history.
+    // Four-row setup frames give the filter one VSYNC to learn the line
+    // period and another to align to it after the classic reset adjustment.
     // Unroll the reads because this TV80 substitute cannot execute
     // conditional polling. The same guest runs on every machine/mode.
-    reg(4,7);reg(7,3);
+    reg(4,3);reg(7,2);
     for(unsigned wait=0;wait<1600;++wait) {
         emit(0x3a);emit(0);emit(0x40); // LD A,(&4000)
     }
@@ -279,14 +279,9 @@ int main(int argc,char**argv) {
                 for(unsigned k=0;k<stages;++k)failed|=!s.ticks[k];
                 failed|=!s.hs_edges[0]||!s.hs_edges[1]||s.hs_edges[2]!=0;
                 failed|=!s.short_pulses||s.short_width_bad;
-                // Type 1 has not reacquired after setup: hSyncReg is unarmed
-                // throughout this short stage. R3=5 alone cannot promise SHIFT.
-                // Keep shift coverage on the acquired type-0/Plus traces and
-                // transport checks on every machine, without retiming the CPU.
-                // Evidence: hardware observations.
-                // If type 1 later acquires, require coverage there too. Two
-                // armed pulses leave fetch time after the first; hs4 history
-                // can cancel shift and is a separate monitor-policy question.
+                // Require SHIFT on the acquired type-0 and Plus traces.
+                // Type 1 needs two armed pulses to leave a fetch after the
+                // first. A prior HS4 classification can cancel SHIFT.
                 if(machine!=1||(s.armed_falls[1]>1&&!s.hs4_ticks[1]))failed|=!s.shift[1];
                 failed|=s.hs_edges[3]<=s.hs_edges[0]||!s.blank[5]||!s.lit[0];
                 // Only type0's five-character HS trace is the deliberate visible

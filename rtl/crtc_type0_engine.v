@@ -779,9 +779,10 @@ always @(posedge CLOCK) begin
 				// entry counts calculated C9 to R5. The one-extra-line flag
 				// below belongs only to unmodified short-R0 entry (§13.2.1 p106).
 				type0_zero_adj_entry <= 0;
-			else if(r0_frozen_w && !in_adj && !type0_r0_zero_entry_consumed &&
-					line == R9_v_max_line && row == R4_v_total)
-				type0_zero_adj_entry <= !(|R5_v_total_adj);
+			// French ACCC §13.2.6 p110: adjustment triggered by an R0=0
+			// freeze resumes with C9+1 compared to R5. Its entry consumes
+			// the frozen C4 increment without qualifying this short-line
+			// shortcut, which belongs to a completed R0=1 line (§13.2.5).
 			else if(row_new) begin
 				if(frame_adj)
 					type0_zero_adj_entry <= !(|type0_effective_r5);

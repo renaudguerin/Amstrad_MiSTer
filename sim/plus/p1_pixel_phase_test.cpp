@@ -220,19 +220,6 @@ bool p1_pixel_stream(Bench& b) {
 		std::printf("[regs] R0=%02X R1=%02X addr=%02X\n",
 		            b.dut.dbg_r0, b.dut.dbg_r1, b.dut.dbg_addr_sel);
 
-	// Classic-oracle capture: every VIDEO_BUF value presented at either
-	// buffer window while the classic MA runs inside the line's address
-	// window. The reference buffer stage has its own pipeline lag, so
-	// values are recorded globally (tag-provenance model) rather than
-	// paired to the simultaneously-live MA.
-	std::array<uint32_t, 256> classic_hits{};
-	auto classic_capture = [&]() {
-		const uint16_t cma = b.dut.dbg_c_ma;
-		if (cma < kBase || cma >= kBase + kHChars) return;
-		if (b.dut.dbg_c_s == 0xE0 || b.dut.dbg_c_s == 0x03)
-			++classic_hits[b.dut.dbg_c_vbuf];
-	};
-
 	uint64_t guard = 0;
 
 	// Locate a slot boundary: the cen_16 edge whose post-edge pix_cnt
@@ -246,7 +233,6 @@ bool p1_pixel_stream(Bench& b) {
 	for (;;) {
 		const bool dot_tick = (b.cen_phase == 0);
 		b.tick();
-		classic_capture();
 		if (dot_tick && b.dut.dbg_pixcnt == 0) break;
 		if (++guard2 > (1u << 23)) fail("p1: no slot boundary after reset");
 	}
@@ -262,7 +248,6 @@ bool p1_pixel_stream(Bench& b) {
 			for (;;) {
 				const bool dot_tick = (b.cen_phase == 0);
 				b.tick();
-				classic_capture();
 				if (++guard > (1u << 24)) fail("p1: stream stalled");
 				if (!dot_tick) continue;
 				pens[ch][d]    = b.dut.dbg_pen & 0x0F;
@@ -388,6 +373,24 @@ bool p1_pixel_stream(Bench& b) {
 	// tag bytes of some word in the line's window, and every word's tag
 	// pair must have been observed at least once across the run.
 	const uint16_t win_lo = kBase, win_hi = uint16_t(kBase + kHChars);
+	// The classic CRTC can finish a reset-time adjustment after the Plus
+	// stream is already active. Wait for a complete programmed classic
+	// line so the buffer cannot still hold a startup fetch.
+	const unsigned line_ticks = kHChars * kDotsPerChar * 4;
+	for (unsigned elapsed = 0; ; ++elapsed) {
+		const uint16_t previous_ma = b.dut.dbg_c_ma;
+		b.tick();
+		if (previous_ma == win_hi - 1 && b.dut.dbg_c_ma == win_lo) break;
+		if (elapsed >= 40 * line_ticks) fail("p1c: no programmed line wrap");
+	}
+	std::array<uint32_t, 256> classic_hits{};
+	for (unsigned elapsed = 0; elapsed < line_ticks; ++elapsed) {
+		const uint16_t cma = b.dut.dbg_c_ma;
+		if (cma >= win_lo && cma < win_hi &&
+		    (b.dut.dbg_c_s == 0xE0 || b.dut.dbg_c_s == 0x03))
+			++classic_hits[b.dut.dbg_c_vbuf];
+		b.tick();
+	}
 	unsigned covered = 0;
 	for (uint32_t v = 0; v < 256; ++v) {
 		if (classic_hits[v] == 0) continue;

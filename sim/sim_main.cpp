@@ -4164,8 +4164,6 @@ void test_type0_r0_zero_starts_default_zero_adjustment(TestBench& test) {
     test.expect_type0_arbitration_latches(
         "type 0 R0=0 records that its entry increment was consumed", false,
         false, false, false, true);
-    test.expect_type0_zero_adj_entry(
-        "type 0 R0=0 sets zero adjustment entry latch", true);
 
     test.run_characters(3);
     test.expect_c4("type 0 R0=0 does not repeat the C4 increment", 1);
@@ -4173,13 +4171,17 @@ void test_type0_r0_zero_starts_default_zero_adjustment(TestBench& test) {
 
     test.write_selected_register_at_nclken(3);
     test.run_characters(4);
-    test.expect_adjustment_inactive("type 0 R0=0 recovery completes adjustment");
-    test.expect_c4("type 0 R0=0 recovery resets C4", 0);
-    test.expect_ra("type 0 R0=0 recovery resets C9", 0);
+    // French ACCC §13.2.6 p110 gives the resumed C9+1 comparison.
+    // Cold initialization itself uses the model's reset counters.
+    test.expect_adjustment_active("first recovered raster continues adjustment");
+    test.expect_c4("first recovered raster keeps the adjustment row", 1);
+    test.expect_ra("first recovered raster advances C9", 1);
     test.expect_type0_arbitration_latches(
         "type 0 R0=0 entry guard rearms after recovery", false, false, false);
-    test.expect_type0_zero_adj_entry(
-        "type 0 R0=0 clears zero adjustment entry latch after completion", false);
+    test.run_characters(31 * 4);
+    test.expect_adjustment_inactive("adjustment completes when C9 wraps to R5=0");
+    test.expect_c4("adjustment completion resets C4", 0);
+    test.expect_ra("adjustment completion resets C9", 0);
 }
 
 void test_type0_r0_zero_during_adjustment_freezes_c4(TestBench& test) {
@@ -7180,6 +7182,68 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     test.run_characters(20);
     test.expect_ma("type 0 live R0=0 ignores R12/R13 0x3ABC (MA remains 0x1234)",
                    0x1234);
+
+    // SHAKER A7 writes R13=4 during the freeze and restores R0 to 39.
+    // It then clears R13 at C0=30 before the first recovered line ends.
+    // French ACCC §13.2.6 p110: C9+1 does not reach R5=0 at that
+    // boundary. The adjustment continues, so there is no pointer reload.
+    test.write_register(13, 4);
+    test.select_register(0);
+    test.write_selected_register_at_nclken(39);
+    test.run_characters(30);
+    test.expect_byte("A7 R0 recovery reaches the R13 clear position", 30, test.c0());
+    test.write_register(13, 0);
+    test.run_characters(10);
+    test.expect_byte("A7 first recovered line reaches C0=0", 0, test.c0());
+    test.expect_c4("A7 first recovered line keeps the adjustment row", 1);
+    test.expect_ra("A7 first recovered line increments frozen C9", 1);
+    test.expect_adjustment_active("A7 adjustment continues until C9 reaches R5");
+    test.expect_ma("A7 first recovered line holds MA without a frame origin", 0x1234);
+    test.expect_saved_address("A7 first recovered line retains VMA prime", 0x1234);
+}
+
+void test_type0_r0_zero_after_short_frame(TestBench& test) {
+    test.set_crtc_type(0);
+    constexpr RegisterProgram registers = {{
+        {0, 1}, {1, 4}, {2, 19}, {3, 0x0E}, {4, 0},
+        {5, 0}, {6, 38}, {7, 127}, {8, 0}, {9, 0},
+    }};
+    program_registers(test, registers);
+    test.write_register(12, 0x30);
+    test.write_register(13, 0);
+    test.select_register(0);
+    test.reset();
+
+    // Two completed R0=1 lines return to the live frame origin. Land R0=0
+    // after that edge while C0=0, before the next character can advance.
+    test.run_characters(3);
+    test.run_clock_ticks(1);
+    test.expect_byte("short predecessor origin C0", 0, test.c0());
+    test.expect_c4("short predecessor origin C4", 0);
+    test.expect_ra("short predecessor origin C9", 0);
+    test.expect_adjustment_inactive("short predecessor's own adjustment completed");
+    test.expect_ma("short predecessor origin reloads video address", 0x3000);
+    test.write_selected_register_now(0);
+    test.run_characters(2);
+    test.expect_c4("zero-total freeze consumes one C4 increment", 1);
+    test.expect_ra("zero-total freeze keeps C9 at zero", 0);
+    test.expect_adjustment_active("zero-total freeze starts its own adjustment");
+    test.write_register(13, 4);
+    test.select_register(0);
+    test.write_selected_register_at_nclken(39);
+    test.run_characters(30);
+    test.expect_byte("release reaches the R13 clear position", 30, test.c0());
+    test.write_register(13, 0);
+    test.run_characters(10);
+
+    // French ACCC §13.2.6 p110 resumes C9+1/R5 after a zero-total
+    // freeze regardless of the duration of the preceding live line.
+    test.expect_byte("first recovered raster begins at C0=0", 0, test.c0());
+    test.expect_c4("first recovered raster still on the adjustment row", 1);
+    test.expect_ra("first recovered raster advances C9 to one", 1);
+    test.expect_adjustment_active("first recovered raster keeps adjustment");
+    test.expect_ma("new raster uses the saved adjustment base", 0x3004);
+    test.expect_saved_address("the recovered raster's C0=R1 saved the base", 0x3004);
 }
 
 // F11h closure, render-verified against ACCC v1.11 section 20.3.2 page 243:
@@ -10887,8 +10951,10 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.3, 13.8.3, and 20.3.2; F11h", false,
          test_type1_r0_zero_reloads_every_line},
         {"t20i_type0_r0_zero_live_entry_reloads_vma_then_freezes",
-         "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
+         "French ACCC v1.11 §§13.2.6 p110, 13.8.3 p131, 20.3.1 p242; SHAKER A7",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
+        {"type0_r0_zero_after_short_frame", "French ACCC §13.2.6 p110",
+         false, test_type0_r0_zero_after_short_frame},
         {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
          "ACCC v1.11 section 20.3.2 p.243 chronogram 2; F11h", false,
          test_type1_r12_write_on_row0_boundary_edge_reloads},
