@@ -41,7 +41,10 @@
 //  read from write cycles); the motherboard pins it.
 //============================================================================
 
-module asic_video
+module asic_video #(
+	// The 40226 profile currently selects only horizontal RGB blanking.
+	parameter ASIC_40226 = 1'b0
+)
 (
 	input            CLOCK,
 	input            CLKEN,      // 1 µs character-clock enable
@@ -1366,16 +1369,21 @@ wire [11:0] rgb_mux = PAL_EN ? asic_rgb : legacy_colour(hw_sel);
 // v1.11 §14.7.2 p144 explicitly qualifies its Type3 chronogram as a working
 // assumption. Evidence/limits: hardware observations. Raw HSYNC and its mode/IRQ
 // consumers retain their original timing; only the final RGB mask is delayed.
-reg [14:0] horizontal_blank_history;
+// The 40226 starts on the 19th mode-2 pixel where the 40489 reference
+// uses the 17th (French ACCC v1.11 §14.7.2 p.144). Keep the two-dot
+// difference here so that no raw HSYNC consumer changes phase.
+localparam HORIZONTAL_BLANK_DOTS = ASIC_40226 ? 17 : 15;
+reg [HORIZONTAL_BLANK_DOTS-1:0] horizontal_blank_history;
 always @(posedge CLOCK) begin
-    if (!nRESET) horizontal_blank_history <= 15'd0;
+    if (!nRESET) horizontal_blank_history <= {HORIZONTAL_BLANK_DOTS{1'b0}};
     // Pixel history is not serialized. Normalize to the settled incoming pin
     // (HSYNC itself updates on this edge), discarding old pending transitions.
     // Seeding from old HSYNC or zero would leak color on an active-HS restore.
-    else if (SNA_LOAD) horizontal_blank_history <= {15{SNA_HS}};
-    else if (PIXEN) horizontal_blank_history <= {horizontal_blank_history[13:0], HSYNC};
+    else if (SNA_LOAD) horizontal_blank_history <= {HORIZONTAL_BLANK_DOTS{SNA_HS}};
+    else if (PIXEN) horizontal_blank_history <=
+        {horizontal_blank_history[HORIZONTAL_BLANK_DOTS-2:0], HSYNC};
 end
-wire        blank = horizontal_blank_history[14];
+wire        blank = horizontal_blank_history[HORIZONTAL_BLANK_DOTS-1];
 
 // Line seam strobe for the sprite engine: the character-counter wrap edge.
 assign HWRAP = CLKEN & hcc_last;
