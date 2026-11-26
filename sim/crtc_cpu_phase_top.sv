@@ -68,7 +68,7 @@ module crtc_cpu_phase_top(
    .A(2'b10), .D(video_enable ? video_data : selected_data),
    .MREQ_N(1'b1), .M1_N(1'b1),
    .RD_N(1'b1), .IORQ_N(~selected_write),
-   .HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart), .VSYNC_I(vs), .DISPEN(de), .DISPEN_SAMPLE_NEXT(de_sample_next),
+   .HSYNC_I(hs), .VIDEO_HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart), .VSYNC_I(vs), .DISPEN(de), .DISPEN_SAMPLE_NEXT(de_sample_next),
    .CCLK_EN_P(cp), .CCLK_EN_N(cn), .PHI_EN_P(phi_p),
    .PHI_EN_N(), .PHI_N(), .CCLK(), .RAS_N(), .CAS_N(),
    .CASAD_N(), .READY(), .CPU_N(), .MWE_N(), .E244_N(), .ROMEN_N(),

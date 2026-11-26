@@ -34,6 +34,7 @@ module ga40010 (
 	input  wire        RD_N,
 	input  wire        IORQ_N,
 	input  wire        HSYNC_I,
+	input  wire        VIDEO_HSYNC_I,
 	input  wire        HSYNC_RESTART_I,
 	input  wire        VSYNC_I,
 	input  wire        DISPEN,

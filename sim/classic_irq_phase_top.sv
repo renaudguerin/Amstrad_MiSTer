@@ -151,7 +151,7 @@ module classic_irq_phase_top(
     .M1_N(M1_n),
     .RD_N(RD_n),
     .IORQ_N(IORQ_n),
-    .HSYNC_I(crtc_hs), .HSYNC_RESTART_I(crtc_hsync_restart),
+    .HSYNC_I(crtc_hs), .VIDEO_HSYNC_I(crtc_hs), .HSYNC_RESTART_I(crtc_hsync_restart),
     .VSYNC_I(crtc_vs),
     .DISPEN(crtc_de), .DISPEN_SAMPLE_NEXT(de_sample_next),
     .CCLK_EN_P(cclk_en_p),

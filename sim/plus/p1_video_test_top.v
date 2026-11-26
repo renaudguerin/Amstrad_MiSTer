@@ -305,7 +305,7 @@ module p1_video_test_top (
 		.clk(clk), .cen_16(cen_16), .fast(fast), .RESET_N(RESET_N),
 		.A(ga_addr[15:14]), .D(c_ga_din),
 		.MREQ_N(1'b1), .M1_N(ga_m1_n), .RD_N(1'b1), .IORQ_N(ga_iorq_n),
-		.HSYNC_I(c_crtc_hs), .HSYNC_RESTART_I(c_crtc_hsync_restart), .VSYNC_I(c_crtc_vs), .DISPEN(c_crtc_de), .DISPEN_SAMPLE_NEXT(de_sample_next),
+		.HSYNC_I(c_crtc_hs), .VIDEO_HSYNC_I(c_crtc_hs), .HSYNC_RESTART_I(c_crtc_hsync_restart), .VSYNC_I(c_crtc_vs), .DISPEN(c_crtc_de), .DISPEN_SAMPLE_NEXT(de_sample_next),
 		.CCLK(), .CCLK_EN_P(), .CCLK_EN_N(), .PHI_N(), .PHI_EN_N(),
 		.PHI_EN_P(), .RAS_N(), .CAS_N(), .READY(), .CASAD_N(), .CPU_N(),
 		.MWE_N(), .E244_N(), .ROMEN_N(), .RAMRD_N(),

@@ -1446,6 +1446,34 @@ assign phi_n    = integrated_timing ? plus_phi_n    : ga_phi_n;
 assign phi_en_n = integrated_timing ? plus_phi_en_n : ga_phi_en_n;
 assign phi_en_p = integrated_timing ? plus_phi_en_p : ga_phi_en_p;
 
+// The native Gate Array blacks out on raw CRTC HS (French ACCC v1.11
+// §14.3 p.134). Full byte transport can put the raster eight dots behind it.
+// Align the DAC aperture when the pulse begins inside classic type 1 display.
+// Keep the classification through the fall, including R2 restarts while
+// HS stays high. The original pin continues to drive Gate Array timing.
+wire full_aperture_clear = filter_h_clear || plus_mode || !classic_type1 ||
+                          sync_filter_applied != 2'd0;
+reg full_aperture_shift;
+reg [7:0] full_aperture_history;
+initial begin
+    full_aperture_shift = 0;
+    full_aperture_history = 0;
+end
+wire full_aperture_at_rise = crtc_de && crtc_shift;
+wire full_aperture_delayed = crtc_hs &&
+    (rgb_raw_rise ? full_aperture_at_rise : full_aperture_shift);
+wire ga_video_hs = full_aperture_clear ? crtc_hs :
+    ((crtc_hs && !full_aperture_delayed) || full_aperture_history[7]);
+always @(posedge clk) begin
+    if (full_aperture_clear) begin
+        full_aperture_shift <= 0;
+        full_aperture_history <= 0;
+    end else begin
+        if (rgb_raw_rise) full_aperture_shift <= full_aperture_at_rise;
+        if (ce_16) full_aperture_history <= {full_aperture_history[6:0], full_aperture_delayed};
+    end
+end
+
 ga40010 GateArray (
 	.clk(clk),
 	.cen_16(ce_16),
@@ -1458,6 +1486,7 @@ ga40010 GateArray (
 	.RD_N(RD_n),
 	.IORQ_N(IORQ_n),
 	.HSYNC_I(crtc_hs),
+	.VIDEO_HSYNC_I(ga_video_hs),
 	.HSYNC_RESTART_I(crtc_hsync_restart & ~plus_mode),
 	.VSYNC_I(crtc_vs),
 	.DISPEN(crtc_de),
