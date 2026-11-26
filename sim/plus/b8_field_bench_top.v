@@ -80,7 +80,7 @@ module b8_field_bench_top (
 		.Fn(),
 
 		.ppi_jumpers(4'd0),
-		.crtc_type(1'b0),
+		.crtc_type(2'd0),
 		.sync_filter(sync_filter_i),
 		.no_wait(1'b0),
 

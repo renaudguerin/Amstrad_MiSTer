@@ -137,7 +137,7 @@ module p10_dma_mobo_test_top (
 		.Fn(Fn),
 
 		.ppi_jumpers(4'd0),
-		.crtc_type(1'b0),
+		.crtc_type(2'd0),
 		.sync_filter(2'd2),  // raw path: benches predate the filter modes
 		.no_wait(1'b0),
 

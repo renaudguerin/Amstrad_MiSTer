@@ -37,6 +37,18 @@ the shortcut, select
 save settings once from the MiSTer system menu. Launching Amstrad from
 `_Computer` uses its usual configuration.
 
+### Classic CRTC selection
+
+**Audio & Video → CRTC** offers Type 1 (the default), Type 0, experimental
+Type 2 (Motorola MC6845) and experimental Type 4 (cost-reduced 40226 ASIC).
+Type 0 and Type 1 can be switched while the machine is running. Use **Reset &
+apply model** to switch into, out of or between the experimental types, and
+after changing the machine model. Saved settings apply at the next core
+launch. Type 2 covers progressive timing and parts of interlaced timing.
+Type 4 models the 40226's integrated video and Gate Array. Both have limited
+title coverage, and snapshot loading and saving are unavailable while either
+is running. Plus and GX4000 use their built-in Type 3.
+
 ### Narrow border
 
 Set **Audio & Video → Border → Narrow** to zoom into a 672×216 window around
@@ -49,7 +61,7 @@ An unscaled analog output blanks the cropped area without enlarging the picture.
 
 - CPC 464, 664 and 6128 modes, two disk drives, expansion ROMs, joystick and mouse support, Multiface 2, and basic CDT tape input.
 - Plus and GX4000 cartridge loading, ASIC palette and sprites, split screen and scrolling, raster interrupts, and three channel audio DMA.
-- Separate CRTC type 0 and type 1 engines for classic video timing, and selectable sync filtering.
+- Selectable classic CRTC profiles and sync filtering.
 - CPC+ snapshot loading. The OSD can save a classic CPC snapshot as a development aid, but saving it directly to the SD card is not yet available.
 
 Compatibility and hardware accuracy vary by title and feature. Please include the core release or commit, machine model, media, reproduction steps and a photograph or capture in [bug reports](https://github.com/renaudguerin/Amstrad_MiSTer/issues).

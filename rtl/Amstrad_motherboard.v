@@ -16,9 +16,7 @@
 */
 
 module Amstrad_motherboard #(
-	parameter ENABLE_CRT_RESPONSE = 0,
-	parameter EXPERIMENTAL_CRTC2 = 1'b0,
-	parameter EXPERIMENTAL_CRTC4 = 1'b0
+	parameter ENABLE_CRT_RESPONSE = 0
 )
 (
 	input         reset,
@@ -65,7 +63,7 @@ module Amstrad_motherboard #(
 	output  [9:0] Fn,
 
 	input   [3:0] ppi_jumpers,
-	input         crtc_type,
+	input   [1:0] crtc_type, // Classic owner: 0=Type 0, 1=Type 1, 2=Type 2, 3=Type 4
 	input   [1:0] sync_filter,
 	input         no_wait,
 
@@ -319,10 +317,10 @@ wire MREQ_n;
 wire IORQ_n;
 wire RFSH_n;
 wire ga_int_n;
-wire classic_crtc4 = EXPERIMENTAL_CRTC4 && !plus_mode;
+wire classic_crtc4 = !plus_mode && (crtc_type == 2'd3);
 wire integrated_timing = plus_mode || classic_crtc4;
-wire classic_crtc2 = EXPERIMENTAL_CRTC2 && !integrated_timing;
-wire classic_type1 = crtc_type && !classic_crtc2 && !classic_crtc4;
+wire classic_crtc2 = !plus_mode && (crtc_type == 2'd2);
+wire classic_type1 = crtc_type == 2'd1;
 
 // MODEL LIMIT (B26): Delay assertion on the classic GA-to-Z80 path by
 // eight 64 MHz clocks (two GA periods). The stock SHAKER DEC DE tables
@@ -461,7 +459,7 @@ CRTC crtc
 	.CLKEN(cclk_en_n),
 	.nCLKEN(cclk_en_p),
 	.nRESET(~reset),
-	.CRTC_TYPE(crtc_type),
+	.CRTC_TYPE(crtc_type[0]),
 
 	.ENABLE(classic_crtc_enable && !classic_crtc2 && !classic_crtc4),
 	.nCS(A[14]),
@@ -502,12 +500,10 @@ CRTC crtc
 `endif
 );
 
-// The experimental build uses the discrete GA and classic CPU decode.
-// Type 2 currently supports progressive timing. Leave the board parameter
-// disabled in the public core while port timing and SNA ownership are open.
+// The discrete Type 2 uses the classic Gate Array and CPU decode.
 crtc_type2 crtc2 (
 	.CLOCK(clk),
-	.CLKEN(cclk_en_n),
+	.CLKEN(cclk_en_n && classic_crtc2),
 	.nRESET(~reset && classic_crtc2),
 	.ENABLE(classic_crtc_enable && classic_crtc2),
 	.nCS(A[14]),
@@ -759,50 +755,42 @@ asic_video asic_vid
 	.SNA_MODE(sna_ga_config[1:0])
 );
 
-generate
-if (EXPERIMENTAL_CRTC4) begin : cost_reduced_video
-	// Cold-boot prototype. The existing snapshot header has only the
-	// discrete classic state. Qualify 40226 restore before exposing it.
-	asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
-		.CLOCK(clk),
-		.CLKEN(plus_cclk_en_n),
-		.nRESET(~reset && classic_crtc4),
-		.ENABLE(io_rd | io_wr),
-		.nCS(A[14]),
-		.R_nW(A[9]),
-		.RS(A[8]),
-		.DI(classic_crtc_di),
-		.DO(type4_crtc_dout),
-		.HSYNC(type4_crtc_hs),
-		.VSYNC(type4_crtc_vs),
-		.DE(type4_crtc_de),
-		.FIELD(type4_field),
-		.MA(type4_ma),
-		.RA(type4_ra),
-		.HCC(), .LINE(), .ROW(), .ADJ(),
-		.SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
-		.PIXEN(ce_16),
-		.VIDEOD(plus_vidword),
-		.MODE_UPDATE_EN(plus_mode_update_en),
-		.GAMODE(plus_gamode),
-		.BORDER_I(asic_border),
-		.INKR_I(asic_inkr),
-		.RGB_R(type4_rgb_r),
-		.RGB_G(type4_rgb_g),
-		.RGB_B(type4_rgb_b),
-		.PEN(), .HWRAP(), .SPR_EN(1'b0), .SPR_RGB(12'd0),
-		.PAL_EN(1'b0), .PAL_ADDR(), .PAL_RGB(12'd0),
-		.SNA_LOAD(1'b0), .SNA_ADDR(5'd0), .SNA_REGS(144'd0),
-		.SNA_HCC(8'd0), .SNA_LINE(7'd0), .SNA_RASTER(5'd0), .SNA_VTA(5'd0),
-		.SNA_HSW(4'd0), .SNA_VSW(4'd0), .SNA_VS(1'b0), .SNA_HS(1'b0),
-		.SNA_ADJ(1'b0), .SNA_MODE(2'd0)
-	);
-end else begin : no_cost_reduced_video
-	assign type4_crtc_dout = 8'hff;
-	assign {type4_crtc_hs, type4_crtc_vs, type4_crtc_de, type4_field,
-	        type4_ma, type4_ra, type4_rgb_r, type4_rgb_g, type4_rgb_b} = 35'd0;
-end
-endgenerate
+// The cost-reduced 40226 uses the integrated GA timing and legacy palette.
+// Its experimental profile has no snapshot support.
+asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
+	.CLOCK(clk),
+	.CLKEN(plus_cclk_en_n && classic_crtc4),
+	.nRESET(~reset && classic_crtc4),
+	.ENABLE((io_rd | io_wr) && classic_crtc4),
+	.nCS(A[14]),
+	.R_nW(A[9]),
+	.RS(A[8]),
+	.DI(classic_crtc_di),
+	.DO(type4_crtc_dout),
+	.HSYNC(type4_crtc_hs),
+	.VSYNC(type4_crtc_vs),
+	.DE(type4_crtc_de),
+	.FIELD(type4_field),
+	.MA(type4_ma),
+	.RA(type4_ra),
+	.HCC(), .LINE(), .ROW(), .ADJ(),
+	.SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
+	.PIXEN(ce_16 && classic_crtc4),
+	.VIDEOD(plus_vidword),
+	.MODE_UPDATE_EN(plus_mode_update_en),
+	.GAMODE(plus_gamode),
+	.BORDER_I(asic_border),
+	.INKR_I(asic_inkr),
+	.RGB_R(type4_rgb_r),
+	.RGB_G(type4_rgb_g),
+	.RGB_B(type4_rgb_b),
+	.PEN(), .HWRAP(), .SPR_EN(1'b0), .SPR_RGB(12'd0),
+	.PAL_EN(1'b0), .PAL_ADDR(), .PAL_RGB(12'd0),
+	.SNA_LOAD(1'b0), .SNA_ADDR(5'd0), .SNA_REGS(144'd0),
+	.SNA_HCC(8'd0), .SNA_LINE(7'd0), .SNA_RASTER(5'd0), .SNA_VTA(5'd0),
+	.SNA_HSW(4'd0), .SNA_VSW(4'd0), .SNA_VS(1'b0), .SNA_HS(1'b0),
+	.SNA_ADJ(1'b0), .SNA_MODE(2'd0)
+);
 
 // ASIC register page (P2). The accepted legacy palette write event comes
 // straight from asic_ga_timing, so PENR/INKR writes land in the 12-bit

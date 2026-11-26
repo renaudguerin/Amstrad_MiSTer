@@ -42,7 +42,7 @@ assign HDMI_BOB_DEINT = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXX   XXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXX   XXX
 
 `include "build_id.v"
 // Explicit private build profile; disabled builds keep the three-choice OSD
@@ -64,8 +64,8 @@ localparam CONF_STR = {
 	"FC3,E??,Load expansion;",
 	"-;",
 	"F5,ROM,Load Dandanator ROM;",
-	"F6,SNA,Load snapshot;",
-	"T[38],Save snapshot;",
+	"H6F6,SNA,Load snapshot;",
+	"H6T[38],Save snapshot;",
 	"F7,E??,Load CPC464 ROM;",
 	"-;",
 	"O[62:61],SNAC,Off,Player 1,Player 2;",
@@ -83,7 +83,7 @@ localparam CONF_STR = {
 	"P1OST,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P1OU,Pixel Clock,16MHz,Adaptive;",
 	"P1-;",
-	"d3P1O2,CRTC,Type 1,Type 0;",
+	"d3P1O[3:2],CRTC,Type 1,Type 0,Type 2 (experimental),Type 4 (experimental);",
 `ifdef V1_CRT_RESPONSE_PRIVATE
 	"P1O[36:35],Video output,Full,Raw pixels,Raw CRT,CRT response;",
 `else
@@ -263,7 +263,10 @@ wire        rom_download = ioctl_download && rom_route_active;
 wire        tape_download = ioctl_download && (ioctl_index == 4);
 wire        dan_download = ioctl_download && (ioctl_index == 5);
 wire        dan_write_accepted;
-wire        sna_download = ioctl_download && (ioctl_index == 6);
+wire        sna_download_request = ioctl_download && (ioctl_index == 6);
+wire        sna_download;
+wire        sna_unavailable;
+wire  [1:0] classic_crtc_type;
 wire        cpr_download = ioctl_download && (ioctl_index == 8);
 wire        cpr_ioctl_wait;
 
@@ -905,14 +908,28 @@ sdram sdram
 reg [1:0] model = 2'd0;
 reg reset;
 
-wire reset_base = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
-                  sna_owner_reset_hold;
+// MiSTer Main holds status[0] while sending the saved options at cold boot.
+wire reset_apply = RESET | status[0] | status[32] | buttons[1] | key_reset;
+wire reset_base = reset_apply | rom_download | dan_download | sna_owner_reset_hold;
+
+classic_crtc_select classic_crtc_selector
+(
+	.clk(clk_sys),
+	.reset_apply(reset_apply),
+	.requested(status[3:2]),
+	.plus_mode(plus_mode),
+	.sna_download_request(sna_download_request),
+	.sna_hold(sna_hold),
+	.crtc_type(classic_crtc_type),
+	.sna_unavailable(sna_unavailable),
+	.sna_download(sna_download)
+);
 
 // The SNA parser owns its download lifecycle.  In particular it must remain
 // live while sna_download is asserted and retain its CPC+ RMR2/unlock shadows
 // through sna_finish_pending/sna_apply_cnt until the delayed sna_load pulse.
 // Other reset/download sources still discard an incomplete or retained SNA.
-wire sna_parser_reset = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
+wire sna_parser_reset = reset_apply | rom_download | dan_download |
                         cpr_download | cpr_finish_pending | (old_cpr_download_reset & ~cpr_download) |
                         (cpr_apply_cnt != 3'd0);
 
@@ -1324,6 +1341,7 @@ plus_menu_capability_mask menu_capability_mask
 	.plus_mode(plus_mode),
 	.plus_has_fdc(plus_has_fdc),
 	.plus_has_tape(plus_has_tape),
+	.sna_unavailable(sna_unavailable),
 	.status_menumask(status_menumask)
 );
 
@@ -1526,7 +1544,7 @@ Amstrad_motherboard #(.ENABLE_CRT_RESPONSE(ENABLE_CRT_RESPONSE)) motherboard
 
 	.no_wait(status[6] & ~tape_motor),
 	.ppi_jumpers({1'b1, ~status[44:42]}),
-	.crtc_type(~status[2]),
+	.crtc_type(classic_crtc_type),
 	// 0 Full, 1 Raw pixels, 2 Raw CRT; private3 only when explicitly compiled.
 	// Raw pixels keeps the whole Full acquisition tuple and changes only the
 	// pixels; Raw CRT is the user-approved exception that sends raw geometry
@@ -1819,7 +1837,7 @@ ssm_marker ssm
     .s_trace_enable(1'b1),
     .s_trace_addr(cpu_addr),
     // Same bank and byte address the SDRAM CPU port actually serves.
-    .s_trace_qualified(!plus_mode && !status[2] && !romen &&
+    .s_trace_qualified(!plus_mode && (classic_crtc_type == 2'd1) && !romen &&
         mem_bank==0 && ram_a=={7'd2,cpu_addr} &&
         !mf2_rom_en && !mf2_ram_en && !dan_ena && !sna_load &&
         !sna_hold && !save_hold && !ioctl_download),
@@ -1870,13 +1888,13 @@ reg old_save_osd = 1'b0;
 always @(posedge clk_sys) old_save_osd <= status[38];
 wire save_req = status[38] & ~old_save_osd;
 
-// Classic machine only, outside reset, downloads and snapshot apply. Plus
+// Classic types 0/1 only, outside reset, downloads and snapshot apply. Plus
 // mode, the Dandanator and the Multiface II hold memory or mapping state the
 // file cannot carry, and an outstanding cartridge request would leave the
 // SDRAM port busy. Losing admission while armed cancels the request.
 // Dandanator attachment persists while its EEPROM chip-select (dan_ena) is idle.
 wire save_admit = !reset && !ioctl_download && !sna_hold && !sna_load && !plus_mode &&
-                  !dan_eeprom_loaded && !mf2_en && !cart_mem_req;
+                  !sna_unavailable && !dan_eeprom_loaded && !mf2_en && !cart_mem_req;
 
 // Once the CPU is held, only a reset or a snapshot load stops the save: a
 // load rewrites the RAM being dumped. Every other download either resets the
@@ -1924,7 +1942,7 @@ sna_hw_header save_hw_header
 
 	.printer_data(snap_printer_data),
 	.model(model),
-	.crtc_type(~status[2]),        // the value fed to the motherboard's CRTC_TYPE
+	.crtc_type(classic_crtc_type[0]),
 	.fdc_motor(motor),
 	.fdc_pcn_a(snap_pcn_a),
 	.fdc_pcn_b(snap_pcn_b),

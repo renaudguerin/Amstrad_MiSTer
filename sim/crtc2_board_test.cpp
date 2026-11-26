@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     d.pause = 0;
     d.filter_request = 0;
     d.model = 0;
-    d.crtc_type = 0;
+    d.crtc_type = 2;
     d.save_req = 0;
     d.sna_download = 0;
     d.load_wr = 0;
@@ -144,6 +144,23 @@ int main(int argc, char** argv) {
             pass = false;
         }
     }
+
+    // F6 may be sent externally while hidden. The snapshot controller must
+    // not take reset ownership or apply an empty transaction at its end.
+    for (const bool downloading : {true, false}) {
+        d.sna_download = downloading;
+        for (unsigned i = 0; i < 16; ++i) {
+            tick();
+            if (d.owner_reset || d.sna_hold || d.sna_load) {
+                std::cerr << "CRTC2 board: rejected F6 reached snapshot reset/apply\n";
+                return 1;
+            }
+        }
+    }
+
+    // Browse to Type 4 while the Type 2 program is running. Its GA video
+    // below must continue through the same Type 2 CRTC.
+    d.crtc_type = 3;
 
     // Initial register programming can span a partial frame. Measure a full
     // settled frame, ignoring the partial HSYNC at either observation edge.

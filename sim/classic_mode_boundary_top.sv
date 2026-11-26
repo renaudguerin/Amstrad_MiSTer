@@ -1,6 +1,5 @@
 // Thin classic observation wrapper around production B18 snapshot top.
 // Exposes read-only actual CRTC/GA/CPU/VRAM signals and raw classic RGB.
-// (B18 existing video_rgb is PLUS even when PLUS_MODE=0).
 //
 // Technical information sourced from the "Amstrad CPC CRTC Compendium"
 // by Longshot (CC BY-NC-ND 4.0), French v1.11 §§9.1, 9.3.4 pp47, 56-67.
@@ -82,7 +81,7 @@ module classic_mode_boundary_top (
         .pause(pause),
         .filter_request(filter_request),
         .model(2'd0),
-        .crtc_type(crtc_type),
+        .crtc_type({1'b0, crtc_type}),
         .save_req(save_req),
         .sna_download(sna_download),
         .load_wr(load_wr),

@@ -9,6 +9,7 @@ module b18_save_admission_test;
     reg sna_hold = 1'b0;
     reg sna_load = 1'b0;
     reg plus_mode = 1'b0;
+    reg sna_unavailable = 1'b0;
     reg mf2_en = 1'b0;
     reg cart_mem_req = 1'b0;
     reg dan_download = 1'b0;
@@ -174,6 +175,13 @@ module b18_save_admission_test;
         request_save();
         check(refused && !busy, "Plus save request must be refused");
         plus_mode = 1'b0;
+
+        sna_unavailable = 1'b1;
+        #1;
+        check_control("experimental CRTC");
+        request_save();
+        check(refused && !busy, "experimental CRTC save request must be refused");
+        sna_unavailable = 1'b0;
 
         reset = 1'b1; #1; check_control("reset"); reset = 1'b0;
         ioctl_download = 1'b1; #1; check_control("download"); ioctl_download = 1'b0;

@@ -1,7 +1,7 @@
 # B18 classic save/reload through production CPU, motherboard and SNA owners.
 B18_MBOARD := $(OBJ_DIR)/b18_snapshot/Amstrad_motherboard.v
 B18_SNAPSHOT_RTL := b18_snapshot_top.sv $(T80_NETLIST) $(B18_MBOARD) \
-	$(addprefix ../rtl/,Amstrad_MMU.v CRTC.v crtc_type0_engine.v crtc_type1_engine.v crtc_type2.v crt_filter.v crt_response.sv i8255.v YM2149.sv hid.sv sna_hw_header.v sna_save_capture.v sna_save_stream.v sna_cpu_header.v) \
+	$(addprefix ../rtl/,Amstrad_MMU.v CRTC.v crtc_type0_engine.v crtc_type1_engine.v crtc_type2.v classic_crtc_select.v crt_filter.v crt_response.sv i8255.v YM2149.sv hid.sv sna_hw_header.v sna_save_capture.v sna_save_stream.v sna_cpu_header.v) \
 	$(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v) \
 	$(addprefix ../rtl/plus/,asic_regs.v plus_sprite_ram.v asic_ga_timing.v asic_video.v asic_sprites.v asic_dma.v plus_sna_header.v plus_sna_apply.v)
 B18_SNAPSHOT_BIN := $(OBJ_DIR)/b18_snapshot/b18_snapshot_tests
@@ -36,7 +36,7 @@ crtc2-board-test: $(CRTC2_BOARD_BIN)
 $(CRTC2_BOARD_BIN): $(B18_SNAPSHOT_RTL) crtc2_board_test.cpp b18_snapshot.mk Makefile
 	mkdir -p $(@D)
 	$(VERILATOR) --cc --exe --build --top-module b18_snapshot_top -UVERILATOR \
-		-GEXPERIMENTAL_CRTC2=1 -GVIDEO_RAM=1 +1364-2001ext+.v +1800-2017ext+.sv \
+		-GVIDEO_RAM=1 +1364-2001ext+.v +1800-2017ext+.sv \
 		--Mdir $(@D) -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o crtc2_board_tests $(B18_SNAPSHOT_RTL) crtc2_board_test.cpp
 
@@ -49,7 +49,7 @@ crtc4-board-test: $(CRTC4_BOARD_BIN)
 $(CRTC4_BOARD_BIN): $(B18_SNAPSHOT_RTL) crtc4_board_test.cpp b18_snapshot.mk Makefile
 	mkdir -p $(@D)
 	$(VERILATOR) --cc --exe --build --top-module b18_snapshot_top -UVERILATOR \
-		-GEXPERIMENTAL_CRTC4=1 -GVIDEO_RAM=1 +1364-2001ext+.v +1800-2017ext+.sv \
+		-GVIDEO_RAM=1 +1364-2001ext+.v +1800-2017ext+.sv \
 		--Mdir $(@D) -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o crtc4_board_tests $(B18_SNAPSHOT_RTL) crtc4_board_test.cpp
 

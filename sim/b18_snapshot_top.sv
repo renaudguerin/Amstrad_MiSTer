@@ -6,15 +6,14 @@
 // Only standard uncompressed classic snapshots are accepted (no chunks).
 module b18_snapshot_top #(
     parameter PLUS_MODE = 1'b0,
-    parameter VIDEO_RAM = 1'b0,
-    parameter EXPERIMENTAL_CRTC2 = 1'b0,
-    parameter EXPERIMENTAL_CRTC4 = 1'b0
+    parameter VIDEO_RAM = 1'b0
 ) (
     input clk, reset_btn,
     input pause,
     input [1:0] filter_request,
     input [1:0] model,
-    input crtc_type, save_req, sna_download, load_wr,
+    input [1:0] crtc_type,
+    input save_req, sna_download, load_wr,
     input [24:0] load_addr,
     input [7:0] load_data, mem_din, cart_dout,
     input cart_ack, ddram_busy,
@@ -64,6 +63,19 @@ module b18_snapshot_top #(
 
     wire owner_reset_hold;
     wire [1:0] sna_hdr_model;
+    wire [1:0] active_crtc;
+    wire sna_admitted, sna_unavailable;
+
+    // Keep the fixture's original 0/1 type numbering. The selector takes
+    // the MiSTer menu values (0=Type 1, 1=Type 0).
+    classic_crtc_select crtc_selector (
+        .clk(clk), .reset_apply(reset_btn),
+        .requested({crtc_type[1], crtc_type[0] ^ !crtc_type[1]}),
+        .plus_mode(PLUS_MODE),
+        .sna_download_request(sna_download), .sna_hold(sna_hold),
+        .crtc_type(active_crtc), .sna_unavailable(sna_unavailable),
+        .sna_download(sna_admitted)
+    );
     always @(posedge clk) begin
         owner_reset <= reset_btn | owner_reset_hold;
         if (sna_load) active_model <= sna_hdr_model;
@@ -85,11 +97,11 @@ module b18_snapshot_top #(
     wire [15:0] std_mem_size = sna_mem_size > 16'd128 ? 16'd128 : sna_mem_size;
     wire [24:0] payload_addr = load_addr - 25'h100;
     wire [24:0] chunk_start = 25'h100 + {std_mem_size[14:0], 10'd0};
-    assign load_mem_wr = sna_download && load_wr && load_addr >= 25'h100 &&
+    assign load_mem_wr = sna_admitted && load_wr && load_addr >= 25'h100 &&
                          load_addr < chunk_start && {9'd0, payload_addr[16:10]} < std_mem_size;
     assign load_mem_addr = {9'd8 + {6'd0, payload_addr[16:14]}, payload_addr[13:0]};
     assign load_mem_bank = sna_hdr_model;
-    wire header_wr = sna_download && load_wr && load_addr < 25'h100;
+    wire header_wr = sna_admitted && load_wr && load_addr < 25'h100;
     wire [211:0] sna_cpu_dir;
     wire [4:0] sna_crtc_addr;
     wire [143:0] sna_crtc_regs;
@@ -150,7 +162,7 @@ module b18_snapshot_top #(
 plus_sna_header sna_header
 (
 	.clk(clk),
-	.sna_download(sna_download),
+	.sna_download(sna_admitted),
 	.wr(header_wr),
 	.addr(load_addr[7:0]),
 	.data(load_data),
@@ -182,7 +194,7 @@ plus_sna_header sna_header
 sna_cpu_header sna_cpu_header
 (
 	.clk(clk),
-	.sna_download(sna_download),
+	.sna_download(sna_admitted),
 	.wr(header_wr),
 	.addr(load_addr[7:0]),
 	.data(load_data),
@@ -201,16 +213,13 @@ sna_cpu_header sna_cpu_header
 );
 
     plus_sna_apply apply_controller (
-        .clk(clk), .sna_download(sna_download), .romdl_wait(1'b0),
+        .clk(clk), .sna_download(sna_admitted), .romdl_wait(1'b0),
         .boot_wr(load_mem_wr), .sna_rle_count(8'd0), .plus_sna_busy(1'b0),
         .finish_pending(), .apply_cnt(), .sna_load(sna_load),
         .sna_hold(sna_hold), .owner_reset_hold(owner_reset_hold)
     );
 
-    Amstrad_motherboard #(
-        .EXPERIMENTAL_CRTC2(EXPERIMENTAL_CRTC2),
-        .EXPERIMENTAL_CRTC4(EXPERIMENTAL_CRTC4)
-    ) motherboard (
+    Amstrad_motherboard motherboard (
         .reset(owner_reset),
         .clk(clk),
         .ce_16(ce_16),
@@ -237,7 +246,7 @@ sna_cpu_header sna_cpu_header
         .key_reset(),
         .Fn(),
         .ppi_jumpers(4'b1010),
-        .crtc_type(crtc_type),
+        .crtc_type(active_crtc),
         .sync_filter(filter_request),
         .no_wait('0),
         .sna_load(sna_load),
@@ -404,7 +413,7 @@ sna_hw_header save_hw_header
 
 	.printer_data(snap_printer_data),
 	.model(active_model),
-	.crtc_type(crtc_type),
+	.crtc_type(active_crtc[0]),
 	.fdc_motor(1'b0),
 	.fdc_pcn_a(8'd0),
 	.fdc_pcn_b(8'd0),
@@ -422,24 +431,24 @@ sna_hw_header save_hw_header
 
     // CRTC2 observes the discrete GA pins. CRTC4 checks the active
     // board-level RGB and its selected CRTC sync and display pins.
-    localparam OBSERVE_CLASSIC = EXPERIMENTAL_CRTC2 && !PLUS_MODE;
-    assign video_rgb = EXPERIMENTAL_CRTC4 ? board_rgb :
-                       OBSERVE_CLASSIC ? {6'd0, motherboard.ga_red, motherboard.ga_green, motherboard.ga_blue} :
+    wire observe_crtc4 = !PLUS_MODE && (active_crtc == 2'd3);
+    assign video_rgb = observe_crtc4 ? board_rgb :
+                       !PLUS_MODE ? {6'd0, motherboard.ga_red, motherboard.ga_green, motherboard.ga_blue} :
                        {motherboard.plus_rgb_r, motherboard.plus_rgb_g, motherboard.plus_rgb_b};
     assign video_pen = motherboard.asic_vid.PEN;
-    assign video_hs = EXPERIMENTAL_CRTC4 ? motherboard.hs_sel :
-                      OBSERVE_CLASSIC ? motherboard.GateArray.HSYNC_I : motherboard.plus_crtc_hs;
-    assign video_vs = EXPERIMENTAL_CRTC4 ? motherboard.vs_sel :
-                      OBSERVE_CLASSIC ? motherboard.GateArray.VSYNC_I : motherboard.plus_crtc_vs;
-    assign video_de = EXPERIMENTAL_CRTC4 ? motherboard.de_sel :
-                      OBSERVE_CLASSIC ? motherboard.GateArray.DISPEN : motherboard.asic_vid.eff_de;
+    assign video_hs = observe_crtc4 ? motherboard.hs_sel :
+                      !PLUS_MODE ? motherboard.GateArray.HSYNC_I : motherboard.plus_crtc_hs;
+    assign video_vs = observe_crtc4 ? motherboard.vs_sel :
+                      !PLUS_MODE ? motherboard.GateArray.VSYNC_I : motherboard.plus_crtc_vs;
+    assign video_de = observe_crtc4 ? motherboard.de_sel :
+                      !PLUS_MODE ? motherboard.GateArray.DISPEN : motherboard.asic_vid.eff_de;
 
     wire [2047:0] save_header;
     assign saved_header = save_header;
-    wire save_abort = owner_reset | sna_download;
+    wire save_abort = owner_reset | sna_admitted;
     sna_save_capture capture (
         .clk(clk), .reset(save_abort), .save_req(save_req),
-        .admit(!owner_reset && !sna_download && !sna_hold && !sna_load),
+        .admit(!owner_reset && !sna_download && !sna_hold && !sna_load && !sna_unavailable),
         .rampage_ok(snap_mmu_rampage == 5'd3), .release_req(save_done),
         .insn_start(cpu_insn_start), .halt_n(cpu_halt_n),
         .cpu_reg(cpu_reg), .hw_hdr(hw_header), .hold(save_hold),

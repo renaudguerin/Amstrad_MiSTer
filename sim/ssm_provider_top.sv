@@ -67,7 +67,7 @@ module ssm_provider_top #(parameter CRTC_KIND=0) (
  .key_reset(),
  .Fn(),
  .ppi_jumpers(4'b1010),
- .crtc_type(CRTC_KIND[0]),
+ .crtc_type({1'b0, CRTC_KIND[0]}),
  .sync_filter('0),
  .no_wait('0),
  .sna_load('0),

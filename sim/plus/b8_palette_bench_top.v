@@ -76,7 +76,7 @@ module b8_palette_bench_top (
 		.Fn(),
 
 		.ppi_jumpers(4'd0),
-		.crtc_type(1'b0),
+		.crtc_type(2'd0),
 		.sync_filter(2'd2), // raw path: palette is filter-independent
 		.no_wait(1'b0),
 

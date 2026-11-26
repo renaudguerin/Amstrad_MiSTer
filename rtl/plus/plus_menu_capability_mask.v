@@ -1,7 +1,5 @@
-// MiSTer hides a CONF_STR item when its d<n> prefix addresses a clear bit in
-// status_menumask. Keep the machine-capability mapping in a small production
-// module so the model decoder and menu contract can be tested without the HPS
-// wrapper or a generated build_id.v.
+// MiSTer disables d<n> items on clear bits and hides H<n> items on set bits.
+// Keep the machine capability mask separate from the HPS transport.
 
 module plus_menu_capability_mask
 (
@@ -9,10 +7,11 @@ module plus_menu_capability_mask
 	input  plus_mode,
 	input  plus_has_fdc,
 	input  plus_has_tape,
+	input  sna_unavailable,
 	output [15:0] status_menumask
 );
 
-assign status_menumask = {10'b0,
+assign status_menumask = {9'b0, sna_unavailable,
 	(!plus_mode || plus_has_tape),
 	(!plus_mode || plus_has_fdc),
 	!plus_mode,

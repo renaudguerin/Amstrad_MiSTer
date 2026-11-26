@@ -18,7 +18,8 @@ ASICVID_TEST_BIN := $(ASICVID_OBJ_DIR)/asic_video_tests
 B6_MENU_TOP      := b6_menu_mask_test_top
 B6_MENU_TOP_SRC  := $(abspath b6_menu_mask_test_top.v)
 B6_MENU_RTL      := $(abspath ../../rtl/plus/plus_menu_capability_mask.v) \
-	$(abspath ../../rtl/plus/plus_model_select.v)
+	$(abspath ../../rtl/plus/plus_model_select.v) \
+	$(abspath ../../rtl/classic_crtc_select.v ../../rtl/plus/plus_sna_apply.v)
 B6_MENU_OBJ_DIR  := obj_dir/b6_menu_mask
 B6_MENU_TEST_SRC := $(abspath b6_menu_mask_test.cpp)
 B6_MENU_TEST_BIN := $(B6_MENU_OBJ_DIR)/b6_menu_mask_tests

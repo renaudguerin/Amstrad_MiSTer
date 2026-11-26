@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     d.pause = 0;
     d.filter_request = 0;
     d.model = 0; // Classic CPC 6128.
-    d.crtc_type = 0;
+    d.crtc_type = 1;
     d.save_req = 0;
     d.sna_download = 0;
     d.load_wr = 0;
@@ -134,8 +134,12 @@ int main(int argc, char** argv) {
         d.eval();
     };
 
+    // Main holds status[0] high while replaying saved OSD settings and
+    // loading the boot ROM. The saved Type 4 arrives after reset starts.
     d.reset_btn = 1;
-    for (unsigned i = 0; i < 1024; ++i) tick();
+    for (unsigned i = 0; i < 512; ++i) tick();
+    d.crtc_type = 3;
+    for (unsigned i = 0; i < 512; ++i) tick();
     d.reset_btn = 0;
     for (unsigned i = 0; i < 16 * clocks_per_line && d.cpu_halt_n; ++i) tick();
     if (d.cpu_halt_n) {

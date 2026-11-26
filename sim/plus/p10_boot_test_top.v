@@ -540,9 +540,9 @@ module p10_boot_test_top #(
 		.ppi_jumpers(4'd0),
 		.crtc_type(
 `ifdef B7_DARK_SILICON_MUTATION
-			b7_crtc_type
+			{1'b0, b7_crtc_type}
 `else
-			1'b0
+			2'd0
 `endif
 		),
 		.sync_filter(
