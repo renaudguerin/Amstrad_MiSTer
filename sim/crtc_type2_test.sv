@@ -105,6 +105,77 @@ module crtc_type2_test;
 		end
 	endtask
 
+
+	// FR §19.6.3 pp.217–218: the extra line follows the R5 lines
+	// when the reaching-R6 latch selects an incoming odd field.
+	// With R0=31 and R5=3, the two physical VSYNC periods differ
+	// by only two characters, despite alternating midpoint onset.
+	task automatic verify_extra_interlace_line(input logic [7:0] mode, input bit hold_r6);
+		int rise_ticks[5];
+		int rises = 0;
+		int frame_ticks = (hold_r6 ? 40 : 43) * 32;
+		bit old_vs = 0;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'hf3);
+		if (hold_r6) write_reg(5, 0);
+		write_reg(2, 18);
+		write_reg(8, mode);
+		find_origin(1, mode[1:0] == 3 ? 5'd1 : 5'd0);
+
+		for (int tick = 0; tick < 5 * 44 * 32; tick++) begin
+			// The first field is odd. On the following, even field,
+			// move R6 just past R4 after its row captured next parity.
+			// The extra line alone reaches C4=20 and must not relatch it.
+			if (hold_r6 && tick == frame_ticks + 25 * 32) write_reg(6, 20);
+			if (vs && !old_vs) begin
+				rise_ticks[rises] = tick;
+				rises++;
+				if (rises == 5) break;
+			end
+			old_vs = vs;
+			step(1);
+		end
+		if (rises != 5) $fatal(1, "R8=%02x did not emit five VSYNC pulses", mode);
+		if (rise_ticks[1] - rise_ticks[0] != frame_ticks + 15 ||
+		    rise_ticks[2] - rise_ticks[1] != frame_ticks + 17)
+			$fatal(1, "R8=%02x interlace periods were %0d and %0d, expected %0d and %0d",
+			       mode, rise_ticks[1] - rise_ticks[0], rise_ticks[2] - rise_ticks[1],
+			       frame_ticks + 15, frame_ticks + 17);
+		if (hold_r6) begin
+			if (rise_ticks[3] - rise_ticks[2] != frame_ticks + 32 ||
+			    rise_ticks[4] - rise_ticks[3] != frame_ticks + 32)
+				$fatal(1, "unreachable R6 lost the repeated extra line with held odd parity");
+		end else begin
+			if (rise_ticks[3] - rise_ticks[2] != frame_ticks + 15 ||
+			    rise_ticks[4] - rise_ticks[3] != frame_ticks + 17)
+				$fatal(1, "R8=%02x did not repeat the two field lengths", mode);
+		end
+	endtask
+
+
+	// FR §19.6.3 p.218: disabling IVM during the extra line
+	// leaves C4 above R4 and resumes ordinary raster counting.
+	task automatic verify_cancel_extra_interlace_line;
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'hf3);
+		write_reg(5, 0);
+		write_reg(8, 8'h33);
+		find_origin(1, 5'd1);
+		repeat (80 * 32 + 2) step(1);
+		if (de || ra !== 5'd0 || vs)
+			$fatal(1, "expected extra line on the outgoing even field");
+		write_reg(7, 20);
+		if (!vs) $fatal(1, "the extra line did not reach C4=20");
+		write_reg(8, 8'h30);
+		repeat (30) step(1);
+		if (de || ra !== 5'd1)
+			$fatal(1, "clearing IVM prematurely reset C4/C9 after the extra line");
+	endtask
+
 	task automatic verify_ghost_vsync;
 		// At x=15 the 3-character HSYNC has just fallen. The whole
 		// character still blocks the VSYNC pin (FR §16.4.3 p.171).
@@ -427,8 +498,12 @@ module crtc_type2_test;
 		verify_mid_vsync(8'h33, 0, 0);
 		verify_mid_vsync(8'h32, 5, 0);
 		verify_mid_vsync(8'h33, 5, 1);
+		verify_extra_interlace_line(8'h31, 0);
+		verify_extra_interlace_line(8'h33, 0);
+		verify_extra_interlace_line(8'h33, 1);
+		verify_cancel_extra_interlace_line();
 
-		$display("PASS CRTC2 progressive timing, I/O, IVM addressing and MID-VSYNC");
+		$display("PASS CRTC2 progressive timing, I/O, IVM addressing, MID-VSYNC and extra line");
 		$finish;
 	end
 endmodule

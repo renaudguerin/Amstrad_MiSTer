@@ -31,9 +31,9 @@
 //  cite their ACCC section at the point of implementation.
 //============================================================================
 
-// Progressive timing, IVM addressing and natural MID-VSYNC. Interlace
-// extra lines, cursor output and the sub-character R0/R2/R3 and VSYNC
-// aperture need separate qualification.
+// Progressive timing, IVM addressing, natural MID-VSYNC and the natural
+// interlace extra line. Live IVM entry at the odd origin, cursor output
+// and the sub-character R0/R2/R3 and VSYNC aperture need qualification.
 module crtc_type2 (
 	input            CLOCK,
 	input            CLKEN,
@@ -116,6 +116,7 @@ reg [3:0] ivm_raster;
 reg frame_odd, next_frame_odd;
 reg [4:0] adjustment;
 reg in_adjustment;
+reg interlace_extra;
 reg [13:0] line_addr, next_line_addr;
 reg [13:0] video_addr;
 reg last_line, previous_last_line, last_line_enabled;
@@ -132,8 +133,14 @@ wire raster_end = raster == max_raster;
 // FR §11.3.1 p.87: C5 can wrap during an active adjustment when
 // software moves R5 below C5+1. Zero is a counter value in that state.
 wire [4:0] next_adjustment = adjustment + 5'd1;
-wire frame_end = in_adjustment ? next_adjustment == v_adjust :
-                 last_line && v_adjust == 0;
+wire ordinary_frame_end = in_adjustment ? next_adjustment == v_adjust :
+                          last_line && v_adjust == 0;
+// FR §19.6.3 pp.217–218: ParitéR6 selects an extra line after R5.
+// Clearing Interlace during that line releases ordinary C4/C9 counting.
+wire add_interlace_line = !interlace_extra && ordinary_frame_end &&
+                          interlace_mode[0] && next_frame_odd;
+wire frame_end = interlace_extra ? interlace_mode[0] :
+                 ordinary_frame_end && !add_interlace_line;
 wire [6:0] next_row = frame_end ? 7'd0 : row + {6'd0, raster_end};
 wire [4:0] next_raster = frame_end || raster_end ? 5'd0 : raster + 5'd1;
 // FR §19.8.3 pp.227–228: C9.IVM runs in every R8 mode, resetting
@@ -212,6 +219,7 @@ always @(posedge CLOCK) begin
 		next_frame_odd <= 0;
 		adjustment <= 0;
 		in_adjustment <= 0;
+		interlace_extra <= 0;
 		line_addr <= 0;
 		next_line_addr <= 0;
 		video_addr <= 0;
@@ -279,6 +287,7 @@ always @(posedge CLOCK) begin
 					next_line_addr <= next_video_addr;
 			end
 			if (line_end) begin
+				interlace_extra <= add_interlace_line;
 				opening_raster_match <= next_raster == max_raster;
 				row <= next_row;
 				raster <= next_raster;
@@ -286,7 +295,8 @@ always @(posedge CLOCK) begin
 				// FR §19.5.4 p.213: reaching R6 determines the next
 				// frame's parity independently of the current R8 mode.
 				if (frame_end) frame_odd <= next_frame_odd;
-				if (next_row == v_displayed && (frame_end || next_row != row))
+				if (!add_interlace_line && next_row == v_displayed &&
+				    (frame_end || next_row != row))
 					next_frame_odd <= frame_end ? !next_frame_odd : !frame_odd;
 				horizontal_display <= h_displayed != 0 && !hsync_next;
 				if (frame_end || next_row == v_displayed)
@@ -296,7 +306,7 @@ always @(posedge CLOCK) begin
 				// The terminal transfer above uses the outgoing last-line state.
 				if (h_displayed == 0 && (frame_end || next_address_raster_end))
 					next_line_addr <= line_addr_on_wrap;
-				if (frame_end) in_adjustment <= 0;
+				if (frame_end || add_interlace_line) in_adjustment <= 0;
 				else if (in_adjustment) adjustment <= next_adjustment;
 				else if (last_line) begin
 					in_adjustment <= 1;
