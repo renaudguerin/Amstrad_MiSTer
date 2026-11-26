@@ -307,6 +307,7 @@ public:
         // latch so reset, snapshot and live-type lifecycle leaks cannot hide
         // behind an unchanged pin sample.
         mix(r.CRTC__DOT__type0_r6_zero_origin_border);
+        mix(r.CRTC__DOT__type0_r6_border);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__r6_border_condition);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__status_bit5_r);
         // F10 fixture stage (2026-08-24): the shared interlace parity flops
@@ -7695,6 +7696,63 @@ void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
         "(French ACCC v1.11 section 18.3.2 p.191)");
 }
 
+// BU 021B keeps the border when display returns before C0 advances. With
+// the opposite restore order, the normal R6=0 half-character alternation
+// resumes before C0=R1 (French ACCC v1.11 §18.3.2 p.191).
+void test_type0_frozen_origin_r6_restore_order(TestBench& test) {
+    constexpr RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x8e}, {4, 2},
+        {5, 1}, {6, 13}, {7, 18}, {8, 0}, {9, 7},
+    }};
+    constexpr unsigned frame_chars = (3 * 8 + 1) * 64;
+
+    // Run reverse first. This catches a permanently complementary vertical
+    // gate pair independently of the frozen DE output itself.
+    for (bool restore_r6_first : {false, true}) {
+        test.set_crtc_type(0);
+        program_registers(test, registers);
+        test.select_register(0);
+        test.reset();
+        test.run_characters(frame_chars - 1);
+        test.run_clock_ticks(3);
+        test.expect_byte("BU starts at C0=0", 0, test.c0());
+        test.expect_c4("BU starts at C4=0", 0);
+        test.expect_ra("BU starts at RA=0", 0);
+        test.expect_de_high("BU starts on a visible line");
+        test.write_selected_register_now(0);
+        test.run_characters(2);
+        test.write_register(6, 0);
+        test.run_characters(2);
+        test.expect_byte("BU held origin remains at C0=0", 0, test.c0());
+        test.expect_c4("BU held origin remains at C4=0", 0);
+        test.expect_ra("BU held origin remains at RA=0", 0);
+
+        if (restore_r6_first) {
+            test.expect_de_low("BU nonzero-to-zero R6 blanks the frozen origin");
+            test.write_selected_register_now(13);
+        }
+        test.write_register(0, 63);
+        for (unsigned tick = 0; tick < kClockTicksPerCharacter && test.c0() == 0; ++tick)
+            test.run_clock_ticks(1);
+        test.expect_byte("BU restore reaches the first advancing character", 1,
+                         test.c0());
+        if (restore_r6_first) {
+            test.expect_de_low("BU R6-first restore holds border on the outgoing frame");
+            test.run_characters(frame_chars);
+            test.expect_c4("BU hold releases at the following origin", 0);
+            test.expect_ra("BU following origin is raster zero", 0);
+            test.expect_de_high("BU following origin displays normally");
+        } else {
+            test.expect_de_high("BU R0-first restore resumes the displayed half");
+            test.run_clock_ticks(kClockTicksPerCharacter / 2);
+            test.expect_de_low("BU R0-first restore keeps the ordinary border half");
+            test.run_characters(39);
+            test.expect_byte("BU R0-first restore reaches R1", 40, test.c0());
+            test.expect_de_low("BU R0-first restore reaches the normal R1 border");
+        }
+    }
+}
+
 // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
 // French ACCC v1.11 section 13.7.2 pp.126-128 and compendium-01-counters.md
 // section 8.4: on CRTC 0, when C0=0 of a true last frame line (C4==R4 &&
@@ -11323,6 +11381,9 @@ int main(int argc, char** argv) {
         {"t34a_type0_r6_zero_first_line_cancellation",
          "ACCC v1.11 French section 18.3.2 p.191; BL-036/IA-3",
          false, t34_type0_r6_zero_first_line_cancellation},
+        {"type0_frozen_origin_r6_restore_order",
+         "SHAKER BU 021B; French ACCC v1.11 §18.3.2 p.191",
+         false, test_type0_frozen_origin_r6_restore_order},
         // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
         {"t35a_type0_r0_one_c0_1_widening_persists_adjustment",
          "ACCC v1.11 French section 13.7.2 pp.126-128; IA-6",

@@ -831,6 +831,31 @@ end
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
 wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
+
+// MODEL LIMIT (B26): original BU 021B needs a vertical border after a
+// decoded R6 write to zero at frozen C0/C4/C9=0. Keep the underlying
+// origin alternation running for ordinary display if C0 resumes with
+// R6 still zero (French ACCC v1.11 §18.3.2 p.191). If R6 has already
+// recovered, the border persists until the normal frame origin.
+// The combined frozen-origin hardware aperture remains unmeasured.
+localparam [1:0] R6_BORDER_IDLE = 2'd0, R6_BORDER_FROZEN = 2'd1,
+                 R6_BORDER_TO_ORIGIN = 2'd2;
+reg [1:0] type0_r6_border;
+wire type0_frozen_origin = e0_r0_frozen && (row == 0) && (line == 0);
+wire type0_frozen_r6_zero_write = type0_frozen_origin && reg_data_write &&
+    (addr == 5'd6) && (DI[6:0] == 0) && (R6_v_displayed != 0);
+wire type0_r6_force_border = !CRTC_TYPE && !SNA_LOAD &&
+    ((type0_r6_border == R6_BORDER_TO_ORIGIN) ||
+     ((type0_r6_border == R6_BORDER_FROZEN) && (type0_frozen_origin || (R6_v_displayed != 0))));
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || CRTC_TYPE || (CLKEN && row_new && frame_new))
+        type0_r6_border <= R6_BORDER_IDLE;
+    else if ((type0_r6_border == R6_BORDER_IDLE) && type0_frozen_r6_zero_write)
+        type0_r6_border <= R6_BORDER_FROZEN;
+    else if ((type0_r6_border == R6_BORDER_FROZEN) && !type0_frozen_origin)
+        type0_r6_border <= (R6_v_displayed == 0) ? R6_BORDER_IDLE : R6_BORDER_TO_ORIGIN;
+end
+
 wire type0_r6_zero_origin_r1_hit = !CRTC_TYPE && !row_new &&
 									(row == 0) && (line == 0) &&
 									(R6_v_displayed == 0) &&
@@ -1024,7 +1049,7 @@ always @(posedge CLOCK) begin
 	else if(nCLKEN)   de_second_half <= 1;
 end
 
-wire de_unskewed = hde & vde & vde_r &
+wire de_unskewed = hde & vde & vde_r & !type0_r6_force_border &
 					~(e0_spurious_border_off & de_second_half);
 wire [3:0] de = {1'b0, dde[1:0], de_unskewed};
 reg  [1:0] dde;
