@@ -12,7 +12,7 @@ module amstrad_video_output (
     input [2:0] mix,
     input [3:0] r4, g4, b4,
     input hs, vs, hbl, vbl,
-    input pixel_rate_select, forced_scandoubler, field_in, vcrop_en,
+    input pixel_rate_select, forced_scandoubler, field_in, vcrop_en, narrow_border,
     input [11:0] HDMI_WIDTH, HDMI_HEIGHT,
     input HDMI_FREEZE, progress_pix,
     inout [21:0] gamma_bus,
@@ -86,6 +86,38 @@ assign obs_field  = obs_field_r;
 assign obs_native_cadence = ~raw_crt & (native_cadence | ~(pixel_rate_select | (scale == 2'd1)));
 assign obs_applied_config = {plus_mode, mix, hq2x, pixel_rate_select, raw_crt, obs_native_cadence};
 
+// The normal filtered raster is 768 dots by about 273 lines. Keep a
+// 672-by-216 window, with a margin around the nominal 640-by-200 picture.
+// Count native dots so the same window applies at every adaptive pixel rate.
+// The tap above retains the original blanking and geometry for capture.
+reg [9:0] border_dot = 0;
+reg [8:0] border_line = 0;
+reg old_hblank = 1'b1;
+reg old_vblank = 1'b1;
+reg narrow_frame = 1'b0;
+always @(posedge CLK_VIDEO) begin
+    if (ce_16) begin
+        old_hblank <= hbl;
+        old_vblank <= vbl;
+        if (hbl) border_dot <= 0;
+        else if (!(&border_dot)) border_dot <= border_dot + 1'd1;
+
+        if (vbl) border_line <= 0;
+        else if (hbl && !old_hblank && !(&border_line))
+            border_line <= border_line + 1'd1;
+
+        if (vbl && !old_vblank) narrow_frame <= narrow_border;
+    end
+end
+
+// Raw CRT and CRT response need the full raster. Main passes zero HDMI
+// dimensions in Direct Video, which must also keep its original blanking.
+wire narrow_active = narrow_frame && !raw_crt && !native_cadence && (HDMI_HEIGHT != 0);
+// The first sampled dot has a count of one after the increment, alongside
+// the colour converter's registered sample.
+wire mixer_hblank = HBlank | (narrow_active && (border_dot < 10'd49 || border_dot >= 10'd721));
+wire mixer_vblank = VBlank | (narrow_active && (border_line < 9'd28 || border_line >= 9'd244));
+
 // Raw CRT forces the core's own post-processing off: native ce_16 (no
 // adaptive pixel rate, no HQ2x), no scandoubler, no scanline effect and no
 // vertical crop.  The retained OSD settings themselves are untouched and
@@ -115,13 +147,15 @@ video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
 	.R(R | {8{progress_pix}}),
 	.G(G | {8{progress_pix}}),
 	.B(B | {8{progress_pix}}),
+	.HBlank(mixer_hblank),
+	.VBlank(mixer_vblank),
 	.VGA_DE(vga_de),
 	.freeze_sync(),
 	.scandoubler(scandoubler_en)
 );
 
 always @(posedge CLK_VIDEO) begin
-	en270p <= ((HDMI_WIDTH == 1920) && (HDMI_HEIGHT == 1080) && !forced_scandoubler && !scale);
+	en270p <= (HDMI_WIDTH == 1920) && (HDMI_HEIGHT == 1080) && !forced_scandoubler && !scale && !narrow_active;
 end
 
 wire vga_de;
@@ -132,8 +166,10 @@ video_freak video_freak
 	.VGA_DE(vga_de_cropped),
 	.VGA_DE_IN(vga_de),
 
-	.ARX((!ar) ? 12'd4 : (ar - 1'd1)),
-	.ARY((!ar) ? 12'd3 : 12'd0),
+	// 4:3 scaled by the horizontal and vertical fractions of the original
+	// capture window, preserving the pixel aspect ratio after cropping.
+	.ARX((!ar) ? (narrow_active ? 12'd637 : 12'd4) : (ar - 1'd1)),
+	.ARY((!ar) ? (narrow_active ? 12'd432 : 12'd3) : 12'd0),
 	.CROP_SIZE((en270p & vcrop_en & ~raw_crt) ? 10'd270 : 10'd0),
 	.CROP_OFF(0),
 	.SCALE(integer_scale)
