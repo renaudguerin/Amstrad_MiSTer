@@ -42,7 +42,7 @@
 //============================================================================
 
 module asic_video #(
-	// The 40226 profile currently selects only horizontal RGB blanking.
+	// The 40226 profile selects its horizontal RGB blank and Mode 2 phase.
 	parameter ASIC_40226 = 1'b0
 )
 (
@@ -1253,6 +1253,12 @@ end
 
 wire [7:0] vbyte = pix_cnt[3] ? vid_odd : vid_even;
 wire [2:0] s     = pix_cnt[2:0];
+// FR §9.1 p.48: only the 40226's Mode 2 stream leads by one dot.
+// At the end of each half use the same incoming byte this edge loads
+// into the serializer. This carries the lead through both byte seams.
+wire [7:0] mode2_byte = ASIC_40226 && s == 3'd7 ?
+                        (pix_cnt[3] ? VIDEOD[7:0] : VIDEOD[15:8]) : vbyte;
+wire [2:0] mode2_position = ASIC_40226 ? s + 3'd1 : s;
 
 reg [3:0] pen_nib;
 always @(*) begin
@@ -1266,7 +1272,7 @@ always @(*) begin
 		2'b01: pen_nib = {vbyte[{1'b0, ~s[2], ~s[1]}],
 		                  vbyte[{1'b1, ~s[2], ~s[1]}]};
 		// Mode 2: sequential bits, MSB first, one dot per pen.
-		2'b10: pen_nib = {3'b000, vbyte[~s]};
+		2'b10: pen_nib = {3'b000, mode2_byte[~mode2_position]};
 		// Mode 3 (Grimware): {b3,b7} then {b2,b6}, four dots per pen.
 		2'b11: pen_nib = s[2] ? {2'b00, vbyte[2], vbyte[6]}
 		                      : {2'b00, vbyte[3], vbyte[7]};
@@ -1352,7 +1358,10 @@ always @(posedge CLOCK) begin
 	end
 end
 
-wire eff_de   = de_hold & ~(SSCR[7] & de_first_char);
+// At the character seam the 40226's first advanced Mode 2 dot belongs
+// to the incoming byte and its coincident display qualification.
+wire mode2_display_seam = ASIC_40226 && mode_q == 2'b10 && CLKEN;
+wire eff_de   = (mode2_display_seam ? DE : de_hold) & ~(SSCR[7] & de_first_char);
 wire [4:0] hw_sel  = eff_de ? INKR_I[pen_delayed*5 +: 5] : BORDER_I;
 
 // Palette entry for this dot: the decoded pen inside active display, entry
