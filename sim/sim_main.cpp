@@ -324,6 +324,7 @@ public:
         // and register writes; include both in the lifecycle projection.
         mix(r.CRTC__DOT__vsync_mid_arm);
         mix(r.CRTC__DOT__vsync_active_mid);
+        mix(r.CRTC__DOT__type0_r7_jit_pending);
         // F10 type-1 behavior commit (2026-08-24): the IVM flag and toggle
         // stage machine join the sampled projection together with their
         // behavior; random R8 traffic now reaches the documented toggle
@@ -8568,6 +8569,46 @@ void t22_configure(TestBench& test, bool odd_frame) {
     }
 }
 
+void test_type0_r7_off_strobe_publication(TestBench& test) {
+    const std::array<std::uint8_t, 10> registers{63, 40, 46, 0x26, 38, 0, 26, 30, 0, 7};
+    for (const unsigned phase : {2U, 5U}) {
+        for (unsigned reg = 0; reg < registers.size(); ++reg)
+            test.write_register(reg, registers[reg]);
+        test.select_register(7);
+        test.reset();
+        test.run_characters(11);
+        test.run_clock_ticks(phase);
+        test.expect_c4("ordinary progressive raster", 0);
+        test.expect_vsync_low("R7 has not matched the row");
+        test.write_selected_register_now(0);
+        test.run_clock_ticks(kClockTicksPerCharacter - phase);
+        test.expect_vsync_low("VSYNC pin stays low through the next character strobe");
+        test.run_clock_ticks(1);
+        test.expect_vsync_high("VSYNC pin rises one clock after the character strobe");
+        test.run_characters(50 + 2 * 64);
+        test.expect_vsync_high("the original two-line terminal has not been reached");
+        test.run_characters(1);
+        test.expect_vsync_low("the original terminal ends VSYNC");
+    }
+
+    t22_configure(test, false);
+    test.run_characters(11);
+    test.run_clock_ticks(2);
+    test.write_register(8, 3);
+    test.run_characters(64);
+    test.expect_parity_frame("even interlaced raster", false);
+    test.expect_ra("RA uses the interlaced line", 2);
+    test.write_selected_register_now(0);
+    test.select_register(7);
+    test.expect_byte("R7 matches before the next character strobe", 12, test.c0());
+    test.expect_vsync_low("R7 has not matched the departing raster");
+    test.write_selected_register_now(0);
+    test.run_clock_ticks(1);
+    test.expect_ra("RA remains interlaced after the live mode write", 2);
+    test.expect_vsync_high("R7 publishes immediately on the departing interlaced raster");
+}
+
+
 // Walk a documented (C4, C9) sequence, one 64-character line per step,
 // starting with the switch/exit line itself.
 void t22_walk(TestBench& test, const char* tag,
@@ -10912,6 +10953,8 @@ int main(int argc, char** argv) {
          false, test_type0_r7_row_end_held_write_keeps_next_row},
         {"t02c_type0_r7_midline_extended", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_midline_duration_extended},
+        {"type0_r7_off_strobe_publication", "French ACCC v1.11 §16.2.1 pp.161–162 and §16.4.1.1 p.170; SHAKER DT 02EC/02ED",
+         false, test_type0_r7_off_strobe_publication},
         {"t02d_type1_r7_early_hcc_immediate", "ACCC v1.10 section 16.4.2; F3",
          false, test_type1_r7_early_hcc_immediate},
         {"t02e_type1_r7_midline_partial_counts", "ACCC v1.10 section 16.4.2; F3",

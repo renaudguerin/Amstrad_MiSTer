@@ -927,11 +927,32 @@ wire type0_r6_zero_toggle = e0_vde_toggle && !type0_r6_zero_origin_border;
 // onset and terminal-row R7 admission remain separate open boundaries.
 reg [3:0] type1_vsync_publication;
 reg vsync_publication_type;
+// French ACCC v1.11 §16.2.1 pp.161–162 and §16.4.1.1 p.170 distinguish
+// the R7.JIT pin onset from the logical trigger and the following raster's
+// width count. In the two original SHAKER DT mid-character apertures,
+// publish the progressive rising edge after the next character strobe.
+// The IVM exit raster retains its latched display mode until line end.
+// Clock-coincident and terminal writes retain their existing publication.
+// A departing IVM raster keeps its display mode after R8 clears
+// (French ACCC v1.11 §19.8.1 pp.220-221).
+wire type0_r7_jit_start = !CRTC_TYPE && !CLKEN && !nCLKEN &&
+    (R8_interlace == 0) && !e0_ivm_disp && !vsync_mid && !in_adj && !frame_adj &&
+    !r0_frozen && ({1'b0, hcc} + 9'd1 < {1'b0, R0_h_total}) &&
+    r7_write_hit && r7_write_fire && (row == DI[6:0]) &&
+    (R7_v_sync_pos != row);
+reg type0_r7_jit_pending;
+wire type0_vsync_publish = VSYNC_r && !type0_r7_jit_pending;
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || CRTC_TYPE || CRTC_TYPE != vsync_publication_type || CLKEN)
+        type0_r7_jit_pending <= 0;
+    else if (type0_r7_jit_start)
+        type0_r7_jit_pending <= 1;
+end
 always @(posedge CLOCK) begin
     if (!nRESET) begin
         // Type0 retains its original one-register publication even on reset:
-        // VSYNC_r may still carry the pre-reset level on this edge.
-        VSYNC <= CRTC_TYPE ? 1'b0 : VSYNC_r;
+        // Retain an already visible level for the pre-reset transport edge.
+        VSYNC <= CRTC_TYPE ? 1'b0 : type0_vsync_publish;
         type1_vsync_publication <= 0;
         vsync_publication_type <= CRTC_TYPE;
     end else begin
@@ -944,7 +965,7 @@ always @(posedge CLOCK) begin
             type1_vsync_publication <= {4{VSYNC_r}};
         end else begin
             type1_vsync_publication <= {type1_vsync_publication[2:0],VSYNC_r};
-            VSYNC <= CRTC_TYPE ? type1_vsync_publication[3] : VSYNC_r;
+            VSYNC <= CRTC_TYPE ? type1_vsync_publication[3] : type0_vsync_publish;
         end
     end
 end
