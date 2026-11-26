@@ -4,6 +4,7 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 
 | Hash | Set on | Scope |
 |---|---|---|
+| `0xcd159e582e4f3e12` | 2026-11-26 | Combined paired odd-R9/IVM entry and CRTC0 late R3 terminal restart (SHAKER DH, French ACCC §15.3.3 p.151). The late restart retains C3l across CCLK and expires at the new terminal width if its raw pin is still low. |
 | `0xcdadadb1e6b70a2e` | 2026-11-26 | CRTC0 paired odd-R9/IVM entry (SHAKER B1 R9E57). At sample 1,598,046 the first raster after an even entry compares raw C9=1, advancing C4 and resetting C9 where the former IVM comparison continued. The projection also samples the three pending-comparison latches. |
 | `0xfc229b889c5013ce` | 2026-11-26 | CRTC0 frozen-origin R6 border hold (SHAKER BU `021B`). The earlier pin and state projection matches `0x0bd50d6b801e1607`. The new hash includes the ownership state; the directed pin test covers both restore orders. |
 | `0x0bd50d6b801e1607` | 2026-11-26 | CRTC0 selects the incoming progressive phase at the committed origin (French ACCC §19.7.2 p.219, SHAKER B1). At sample 125,462 the departing field flag remains high while `R8=0`. The corrected path asserts raw VSYNC at the origin and latches the line phase. The sampled counters and input mode agree throughout. |
@@ -24,4 +25,4 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 | `0x6bb49f9262b5c886` | 2026-11-13 | CRTC1 active VSYNC width held at R0=0; bounded B26 candidate for original SHAKER AI/008D high samples, with C4/C9 still advancing (French ACCC 13.3 p115) |
 | `0x974e5c048eb7f877` | 2026-11-06 | Current type 0 and type 1 behaviour |
 
-Run `make -C sim soak SOAK_EXPECT=0xfc229b889c5013ce` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.
+Run `make -C sim soak SOAK_EXPECT=0xcd159e582e4f3e12` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.

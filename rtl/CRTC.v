@@ -530,7 +530,9 @@ reg        hsync_phaseful;
 reg        type1_hsync_start_pending;
 reg  [1:0] type1_hsync_start_count;
 reg        type0_hsync_restart_pending;
+reg        type0_hsync_restart_late;
 reg  [3:0] type0_hsync_restart_count;
+reg  [3:0] type0_hsync_terminal_age;
 reg        r2_jit_pending;
 reg        jit_on_pending;
 reg  [3:0] jit_on_count;
@@ -596,8 +598,18 @@ wire r2_jit_write = register_write & ~register_write_d &
 // drops the current raw HSYNC but starts another one without resetting C3l.
 // A zero low nibble retains the existing R3=0 suppression contract; changing
 // only R3v is not an R3l modification.
+// MODEL LIMIT (B26): The original SHAKER DH OUT reaches the terminal
+// character after the pin fell. AmSpirit RGB places its restart 15–18 clocks after
+// that fall. Use the first clock in the bin, preserving the existing
+// simultaneous-write phase. The exact silicon aperture remains unmeasured.
+localparam [3:0] TYPE0_LATE_RESTART_TICKS = 4'd15;
+wire type0_hsync_terminal_live = (type0_hsync_terminal_age != 0) &&
+                                 (type0_hsync_terminal_age < TYPE0_LATE_RESTART_TICKS);
+wire type0_hsync_late_write = !HSYNC && !CLKEN && type0_hsync_terminal_live;
+wire type0_late_restart_pending = type0_hsync_restart_pending &&
+                                 type0_hsync_restart_late && !CRTC_TYPE && !SNA_LOAD;
 wire type0_r3_terminal_write = register_write & ~register_write_d &
-					!CRTC_TYPE & (addr == 5'd03) & HSYNC &
+					!CRTC_TYPE & (addr == 5'd03) & (HSYNC | type0_hsync_late_write) &
 					(hcc == R2_h_sync_pos) & (hsc == R3_h_sync_width) &
 					(DI[3:0] != 0) & (DI[3:0] != R3_h_sync_width);
 
@@ -615,7 +627,9 @@ always @(posedge CLOCK) begin
 		type1_hsync_start_pending <= 0;
 		type1_hsync_start_count   <= 0;
 		type0_hsync_restart_pending <= 0;
+		type0_hsync_restart_late    <= 0;
 		type0_hsync_restart_count   <= 0;
+		type0_hsync_terminal_age    <= 0;
 		r2_jit_pending            <= 0;
 		jit_on_pending <= 0;
 		jit_on_count <= 0;
@@ -630,17 +644,23 @@ always @(posedge CLOCK) begin
 
 		if (r2_jit_write) r2_jit_pending <= 1;
 		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;
-		// The p.151 earliest restart is approximately 3.5 Pixel-M2 after the
-		// old pulse ends.  Reuse F20's production phase scale (four master
-		// CLOCK ticks per Pixel-M2): count thirteen intervening ticks, then
-		// raise the pin on the fourteenth.  Snapshot load and a live switch to
-		// type 1 discard this type-0-only pending event.
-		if (SNA_LOAD || CRTC_TYPE) begin
+		// The old comparison survives only the rest of its C0 character.
+		if (SNA_LOAD || CRTC_TYPE || CLKEN) type0_hsync_terminal_age <= 0;
+		else if (type0_hsync_terminal_live)
+			type0_hsync_terminal_age <= type0_hsync_terminal_age + 1'd1;
+
+		// A consumed late restart expires if its retained C3 reaches the
+		// new terminal width before the pin can rise.
+		if (SNA_LOAD || CRTC_TYPE || (!HSYNC && hsync_off && type0_late_restart_pending)) begin
 			type0_hsync_restart_pending <= 0;
+			type0_hsync_restart_late    <= 0;
 			type0_hsync_restart_count   <= 0;
 		end else if (type0_r3_terminal_write) begin
+			// Preserve the simultaneous-write restart (14 master clocks).
 			type0_hsync_restart_pending <= 1;
-			type0_hsync_restart_count   <= 4'd13;
+			type0_hsync_restart_late    <= !HSYNC;
+			type0_hsync_restart_count   <= HSYNC ? 4'd13 :
+				(TYPE0_LATE_RESTART_TICKS - 4'd1) - type0_hsync_terminal_age;
 		end
 
 		// Keep the ordinary type-specific start and trailing phases. The
@@ -663,6 +683,10 @@ always @(posedge CLOCK) begin
 			end else begin
 				HSYNC          <= 0;
 				hsync_phaseful <= 0;
+				// Only a nonphaseful type-0 pin fall can open the aperture.
+				if (HSYNC && !hsync_phaseful && !SNA_LOAD && !CRTC_TYPE &&
+				    !CLKEN && hcc == R2_h_sync_pos)
+					type0_hsync_terminal_age <= 1;
 			end
 		end else if (!HSYNC) begin
 			if (jit_on_pending) begin
@@ -681,6 +705,7 @@ always @(posedge CLOCK) begin
 					hsync_phaseful              <= 0;
 					hsync_start_phase           <= 0;
 					type0_hsync_restart_pending <= 0;
+					type0_hsync_restart_late    <= 0;
 				end else begin
 					type0_hsync_restart_count <=
 						type0_hsync_restart_count - 1'd1;
@@ -739,7 +764,10 @@ always @(posedge CLOCK) begin
 			// (ACCC v1.11 section 6.1.3 p.34) with no special case.
 			if(hcc_next == R1_h_displayed) hde <= 0;
 
-			if(HSYNC) hsc <= hsc + 1'd1;
+			// FR §15.3.3 p.151: C3l keeps counting through the raw
+			// pin's low gap once a type-0 restart has been accepted.
+			if (HSYNC || type0_late_restart_pending)
+				hsc <= hsc + 1'd1;
 			else hsc <= 0;
 		end
 	end

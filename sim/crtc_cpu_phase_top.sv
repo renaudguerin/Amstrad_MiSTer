@@ -14,6 +14,8 @@ module crtc_cpu_phase_top(
  output [7:0] seq, c0,
  output [6:0] row,
  output [4:0] line, r5,
+ output [3:0] c3,
+ output raw_hsync,
  output pending, in_adj, vde, vde_r, de_out,
  output ce16, phi_p, cclk_p, cclk_n, write_active, arm, vma_flag, parity_flag,
  output [13:0] ma,
@@ -48,6 +50,8 @@ module crtc_cpu_phase_top(
  assign write_active=selected_write;
  assign bus_data=selected_data;
  assign c0=crtc.hcc;
+ assign c3=crtc.hsc;
+ assign raw_hsync=hs;
  assign row=crtc.row;
  assign line=crtc.line;
  assign r5=crtc.R5_v_total_adj;

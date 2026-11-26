@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 struct Bench {
   Vcrtc_cpu_phase_top d;
@@ -96,6 +97,13 @@ struct Bench {
     check(d.ce16 == 0 && !d.cclk_n,
           "CPU outputs must launch after enable, before register capture");
     tick(); // first capture is a system edge, without CRTC enable
+  }
+  void write_pin(unsigned value, bool rs = true) {
+    d.bus_rs = rs;
+    d.write_data = value;
+    d.direct_write = 1;
+    tick();
+    d.direct_write = 0;
   }
   void release() {
     d.release_bus = 1;
@@ -386,6 +394,128 @@ void r6_frozen_video(bool open_half) {
   }
 }
 
+// SHAKER DH on a CRTC0 reaches C0=R2=6 a second time after eight
+// characters with R0=7. Preserve that counter path and the production
+// 64-clock character, then drive the observed data strobe at the pins.
+void r3_terminal_collision(Bench& b, unsigned width, unsigned terminal_c0) {
+  b.write_pin(2, false);
+  b.write_pin(6);
+  b.write_pin(3, false);
+  b.write_pin(width);
+  b.until([&] { return b.d.c0 == 6 && b.d.raw_hsync; });
+  b.until([&] { return b.d.c0 == 7; });
+  b.until([&] { return b.d.c0 == terminal_c0; });
+  b.check(b.d.raw_hsync, "original pulse must still be high at terminal C0");
+}
+
+unsigned r3_terminal_late_write(Bench& b, bool cross_turnover, unsigned width) {
+  r3_terminal_collision(b, cross_turnover ? 9 : 8, 6);
+  b.check(b.d.c3 == 8, "C3 reaches eight at C0=R2=6");
+  if (cross_turnover) {
+    // Open the same aperture at the end of the character. The write
+    // still precedes CCLK, but its scheduled rise comes after CCLK.
+    b.run(50);
+    b.write_pin(8);
+  }
+  b.tick();
+  b.check(!b.d.raw_hsync, "old width must lower raw HSYNC at the terminal");
+  const unsigned old_fall = b.ticks;
+  b.run(7);
+  b.write_pin(width);
+  return old_fall;
+}
+
+void r3_terminal_late_restart(bool cross_turnover) {
+  Bench b(false, 3, 7);
+  // Original SHAKE27D PC 7AF0, page 0307.
+  const unsigned old_fall = r3_terminal_late_write(b, cross_turnover, 11);
+  b.until([&] { return b.d.raw_hsync; });
+
+  // French ACCC v1.11 section 15.3.3 p.151 describes a restart about
+  // 3.5 Mode 2 dots after the old fall. The original held replay and
+  // its AmSpirit RGB edge constrain this bus phase to master ticks 15–18.
+  const unsigned gap = b.ticks - old_fall;
+  if (gap < 15 || gap > 18)
+    throw std::runtime_error("late restart gap " + std::to_string(gap) +
+                             " clocks, expected 15–18");
+  b.check(b.d.c0 == (cross_turnover ? 7 : 6),
+          "the restart must land in the expected character");
+  b.check(b.d.c3 == (cross_turnover ? 9 : 8),
+          "the restart gap must preserve the C3 count across CCLK");
+  for (const auto& [c0, c3] : std::array<std::pair<unsigned, unsigned>, 3>{{
+           {7, 9}, {0, 10}, {1, 11}}}) {
+    b.until([&] { return b.d.c0 == c0; });
+    b.check(b.d.raw_hsync && b.d.c3 == c3,
+            "the restarted pulse must count through the original C3 sequence");
+  }
+  b.tick();
+  b.check(!b.d.raw_hsync && b.d.c3 == 11,
+          "the restarted pulse must fall at the new width");
+}
+
+void r3_terminal_late_expiry() {
+  Bench b(false, 3, 7);
+  r3_terminal_late_write(b, true, 9);
+  b.until([&] { return b.d.c0 == 7; });
+  b.check(!b.d.raw_hsync && b.d.c3 == 9,
+          "the new terminal must be reached during the accepted low gap");
+
+  // French ACCC v1.11 section 15.3.3 p.151 retains C3 through the gap.
+  // The newly selected width is already exhausted before the scheduled
+  // rise. Observe beyond that width and the next two character edges.
+  for (unsigned tick = 0; tick < 2 * 64; ++tick) {
+    b.tick();
+    b.check(!b.d.raw_hsync, "an exhausted terminal restart must not resurrect");
+  }
+}
+
+void r3_terminal_turnover() {
+  Bench b(false, 3, 7);
+  r3_terminal_collision(b, 9, 6);
+  b.check(b.d.c3 == 8, "C3 must enter the collision character at eight");
+
+  // Bring the old-width match late in this character so its falling
+  // aperture is still live on the next CCLK. A data write on that CCLK
+  // must not qualify the departing match of C0 and R2.
+  b.run(56);
+  b.write_pin(8);
+  b.tick();
+  b.check(!b.d.raw_hsync && b.d.c0 == 6,
+          "old HSYNC must fall before turnover with C0 still equal to R2");
+  const unsigned old_fall = b.ticks;
+  b.until([&] { return b.d.cclk_n; });
+  b.check(b.ticks - old_fall < 14, "turnover must land inside the fall aperture");
+  b.write_pin(11);
+  b.check(b.d.c0 == 7 && b.d.c3 == 0,
+          "turnover must advance C0 and reset inactive C3");
+  for (unsigned tick = 0; tick < 18; ++tick) {
+    b.tick();
+    b.check(!b.d.raw_hsync, "turnover cannot restart HSYNC from the old C0");
+  }
+}
+
+void r3_terminal_inherited_fall() {
+  Bench b(true, 3, 7);
+  r3_terminal_collision(b, 7, 5);
+  b.check(b.d.c3 == 7, "type 1 must reach its ordinary terminal width");
+  b.tick();
+  b.check(b.d.raw_hsync, "type 1 must defer its raw falling edge");
+
+  b.write_pin(2, false);
+  b.write_pin(5);
+  b.check(b.d.raw_hsync, "old type 1 fall must still be pending at the new R2");
+  b.d.crtc_type = 0;
+  b.tick();
+  b.check(b.d.raw_hsync, "pending phaseful pulse must survive the switch edge");
+  b.until([&] { return !b.d.raw_hsync; });
+  b.write_pin(3, false);
+  b.run(6);
+  b.write_pin(11);
+  b.tick();
+  b.check(b.d.raw_hsync,
+          "inherited type 1 fall cannot delay the ordinary type 0 comparator");
+}
+
 int main() {
   unsigned failures = 0;
   auto test = [&](const std::string &name, auto fn) {
@@ -426,6 +556,13 @@ int main() {
   test("frozen R6 write completes the open Mode 2 byte", [] { r6_frozen_video(true); });
   test("frozen R6 write in the closed half leaves subsequent bytes in border",
        [] { r6_frozen_video(false); });
+  test("type0 R3 late terminal restart (SHAKER DH 0307)",
+       [] { r3_terminal_late_restart(false); });
+  test("type0 R3 accepted restart preserves C3 across CCLK",
+       [] { r3_terminal_late_restart(true); });
+  test("type0 R3 terminal expires before its delayed rise", r3_terminal_late_expiry);
+  test("type0 R3 terminal write on CCLK turnover", r3_terminal_turnover);
+  test("type1 deferred fall after switching to type0", r3_terminal_inherited_fall);
   std::cout << failures << " failures\n";
   return failures ? 1 : 0;
 }
