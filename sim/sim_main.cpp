@@ -5639,6 +5639,77 @@ void test_type1_r5_zero_terminal_write_retires_adjustment_state(TestBench& test)
     test.expect_adjustment_inactive("R5=3 adjustment completes");
 }
 
+// SHAKER B1 clears a positive R5 on a later terminal adjustment raster.
+// French ACCC v1.11 §11.3.2 p.87 retains zero-R5 counting by default.
+// The original B1 strip and independent AmSpirit caller distinguish the
+// later retirement after the next R4/R9 rematch. CE keeps its prior phase
+// on the first adjusted raster. The C0 aperture is a provisional model.
+unsigned type1_vsync_after_terminal_r5_clear(TestBench& test, std::uint8_t r5,
+                                             std::uint8_t clear_c0) {
+    test.set_crtc_type(1);
+    const std::uint8_t starting_r4 = r5 == 1 ? 38 : 41;
+    program_registers(test, {{{0, 63}, {1, 40}, {2, 46}, {3, 0x11},
+                              {4, starting_r4}, {5, r5}, {6, 25}, {7, 0},
+                              {8, 0}, {9, 7}}});
+    test.reset();
+    test.run_characters((starting_r4 + 1) * 8 * 64);
+    test.expect_c4("R5 adjustment starts past R4", starting_r4 + 1);
+
+    if (r5 == 3) {
+        test.run_characters(64);
+        test.run_to_c0(61);
+        test.write_register(4, 38);
+        test.run_to_c0(0);
+    }
+    test.expect_c5("old R5 is due on this raster", r5 - 1);
+    test.run_to_c0(clear_c0);
+    test.write_register(5, 0);
+    test.run_to_c0(63);
+    test.run_to_c0(0);
+    test.expect_c5("zero write loses the immediate C5 completion", r5);
+
+    if (r5 == 3) {
+        // Extra lines before rematch reproduce the B1 G caller's C5 phase
+        // using ordinary register writes. No hidden counter state is forced.
+        const std::uint8_t target_row = test.c4_reg() + 6;
+        test.write_register(9, 8);
+        test.run_characters(51 * 64);
+        test.expect_c4("six widened rows before rematch", target_row);
+        test.expect_ra("restore R9 at the next row origin", 0);
+        test.write_register(9, 7);
+    }
+    for (unsigned line = 0; line < 1025 &&
+         (test.c4_reg() != 38 || test.line_reg() != 7); ++line) {
+        test.run_characters(64);
+    }
+    test.expect_c4("rematch reaches R4", 38);
+    test.expect_ra("rematch reaches R9", 7);
+    test.run_to_c0(63);
+    test.run_to_c0(0);
+    test.run_clock_ticks(8);
+    test.expect_vsync_high("R7=0 publishes the rematch origin");
+    test.run_to_c0(13);
+    test.write_register(4, 41);
+    test.run_to_c0(24);
+    test.write_register(5, 2);
+
+    bool previous_vsync = test.published_vsync();
+    for (unsigned line = 1; line <= 345; ++line) {
+        test.run_characters(64);
+        const bool vsync = test.published_vsync();
+        if (vsync && !previous_vsync) return line;
+        previous_vsync = vsync;
+    }
+    throw TestFailure("R5 restore stops publishing VSYNC");
+}
+
+void test_type1_later_terminal_r5_clear_preserves_b1_origin(TestBench& test) {
+    const unsigned b1 = type1_vsync_after_terminal_r5_clear(test, 3, 8);
+    test.expect_high("B1 waits for the ordinary 338-line origin", b1 == 338);
+    const unsigned first = type1_vsync_after_terminal_r5_clear(test, 1, 45);
+    test.expect_high("CE first-raster clear keeps the previous origin", first == 340);
+}
+
 void run_type1_r5_zero_to_q20_reset(TestBench& test, std::uint8_t r7) {
     constexpr RegisterProgram kRegisters = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
@@ -10952,6 +11023,9 @@ int main(int argc, char** argv) {
         {"t08t_type1_r5_zero_terminal_write_retires_adjustment_state",
          "French §11.3.2 p87 / §11.2.4 p85; MODEL LIMIT (B26) SHAKER CRTC1 E02CA->S02D3 photograph 4E40", false,
          test_type1_r5_zero_terminal_write_retires_adjustment_state},
+        {"t08u_type1_later_terminal_r5_clear_preserves_b1_origin",
+         "French §11.3.2 p87; SHAKER B1 stripe phase and CE first-raster control", false,
+         test_type1_later_terminal_r5_clear_preserves_b1_origin},
         {"t08r_type1_r5_zero_row_origin_reopens_display",
          "French ACCC v1.11 sections 18.1/18.2.1 p.189, 11.3.2 p.87; Q20 and SHAKER C E/P photographs", false,
          test_type1_r5_zero_row_origin_reopens_display},

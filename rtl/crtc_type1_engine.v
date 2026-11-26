@@ -484,29 +484,25 @@ assign r6_origin = frame_new_w | crtc1_stuck_r5_row_reset_event;
 // the C0==R0 position from the old C4/R4 and C9/R9 matches while the new
 // R4/R9 govern counting (adj_terminal_write_accept above).
 //
-// MODEL LIMIT (B26): the mirror exit is inferred, not documented. An R5=0
-// write landing on C0==R0 of the line where the old C5+1==R5 matches,
-// before the character edge, retires the state from the old match while
-// the stored zero still loses the C4/C9 reset at that line end: C5 keeps
-// counting and the state stays retired. The next C4==R4, C9==R9 line end
-// then has no armed state and starts a true frame (C4=C9=C5=0, adjustment
-// off) instead of the Q20 row-only reset. A write earlier in that line
-// stays the documented retention case (SHAKER CE 02C9 photograph, t08s).
-// Evidence: original SHAKER CRTC1 E->S caller writes R5=0 at C0=R0=63 on
-// E 02CA's terminal line; this rule keeps E's N store and makes S print
-// the photographed 4E40 (CS/02D3 SHA256 3738bf22...), as both peer
-// emulators do. The original-chip rule is open: CPCSyntaxError ends every
-// zero-R5 retention at the next R4/R9 match, which contradicts Q20, and an
-// immediate origin (previous-R5 comparison) changes E 02CA to Y. Scope is
-// progressive only: interlace sync, IVM or the added line clear it because
-// the section 19.6.2 added-line interception of this origin is unpinned.
-// A positive R5 write clears it and the section 11.3.2 C5+1=R5 route then
-// governs. Investigation: local/dev/docs/investigations/hardware-runs/
-// c1-s-late-rematch-candidate-2026-11-24.md (private).
+// MODEL LIMIT (B26): an R5=0 write can lose the old terminal C5+1==R5
+// match while retiring additional management. C5 continues counting on
+// that line. The next R4/R9 rematch starts a true frame instead of Q20's
+// row-only reset. The original E 02CA exact-R0 caller retains N then S 02D3
+// prints the photographed 4E40. The original B1 caller clears R5 at C0=8
+// on later terminal rasters with C5=2, 4 or 6. Retaining that match through
+// the line end restores the three original strips and their ordinary VSYNC
+// periods, matching AmSpirit. The physical C0 aperture is provisional.
+// Exclude C5=0 from the earlier capture. The original CE first-raster
+// clears at C0=2, 45 and 57 retain their existing 02C9 results.
+// Progressive mode only. Positive R5, interlace, reset and snapshot load
+// clear the capture. Standalone pin writes can also change R0 within an
+// accepted character. The production T80 cannot issue both register
+// transactions within that interval, so that pin sequence is unqualified.
 wire adj_exit_progressive = !R8_interlace[0] && !(r8_write_hit && DI[0]) &&
                             !ivm && !count_ivm && !type1_add_line_active;
+wire adj_exit_late_phase = hcc_last || (hcc >= 8'd8 && (|c5));
 wire adj_exit_write_accept = nRESET && !SNA_LOAD && r5_write_hit && !CLKEN &&
-                             hcc_last && crtc1_adj_end && adj_exit_progressive &&
+                             adj_exit_late_phase && crtc1_adj_end && adj_exit_progressive &&
                              !(|DI[4:0]);
 wire adj_exit_terminal_lost = adj_exit_write_capture && CLKEN && hcc_end &&
                               in_adj && adj_exit_progressive &&
@@ -515,7 +511,7 @@ assign adj_retired_origin = nRESET && !SNA_LOAD && adj_state_retired &&
                             adj_exit_progressive &&
                             crtc1_stuck_r5_row_reset_event;
 always @(posedge CLOCK) begin
-    if(!nRESET || SNA_LOAD || !CRTC_TYPE || CLKEN || !adj_exit_progressive)
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || (CLKEN && hcc_end) || !adj_exit_progressive)
         adj_exit_write_capture <= 0;
     else if(r5_write_hit && (|DI[4:0]))
         adj_exit_write_capture <= 0;
