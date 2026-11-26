@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -203,6 +204,22 @@ public:
         eval_comb();
     }
 
+    void load_snapshot_registers_at_clken(
+        const std::array<std::uint8_t, 10>& registers,
+        std::optional<std::uint8_t> coincident_data = std::nullopt) {
+        while (tick_in_character_ != kClkEnPhase) clock_tick();
+        if (coincident_data) {
+            dut_->ENABLE = 1;
+            dut_->nCS = 0;
+            dut_->R_nW = 0;
+            dut_->RS = 1;
+            dut_->DI = *coincident_data;
+        }
+        load_snapshot_registers(registers);
+        idle_bus();
+        eval_comb();
+    }
+
     std::uint8_t read_register(std::uint8_t address) {
         select_register(address);
         dut_->ENABLE = 1;
@@ -283,6 +300,8 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r9_write_seen);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r9_row_step_pending);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
@@ -2777,6 +2796,65 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
     test.expect_ra("t12 R5 count completes after the R9 phase", 0);
     test.expect_c4("t12 R5 count restores frame origin", 0);
     test.expect_adjustment_inactive("t12 R5 completion ends management");
+}
+
+// The original SHAKER E 0403/0404 writes R9 during the terminal
+// character, after the old match has qualified a row step. French ACCC
+// v1.11 section 10.3.1.2 pp.76–77 gives the distinct C4 and C9 results.
+void test_type0_ordinary_terminal_r9_row_step(TestBench& test) {
+    constexpr std::array<std::uint8_t, 10> registers{63, 40, 46, 14, 77,
+                                                     0, 25, 60, 0, 3};
+    const auto start_matching_raster = [&] {
+        test.set_crtc_type(0);
+        for (unsigned index = 0; index < registers.size(); ++index)
+            test.write_register(index, registers[index]);
+        test.select_register(9);
+        test.reset();
+        test.run_characters(15 * 64);
+        test.expect_c4("terminal R9 entry row", 3);
+        test.expect_ra("terminal R9 entry raster", 3);
+    };
+    const auto update_r9_and_roll = [&](unsigned character) {
+        test.run_to_c0(character);
+        test.run_clock_ticks(1);
+        test.hold_selected_register_now(7, 22);
+        test.run_to_c0(0);
+        test.expect_adjustment_inactive("ordinary R5=0 rollover");
+        test.expect_ra("new R9 continues raster counting", 4);
+    };
+
+    start_matching_raster();
+    update_r9_and_roll(63);
+    test.expect_c4("terminal write keeps the previously matched row step", 4);
+
+    start_matching_raster();
+    update_r9_and_roll(62);
+    test.expect_c4("a held earlier write does not qualify a second time", 3);
+
+    start_matching_raster();
+    test.run_to_c0(12);
+    test.write_register(8, 3);
+    test.run_to_c0(25);
+    test.write_register(8, 0);
+    test.select_register(9);
+    update_r9_and_roll(63);
+    test.expect_c4("same-raster interlace entry and exit keeps its prior row owner", 3);
+
+    start_matching_raster();
+    test.run_to_c0(63);
+    test.load_snapshot_registers_at_clken(registers, 7);
+    test.expect_byte("coincident snapshot still clocks C0", 0, test.c0());
+    test.expect_ra("snapshot has priority over coincident R9 data", 0);
+    test.expect_c4("old equality still advances the ordinary row", 4);
+
+    start_matching_raster();
+    test.run_to_c0(63);
+    test.run_clock_ticks(1);
+    test.write_selected_register_now(7);
+    test.load_snapshot_registers_at_clken(registers);
+    test.expect_byte("pending snapshot still clocks C0", 0, test.c0());
+    test.expect_ra("the pre-snapshot R9 controls raster continuation", 4);
+    test.expect_c4("snapshot retires the pending row step", 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -11072,6 +11150,9 @@ int main(int argc, char** argv) {
         {"t12b_type0_worked_example_window_write_yields_38_8",
          "ACCC v1.11 section 11.2.2 p.83 example 3; F9/B4 companion case",
          false, test_type0_worked_example_window_write_yields_38_8},
+        {"e0_type0_ordinary_terminal_r9_row_step",
+         "French ACCC v1.11 section 10.3.1.2 pp.76-77; original E 0403/0404",
+         false, test_type0_ordinary_terminal_r9_row_step},
         {"t12c_type0_c0_r9_write_immediate_clears_last_line",
          "ACCC v1.11 section 12.2 pp.93-95; C0=0 immediate R9 clears Last Line",
          false, test_type0_c0_r9_write_immediate_clears_last_line},

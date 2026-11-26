@@ -4,6 +4,7 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 
 | Hash | Set on | Scope |
 |---|---|---|
+| `0x8537bd9e65d4fc14` | 2026-11-26 | CRTC0 ordinary terminal R9 row step (SHAKER E `0403/0404`, French ACCC §10.3.1.2 pp.76–77). The previous projection first differs at zero-based sample 1,332,459. A terminal R9 write at C0=R0=3 advances C4 from 39 to 40 while C9 continues from 3 to 4. The new projection samples both strobe history and pending row ownership. |
 | `0xc562452fcee0d70b` | 2026-11-26 | CRTC0 progressive off-strobe R7.JIT pin onset (SHAKER DT `02EC/02ED`, French ACCC §16.2.1 pp.161–162). In the prior projection, only the published VSYNC pin changes at seven CLKEN samples, first at 54,225 (C0=22, C4/C9=0/0). The new projection also samples the pending publication latch. |
 | `0xcd159e582e4f3e12` | 2026-11-26 | Combined paired odd-R9/IVM entry and CRTC0 late R3 terminal restart (SHAKER DH, French ACCC §15.3.3 p.151). The late restart retains C3l across CCLK and expires at the new terminal width if its raw pin is still low. |
 | `0xcdadadb1e6b70a2e` | 2026-11-26 | CRTC0 paired odd-R9/IVM entry (SHAKER B1 R9E57). At sample 1,598,046 the first raster after an even entry compares raw C9=1, advancing C4 and resetting C9 where the former IVM comparison continued. The projection also samples the three pending-comparison latches. |

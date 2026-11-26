@@ -310,6 +310,9 @@ reg        type0_r4_adjust_switch;
 reg        type0_r9_live_compare;
 reg        type0_r9_at_r0_pending;
 reg        type0_r9_early_write_held;
+reg        type0_r9_write_seen;
+reg        type0_r9_row_step_pending;
+wire       type0_r9_row_step_write;
 reg        type0_c0_1_adjust;
 reg        type0_r0_zero_entry_consumed;
 reg        type0_zero_adj_entry;
@@ -563,8 +566,12 @@ wire       type0_adjust_end = type0_r9_zero_adjust_end | type0_c0_1_r5_end |
 // the same rollover and the interaction with IVM remain unmeasured.
 wire       type0_r9_use_latched_row_step = type0_r9_at_r0_active &&
                                          (!type0_r4_adjust_switch || row == R4_v_total);
+// SNA loads take priority over a coincident data write. They also
+// invalidate the prior sub-character observation before the CLKEN step.
+wire       type0_r9_row_step = type0_r9_row_step_write |
+                               (nRESET && !SNA_LOAD && type0_r9_row_step_pending);
 wire       type0_rollover_row_last = type0_r9_use_latched_row_step ? line_last_r :
-                                     type0_rollover_line_last;
+                                     type0_rollover_line_last | type0_r9_row_step;
 
 assign line_new = hcc_terminal && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
@@ -578,7 +585,8 @@ wire       type0_add_line_write_zero = type0_r5_write && !(|DI[4:0]) &&
 wire [4:0] type0_add_line_c9 = type0_add_line_write_zero ?
                               5'd0 : R5_v_total_adj;
 assign line_next = type0_add_intercept ? type0_add_line_c9 :
-                   type0_rollover_line_last ? 5'd0 : line + 5'd1;
+                   (type0_rollover_line_last && !type0_r9_row_step_write) ?
+                   5'd0 : line + 5'd1;
 assign c5_next = 5'd0;
 
 // ACCC v1.10 section 12: outside vertical adjustment C4 is equality-compared
@@ -714,6 +722,19 @@ assign type0_r4_window_write = !CRTC_TYPE && register_write && addr == 5'd04 &&
 								  type0_adjustment_selected && !in_adj;
 assign type0_r4_switch_write = type0_r4_window_write && DI[6:0] != row;
 wire       type0_r9_data_write = register_write && addr == 5'd09;
+// French ACCC v1.11 §10.3.1.2 pp76–77: on an ordinary line with an
+// existing C9/R9 match, a terminal-character write retains the C4 step
+// even when the new R9 makes C9 increment. Last Line keeps its own
+// frame reset (§12.2 pp94–95). Limit this trial to the demonstrated
+// progressive, R5=0 aperture and to the first clock of a decoded write.
+assign type0_r9_row_step_write = nRESET && !SNA_LOAD && !CRTC_TYPE && type0_r9_data_write &&
+                                 !type0_r9_write_seen && hcc_last && hcc >= 2 &&
+                                 !in_adj && !type0_adjustment_selected &&
+                                 !type0_last_line_armed && !ivm_disp_r && !tog_line &&
+                                 (R8_interlace == 2'd0) && (R5_v_total_adj == 5'd0) &&
+                                 line_last_r && (line == R9_v_max_line) &&
+                                 (DI[4:0] != line);
+
 assign type0_r9_compare_write = !CRTC_TYPE && type0_r9_data_write &&
 								  hcc >= 2 && hcc < R0_h_total &&
 								  type0_adjustment_selected && !in_adj;
@@ -758,6 +779,8 @@ always @(posedge CLOCK) begin
 		type0_r9_live_compare <= 0;
 		type0_r9_at_r0_pending <= 0;
 		type0_r9_early_write_held <= 0;
+		type0_r9_write_seen <= 0;
+		type0_r9_row_step_pending <= 0;
 		type0_c0_1_adjust <= 0;
 		type0_r0_zero_entry_consumed <= 0;
 		type0_zero_adj_entry <= 0;
@@ -793,6 +816,9 @@ always @(posedge CLOCK) begin
 		// through R0-1 from one at R0. One OUT can span both characters.
 		// Preserve its pre-terminal classification until the strobe ends.
 		// The exact sub-character write aperture on original silicon is unmeasured.
+		type0_r9_write_seen <= type0_r9_data_write;
+		if(CLKEN && line_new) type0_r9_row_step_pending <= 0;
+		else if(type0_r9_row_step_write) type0_r9_row_step_pending <= 1;
 		if(!type0_r9_data_write) type0_r9_early_write_held <= 0;
 		else if(type0_r9_compare_write) type0_r9_early_write_held <= 1;
 		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
