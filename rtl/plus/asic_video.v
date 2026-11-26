@@ -582,9 +582,25 @@ wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 // probe 15 shows exactly that (rows 00,03,06,...; AmSpirit identical;
 // Plus timing observations). In IVM the §19.8.4 C9>=R9 decision is
 // the terminal-line test, including the even-parity overshoot line.
+// MODEL LIMIT (B26): SHAKER AO 009A needs the 40489 R1 comparison
+// sampled on character entry and used for VMA' at the outgoing edge.
+// A later store changes R1 without changing the captured comparison.
+// The physical write aperture is unmeasured (ACCC FR v1.11 §17.3 p.181).
+reg r1_match_on_entry;
+always @(posedge CLOCK) begin
+    if (!nRESET)
+        r1_match_on_entry <= 1'b1; // reset C0=R1=0
+    else if (SNA_LOAD)
+        // The snapshot records the current counter and register.
+        r1_match_on_entry <= (SNA_HCC == SNA_REGS[8 +: 8]);
+    else if (CLKEN)
+        r1_match_on_entry <= (hcc_next == R1_h_displayed);
+end
+
+wire row_r1_match = ASIC_40226 ? (hcc == R1_h_displayed) : r1_match_on_entry;
 wire row_latch_done = ivm_active ? c9_done : (ra_eff >= R9_v_max_line);
 wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
-                       (hcc == R1_h_displayed) &&
+                       row_r1_match &&
                        row_latch_done;
 
 // P6: Eight-bit split compare (asic-reference §8). Ordinary capture is

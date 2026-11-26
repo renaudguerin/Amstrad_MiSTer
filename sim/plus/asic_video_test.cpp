@@ -1081,6 +1081,24 @@ void t03d_r1_gt_r0_no_substitution(TestBench& test) {
     test.expect_ma("row 2 repeats the same base", kBase);
 }
 
+// Original AO/I and French ACCC v1.11 §17.1 p.177 / §17.6.1 p.187.
+// The peer and original Plus display distinguish an R1 write before the
+// selected character from a write during it. The next row MA is the output.
+void ao_r1_row_entry(TestBench& test, unsigned stored, unsigned replacement,
+                     unsigned write_character, unsigned next_row) {
+    program_display_frame(test);
+    test.write_register(0, 63);
+    test.write_register(1, stored);
+    test.select_register(1);
+    test.run_to_frame_start();
+    test.run_to_state(0, 3, write_character, "AO terminal raster");
+    test.selected_write_tick(true, replacement);
+    test.selected_write_tick(false, replacement);
+    test.expect_hcc("AO write stays inside the intended character", write_character);
+    test.run_to_state(1, 0, 0, "AO next source row");
+    test.expect_ma("AO next row uses the admitted character's source pointer", kBase + next_row);
+}
+
 // ACCC §18.2.4 p.190: the R6 test runs only at the beginning of a line;
 // a mid-line update is not considered until the next line start, and
 // there is no per-C0 evaluation (contrast types 0/1).
@@ -3714,7 +3732,7 @@ void t02n_write_stores_at_strobe_end(TestBench& test) {
     expect_r12("t02n second fragment of the same value keeps R12", 0x33);
 }
 
-constexpr std::array<TestCase, 89> kTests = {{
+constexpr std::array<TestCase, 92> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3751,6 +3769,9 @@ constexpr std::array<TestCase, 89> kTests = {{
     {"t03b R1 border edges", t03b_r1_border_edges},
     {"t03c R1==R0 single-character blip", t03c_r1_eq_r0_blip},
     {"t03d R1>R0 no substitution, frozen rows", t03d_r1_gt_r0_no_substitution},
+    {"AO R1 early write advances", [](TestBench& test) { ao_r1_row_entry(test, 64, 63, 62, 63); }},
+    {"AO R1 same character repeats", [](TestBench& test) { ao_r1_row_entry(test, 64, 63, 63, 0); }},
+    {"AO R1 earlier match retained", [](TestBench& test) { ao_r1_row_entry(test, 63, 64, 63, 63); }},
     {"t03e R6 line-start-only semantics", t03e_r6_line_start_semantics},
     {"t03h VDE rows past R6 stay bordered", t03h_vde_rows_past_r6_stay_bordered},
     {"t03i R6 border latched until frame origin", t03i_r6_border_latched_until_frame_origin},
