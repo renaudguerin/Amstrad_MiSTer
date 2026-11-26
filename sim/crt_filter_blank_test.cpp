@@ -756,12 +756,55 @@ void test_production_mode_selector() {
         fail("reserved mode 3 did not fall back to the filtered output tuple");
 }
 
+void test_full_recovers_completed_short_vertical_pair() {
+    constexpr unsigned kFrameTicks = 312 * kLineCeTicks;
+    constexpr unsigned kFirstCheckpoint = 192;
+    constexpr unsigned kRecoveredRise = kLineCeTicks + kFirstCheckpoint;
+    constexpr unsigned kRecoveredFall = kRecoveredRise + kLineCeTicks;
+    constexpr unsigned kSecondRawRise = 152 * kLineCeTicks;
+    constexpr unsigned kNextPulseRise = kSecondRawRise + kFirstCheckpoint;
+    constexpr unsigned kNextPulseFall = kSecondRawRise + kLineCeTicks;
+    CrtFilterBench tb;
+
+    // Train on two ordinary fields, let the next pair corroborate the
+    // waveform, then observe the following complete pair in Full.
+    std::vector<unsigned> rises, falls;
+    bool prior = false;
+    for (unsigned field = 0; field < 4; ++field) {
+        for (unsigned tick = 0; tick < kFrameTicks; ++tick) {
+            const unsigned hpos = tick % kLineCeTicks;
+            const bool hs = hpos >= 184 && hpos < 208;
+            const bool vs = field < 2 ? tick < 16 * kLineCeTicks
+                : tick < kLineCeTicks || (tick >= kSecondRawRise && tick < kNextPulseFall);
+            if (field == 3 && tick == kRecoveredFall + 1) {
+                // The recovery was already visible and then completed.
+                // The next owner must still get its ordinary pulse.
+                tb.configure_byte_owner(true, true);
+                tb.tick_clk(false, hs, vs, hs, vs);
+                tb.configure_byte_owner(true, false);
+            }
+            const bool high = tb.tick_ce(hs, vs).vsync_selected;
+            if (field == 3 && high != prior)
+                (high ? rises : falls).push_back(tick);
+            prior = high;
+        }
+    }
+    if (rises != std::vector<unsigned>{kRecoveredRise, kNextPulseRise} ||
+        falls != std::vector<unsigned>{kRecoveredFall, kNextPulseFall}) {
+        std::ostringstream message;
+        message << "expected both the recovered pulse and the next owner's ordinary pulse";
+        for (auto tick : rises) message << " rise@" << tick;
+        for (auto tick : falls) message << " fall@" << tick;
+        fail(message.str());
+    }
+}
+
 struct TestCase {
     const char* name;
     void (*run)();
 };
 
-constexpr std::array<TestCase, 14> kTests = {{
+constexpr std::array<TestCase, 15> kTests = {{
     {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
     {"Full crop preserves the BU fixed monitor-sync grid", test_full_preserves_bu_crop_phase},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
@@ -773,6 +816,7 @@ constexpr std::array<TestCase, 14> kTests = {{
     {"stuck-high raw sync without VSYNC falls back to Full HBLANK", test_stuck_high_without_vsync_uses_full_blank},
     {"masked short retrigger preserves the learned watchdog cadence", test_masked_retrigger_preserves_watchdog_period},
     {"Full horizontal lock survives corroborated early retrace", test_full_ignores_corroborated_retrace_for_horizontal_lock},
+    {"Full completes a corroborated short vertical pair and retires it on switch", test_full_recovers_completed_short_vertical_pair},
     {"Full byte phase survives an on-origin ordinary split sync", test_full_keeps_byte_phase_after_split_sync},
     {"Full retires the recovered byte phase on a context change", test_full_discards_recovered_byte_phase_on_context_change},
     {"production selector pins Full, Raw pixels, Raw CRT and reserved tuples", test_production_mode_selector},

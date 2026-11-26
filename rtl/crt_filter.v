@@ -282,6 +282,23 @@ assign SYNC_OBSERVATION = {syncs, hSyncReg, hsync_mask, no_hsync, SHIFT, hs4, hS
         shadow_phase_period = 0;
     end
 
+// MODEL LIMIT (B26): the CRTC0 DT 02F0 pair consists of two complete
+// one-line raw pulses. The late pulse qualifies on the vertical age
+// check but ends before the output line. The rejected early pulse then
+// advances the stale count. Corroborate the short shape across the pair
+// before completing the accepted epoch on the legacy line clock.
+reg [9:0] short_v_left;
+reg short_v_rejecting, short_v_rejected, short_v_pending, short_v_active, short_v_emitted;
+wire short_v_live = !H_CONTEXT_CLEAR && !no_hsync;
+initial begin
+    short_v_left = 10'h3ff;
+    short_v_rejecting = 0;
+    short_v_rejected = 0;
+    short_v_pending = 0;
+    short_v_active = 0;
+    short_v_emitted = 0;
+end
+
 always @(posedge CLK) begin : syncgen
 	reg       old_hsync;
 	reg       old_vsync,old_vs;
@@ -301,6 +318,7 @@ always @(posedge CLK) begin : syncgen
 	reg phase_anchor;
     reg stretch_start, stretch_pending, stretch_confirm, shadow_start;
     reg admitted_rise, raw_h_rise, retain_h, use_shadow;
+    reg short_v_arm;
 
 
 	localparam HFLT_SZ = 50*4;
@@ -320,8 +338,38 @@ always @(posedge CLK) begin : syncgen
         shadow_live <= 0;
     end
 
+    if (!short_v_live) begin
+        short_v_left <= 10'h3ff;
+        short_v_rejecting <= 0;
+        short_v_rejected <= 0;
+        short_v_pending <= 0;
+        short_v_active <= 0;
+        short_v_emitted <= 0;
+        if (short_v_active) VSYNC_O <= 0;
+    end
+
 	if(CE_4) begin
 		old_hsync <= hsync_i;
+        short_v_arm = short_v_live && raw_vs_delayed && !VSYNC_I &&
+                      short_v_left == 0 && short_v_rejected && old_vsync &&
+                      vSyncFlt == 0 && vSyncCount == 0;
+        if (short_v_live) begin
+            if (!raw_vs_delayed && VSYNC_I) begin
+                // Capture the trained period before this raw pulse can retrain
+                // horizontal sync. All ones denotes overflow or invalid input.
+                short_v_left <= syncs == 3 && hSyncSize >= 32 ?
+                                {1'b0,hSyncSize} - 10'd1 : 10'h3ff;
+                short_v_rejecting <= 0;
+                short_v_pending <= 0;
+                short_v_active <= 0;
+            end else if (VSYNC_I && short_v_left != 10'h3ff) begin
+                short_v_left <= short_v_left - 10'd1;
+            end else if (raw_vs_delayed && !VSYNC_I) begin
+                short_v_rejected <= short_v_left == 0 && short_v_rejecting;
+                short_v_pending <= short_v_arm;
+            end
+        end
+
         admitted_rise = ~old_hsync & hsync_i;
         raw_h_rise = ~raw_hs_delayed & HSYNC_I;
         stretch_start = VSYNC_I && !raw_vs_delayed && !no_hsync &&
@@ -452,6 +500,11 @@ always @(posedge CLK) begin : syncgen
             end
         end
 
+        // Ordinary output follows the raw falling edge. A recovered
+        // line ends on the next checkpoint or if raw VS reasserts first.
+        if ((!VSYNC_I && !short_v_active) || (VSYNC_I && short_v_active))
+            VSYNC_O <= 0;
+
 		if(hSyncCount == 2*4 && !use_shadow) begin
 			legacy_hsync <= 1;
 			shift <= 0;
@@ -461,19 +514,30 @@ always @(posedge CLK) begin : syncgen
 			if(~&vSyncFlt) vSyncFlt <= vSyncFlt + 1'd1;
 
 			if(VSYNC_I) begin
+                if (!old_vsync && short_v_live)
+                    short_v_rejecting <= vSyncFlt <= VFLT_SZ;
 				if(~old_vsync && (vSyncFlt > VFLT_SZ)) begin
 					vSyncCount = 0;
 					vSyncFlt <= 0;
+                    short_v_emitted <= 0;
 				end
 				else if(~&vSyncCount) vSyncCount = vSyncCount + 1'd1;
-			end
-			
-			if(vSyncCount == 1) VSYNC_O <= 1;
-			if(!vSyncCount || (vSyncCount == 3)) VSYNC_O <= 0;
-		end
 
-		//force VSYNC disable earlier
-		if(~VSYNC_I) VSYNC_O <= 0;
+                if (vSyncCount == 1 && !(short_v_emitted && short_v_live))
+                    VSYNC_O <= 1;
+                if (vSyncCount == 0 || vSyncCount == 3) VSYNC_O <= 0;
+            end else if ((short_v_pending || short_v_arm) && short_v_live) begin
+                short_v_pending <= 0;
+                short_v_active <= 1;
+                // This epoch supplied its output. Keep the raw counter
+                // and retire the output ownership with the context.
+                short_v_emitted <= 1;
+                VSYNC_O <= 1;
+            end else if (short_v_active) begin
+                short_v_active <= 0;
+                VSYNC_O <= 0;
+            end
+		end
 
 		if(hSyncCount == 6*4) legacy_hsync <= 0;
 
