@@ -3494,6 +3494,8 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
 
 }
 
+enum class R4RematchTiming { EarlierLine, MatchLine, NoRematch };
+
 // SHAKER 2.7 E6 page 0409 case 28 recipe (R0=63, R4=38, R9=7, R5=22 before
 // the last line; R4=39 at C0=12 and R9=3 at C0=26 of the first additional
 // line C4=39/C9=0; R7=40; program expectation 000E). French ACCC v1.11
@@ -3507,7 +3509,7 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
 // keeps priority, so the frame restarts after 22 lines and C4 never
 // reaches R7=40.
 void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9,
-                                       bool rewrite_r4 = true) {
+                                      R4RematchTiming timing = R4RematchTiming::EarlierLine) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x8E}, {4, 38},
@@ -3522,14 +3524,30 @@ void check_type0_adjustment_r4_rematch(TestBench& test, std::uint8_t new_r9,
     test.expect_ra("ordinary entry starts additional C9=0", 0);
     test.expect_adjustment_active("ordinary R5=22 entry is active");
     test.run_characters(12);
-    if (rewrite_r4) test.write_register(4, 39);
-    else test.run_clock_ticks(2);  // Same phase; R4 stays 38 != C4.
+    if (timing == R4RematchTiming::EarlierLine) test.write_register(4, 39);
+    else test.run_clock_ticks(2);  // Same phase; R4 still 38 != C4.
     test.run_characters(14);
     test.write_register(9, new_r9);
     test.run_characters(6);  // Sample each following line at C0=32.
 
+    if (timing == R4RematchTiming::MatchLine) {
+        // E6C0's discriminator restores R4 at C0=28 of the C9==R9
+        // line. AmSpirit leaves VSYNC low at the seam, unlike a rewrite
+        // in an earlier line. Applying the held equality from French
+        // §13.2.1 p106 to this rematch provisionally reproduces that result.
+        test.run_characters(new_r9 * 64u + 28u - test.c0());
+        test.expect_ra("current-line R4 write starts at C9==R9", new_r9);
+        test.expect_byte("current-line R4 write starts at C0=28", 28, test.c0());
+        test.write_register(4, 39);
+        test.run_characters(68);
+        test.expect_vsync_low("current-line R4 rematch does not reach R7=40");
+        test.expect_c4("current-line R4 rematch holds C4=39", 39);
+        test.expect_ra("current-line R4 rematch keeps counting to R5", new_r9 + 1u);
+        return;
+    }
+
     // Without the R4 rewrite C4 != R4, so C9==R9 cannot reset C9 again.
-    const bool r9_first = rewrite_r4 && new_r9 < 21;
+    const bool r9_first = timing == R4RematchTiming::EarlierLine && new_r9 < 21;
     const unsigned c4_39_lines = r9_first ? new_r9 + 1u : 22u;
     for (unsigned c9 = 0; c9 < c4_39_lines; ++c9) {
         test.expect_c4("R4 rematch holds C4=39 until C9==R9", 39);
@@ -3608,9 +3626,8 @@ void check_type0_adjustment_r4_rematch_exact_r0_owner(TestBench& test) {
     test.write_selected_register_at_clken(8);
     test.expect_c4("exact-R0 straddle leaves C4=39", 39);
     test.expect_ra("exact-R0 straddle leaves C9=8", 8);
-    test.run_characters(12);
-    test.write_register(4, 39);
-    test.run_characters(20);
+    test.write_register(4, 39);  // Still at C0=0, before held R4 is sampled.
+    test.run_characters(32);
     test.expect_c4("exact-R0 owner line keeps C4=39", 39);
     test.expect_ra("exact-R0 owner line keeps C9=8", 8);
     test.run_characters(64);
@@ -3638,9 +3655,8 @@ void check_type0_adjustment_r4_rematch_ivm_excluded(TestBench& test) {
         }
     }
     test.expect_byte("IVM rematch starts at C0=0", 0, test.c0());
-    test.run_characters(12);
-    test.write_register(4, 39);
-    test.run_characters(14);
+    test.write_register(4, 39);  // R4 is equal before the C0=1 CLKEN sample.
+    test.run_characters(26);
     test.write_register(9, 3);
     test.run_characters(6);
     for (unsigned line = 0; line < 23; ++line) {
@@ -3689,8 +3705,9 @@ void check_type0_adjustment_r4_rematch_r6_parity(TestBench& test) {
 void test_type0_adjustment_r4_rematch_reenables_r9(TestBench& test) {
     check_type0_adjustment_r4_rematch_r6_parity(test);
     check_type0_adjustment_r4_rematch(test, 3);
+    check_type0_adjustment_r4_rematch(test, 3, R4RematchTiming::MatchLine);
     check_type0_adjustment_r4_rematch(test, 21);
-    check_type0_adjustment_r4_rematch(test, 3, false);
+    check_type0_adjustment_r4_rematch(test, 3, R4RematchTiming::NoRematch);
     check_type0_adjustment_r4_rematch_r5_zero_exit(test);
     check_type0_adjustment_r4_rematch_exact_r0_owner(test);
     check_type0_adjustment_r4_rematch_ivm_excluded(test);

@@ -456,15 +456,12 @@ wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
 // management (§11.2.2 p82: it ends when the calculated C9 equals R5; same
 // rule as type0_r9_zero_adjust_end). The forced C0=1 line, a pending R9
 // phase and an R4 cancellation keep their own comparators above.
-// MODEL LIMIT (B26): C4==R4 is taken from the live register at the line's
-// last character, so an equal R4 write anywhere in the C9==R9 line
-// qualifies. The alternative samples C4==R4 from C0<2 and requires R4 to
-// stay equal for the whole line (§13.2.1 p106 "R4 est resté égal à C4
-// durant la ligne", stated for adjustment entry). Evidence: SHAKER E6
-// 0409 cases 27/28 (rewrite lines before the match) need either form;
-// AmSpirit Lite 1.17.1 follows the sampled form for a write within the
-// match line, CPCSyntaxError 0.17.0 has no dual comparator. Open until
-// an original CRTC0 runs the E6C0 rematch disk (backlog B26).
+// MODEL LIMIT (B26): require R4 to match C4 at each character sample from
+// C0=1 and at the rollover. This extends the adjustment-entry rule
+// (§13.2.1 p106) to a later adjustment rematch. AmSpirit Lite 1.18.3
+// reproduces the E6C0 probe's previous-line rematch and rejects its
+// current-line rematch. SHAKER E6 0409 cases 27/28 accept either sampling
+// rule. The E6C0 disk on an original CRTC0 remains the discriminator.
 // MODEL LIMIT (B26): the rematch is also excluded (a) on a line whose
 // comparator an exact-R0 R9 write selected (type0_r9_at_r0_active): its C4
 // step comes from the latched Last Line, so a live C9 reset there would
@@ -473,11 +470,13 @@ wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
 // (§19.8.1 p220) is defined for ordinary row ends, not this re-entered
 // comparator. Both are unmeasured coverage limits, not chip rules; E6
 // exercises neither. Review of 0c929ce, 2026-11-24.
+reg        type0_adj_r4_broken;
 wire       type0_adj_r9_rollover = in_adj && !type0_c0_1_adjust_active &&
                                   !type0_r9_at_r0_active &&
                                   !ivm_disp_r && !tog_line &&
                                   !type0_r4_switch_active &&
                                   !type0_r9_compare_active &&
+                                  !type0_adj_r4_broken &&
                                   (row == R4_v_total) && type0_live_line_last &&
                                   !type0_selected_rollover_line_last;
 wire       type0_adj_r9_zero_end = type0_adj_r9_rollover &&
@@ -669,6 +668,7 @@ end
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
 		type0_r4_adjust_switch <= 0;
+		type0_adj_r4_broken <= 0;
 		type0_r9_live_compare <= 0;
 		type0_r9_at_r0_pending <= 0;
 		type0_c0_1_adjust <= 0;
@@ -678,6 +678,9 @@ always @(posedge CLOCK) begin
 		type0_r5_adjust_target <= 0;
 	end
 	else begin
+		if(CLKEN && line_new) type0_adj_r4_broken <= 0;
+		else if(CLKEN && hcc >= 1 && R4_v_total != row) type0_adj_r4_broken <= 1;
+
 		// French ACCC v1.11 section 13.2.1 p.106: vertical adjustment with
 		// ordinary C4=R4+1 progression requires R4 to have remained equal to
 		// C4 throughout the line. Any unequal R4 write within C0 in [2, R0]
