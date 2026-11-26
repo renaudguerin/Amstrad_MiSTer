@@ -207,6 +207,73 @@ void test_full_mode_baseline() {
     }
 }
 
+// SHAKER B0 00CC leaves equal-period raw HSYNC 16 CE4 ticks early
+// after its short line. Preserve the ordinary selected lag, then release
+// the phase on live return or missing source without another VSYNC.
+void test_full_relocks_early_phase_and_releases_without_vsync() {
+    constexpr unsigned frame_lines = 312;
+    constexpr unsigned ordinary_rise = 160;
+    constexpr unsigned early_rise = ordinary_rise - 16;
+    constexpr unsigned raw_width = 24;
+    const auto selected_rise = [](const std::vector<Sample>& line) {
+        unsigned rises = 0, rise = 0, width = 0;
+        for (unsigned tick = 1; tick < line.size(); ++tick) {
+            if (line[tick].hsync_o && !line[tick-1].hsync_o) {
+                ++rises;
+                rise = tick;
+            }
+            width += line[tick].hsync_o;
+        }
+        if (rises != 1 || width != 16) fail("expected one 16-CE4 Full HSYNC in the line");
+        return rise;
+    };
+
+    for (bool lose_source : {false, true}) {
+        CrtFilterBench tb;
+        unsigned ordinary_output = 0, previous = 0;
+        for (unsigned frame = 0; frame < 6; ++frame) {
+            const unsigned limit = frame < 5 ? frame_lines : 128;
+            for (unsigned y = 0; y < limit; ++y) {
+                const unsigned rise = y < 22 ? ordinary_rise : early_rise;
+                const auto line = tb.run_line_ce(kLineCeTicks, rise, raw_width, y < 16);
+                if (frame == 5 && y == 20) ordinary_output = selected_rise(line);
+                if (frame == 5 && y >= 85) {
+                    previous = selected_rise(line);
+                    if (previous + 16 != ordinary_output)
+                        fail("Full HSYNC did not recover ordinary lag for the stable early pulse");
+                }
+            }
+        }
+        if (ordinary_output < ordinary_rise || ordinary_output >= ordinary_rise + 16)
+            fail("fixture did not establish ordinary Full HSYNC lag before the step");
+
+        unsigned observed = 0, handoffs = 0;
+        for (unsigned y = 0; y < (lose_source ? 300u : 100u); ++y) {
+            const auto line = tb.run_line_ce(kLineCeTicks, ordinary_rise,
+                                            lose_source ? 0 : raw_width);
+            if (lose_source && !line.front().no_hsync) continue;
+            const auto rise = selected_rise(line);
+            if (!lose_source) {
+                const auto spacing = kLineCeTicks + rise - previous;
+                if (spacing == kLineCeTicks + 16) ++handoffs;
+                else if (spacing != kLineCeTicks)
+                    fail("live Full phase handoff duplicated or skipped HSYNC");
+            }
+            previous = rise;
+            if ((!lose_source && y < 6)) continue;
+            if (rise != ordinary_output)
+                fail(lose_source ? "missing-source Full HSYNC retained the early phase" :
+                                   "Full HSYNC retained the early phase after a live return without VSYNC");
+            unsigned active = 0;
+            for (const auto& sample : line) active += !sample.hblank;
+            if (active != kFullActiveTicks) fail("Full phase handoff damaged the active span");
+            ++observed;
+        }
+        if (observed < 30 || (!lose_source && handoffs != 1))
+            fail("Full phase handoff was not observed for both stable intervals");
+    }
+}
+
 void check_phase_window(unsigned start, unsigned raw_width,
                         const std::string& label) {
     CrtFilterBench tb;
@@ -428,7 +495,8 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 9> kTests = {{
+constexpr std::array<TestCase, 10> kTests = {{
+    {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
     {"Live HBLANK preserves master phase and the +3-pixel R2.JIT shift", test_live_blank_master_phase_and_r2jit},
     {"raw force blank longer than the scaler minimum remains blank", test_long_raw_force_blank_wins},

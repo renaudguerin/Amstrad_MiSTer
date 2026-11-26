@@ -49,6 +49,27 @@ reg phase_epoch, phase_pair_valid;
 reg signed [10:0] phase_first, phase_pending, phase_active;
 reg [9:0] phase_age;
 reg [8:0] phase_period;
+
+// Separately qualify settled early raw sync beyond the small alternating-pair
+// aperture. Complete ordinary pulses and equal periods distinguish a stable
+// displacement from the short-line/VS transient and masked edges.
+// SHAKER B0 00CC leaves the raw line origin early after its retrace sequence
+// (French ACCC v1.11 §16.6 pp.174-176). Recover the ordinary Full display
+// window without changing the measured period or the vertical line clock.
+reg signed [10:0] relock_phase, relock_sample, relock_previous;
+reg [1:0] relock_complete;
+reg [4:0] relock_pulse_left;
+reg relock_sample_valid, relock_departure, relock_covered;
+initial begin
+    relock_phase = 0;
+    relock_sample = 0;
+    relock_previous = 0;
+    relock_complete = 0;
+    relock_pulse_left = 0;
+    relock_sample_valid = 0;
+    relock_departure = 0;
+    relock_covered = 0;
+end
 initial begin
     phase_epoch = 0; phase_pair_valid = 0;
     phase_first = 0; phase_pending = 0; phase_active = 0;
@@ -230,6 +251,9 @@ always @(posedge CLK) begin : syncgen
 	reg [3:0] vSyncCount;
 	reg [8:0] vSyncFlt;
 	integer phase_value, phase_sum, phase_effective;
+    integer phase_length, relock_target, regular_rise, output_rise, output_fall;
+    reg relock_rise, relock_fall, relock_open, relock_regular;
+    reg relock_source_bad, relock_ordinary, relock_release;
 	reg phase_anchor;
 
 	localparam HFLT_SZ = 50*4;
@@ -361,10 +385,85 @@ always @(posedge CLK) begin : syncgen
                 phase_pending <= 0;
             end
         end
-        // A completed pair is pending until the following reference origin.
-        // The effective value also covers an offset-8 rise on that origin.
-        if ($signed({23'd0, hSyncCount}) == 32'sd8 + phase_effective) HSYNC_O <= 1;
-        if ($signed({23'd0, hSyncCount}) == 32'sd24 + phase_effective) HSYNC_O <= 0;
+        phase_length = $signed({23'd0, hSyncSize});
+        relock_target = 8 + phase_value;
+        if (relock_target < 0) relock_target = relock_target + phase_length;
+        relock_rise = ~old_hsync & hsync_i;
+        relock_fall = old_hsync & ~hsync_i;
+        relock_source_bad = no_hsync || hSyncSize < 32 || phase_period != hSyncSize;
+        relock_ordinary = relock_fall && rgb_meta_open && rgb_meta_real &&
+                          rgb_meta_width >= 16 && rgb_meta_width <= 24;
+        // A retained phase belongs to the admitted real source and period.
+        // One completed ordinary-width pulse proves an off-phase rise was
+        // a source departure. An isolated short edge leaves the owner live.
+        relock_release = relock_phase != 0 &&
+                         (relock_source_bad || (relock_ordinary && relock_departure));
+        relock_regular = (phase_age + 10'd1 == {1'b0,hSyncSize});
+        relock_open = !VSYNC_I && VBLANK && !relock_source_bad && syncs == 3;
+        regular_rise = 8 + phase_effective;
+        if (relock_phase != 0 && !relock_release)
+            phase_effective = $signed({{21{relock_phase[10]}},relock_phase});
+        if (phase_anchor || relock_release) relock_departure <= 0;
+        else if (relock_rise)
+            relock_departure <= relock_phase != 0 && relock_phase != phase_value[10:0];
+        else if (relock_fall) relock_departure <= 0;
+        if (phase_anchor || relock_release) begin
+            relock_phase <= 0;
+            relock_complete <= 0;
+            relock_sample_valid <= 0;
+        end else if (!relock_open) begin
+            relock_complete <= 0;
+            relock_sample_valid <= 0;
+        end else if (relock_rise) begin
+            relock_sample <= phase_value[10:0];
+            relock_sample_valid <= relock_regular &&
+                                   phase_value < -8;
+            if (relock_regular && relock_complete == 2 &&
+                    relock_previous == phase_value[10:0] && !HSYNC_O &&
+                    relock_target > $signed({23'd0,hSyncCount})) begin
+                // Both old and new pulses are low here, and the new rise
+                // is still ahead in this count cycle.
+                relock_phase <= phase_value[10:0];
+                phase_effective = phase_value;
+            end
+        end else if (relock_fall) begin
+            if (relock_sample_valid && relock_ordinary) begin
+                relock_previous <= relock_sample;
+                if (relock_complete == 0 || relock_previous != relock_sample)
+                    relock_complete <= 1;
+                else relock_complete <= 2;
+            end else relock_complete <= 0;
+        end
+
+        // Ordinary phase remains inside its original non-wrapping range.
+        // A wide correction can put the rise before the legacy counter wrap.
+        output_rise = 8 + phase_effective;
+        output_fall = 24 + phase_effective;
+        if (output_rise < 0) output_rise = output_rise + phase_length;
+        if (output_fall < 0) output_fall = output_fall + phase_length;
+        if (output_rise >= phase_length && relock_phase != 0)
+            output_rise = output_rise - phase_length;
+        if (output_fall >= phase_length && relock_phase != 0)
+            output_fall = output_fall - phase_length;
+        // The pre-wrap wide pulse already supplied the upcoming regular
+        // line. Consume that slot even if the wide owner retires first.
+        if ($signed({23'd0,hSyncCount}) == regular_rise) relock_covered <= 0;
+        // Complete a pulse started in the recovered phase when its owner
+        // retires or when the next raw VS anchor resets the legacy count.
+        if (relock_pulse_left != 0) begin
+            relock_pulse_left <= relock_pulse_left - 5'd1;
+            if (relock_pulse_left == 1) HSYNC_O <= 0;
+        end else begin
+            if ($signed({23'd0, hSyncCount}) == output_rise &&
+                    (phase_effective < -8 || !relock_covered)) begin
+                HSYNC_O <= 1;
+                if (phase_effective < -8) begin
+                    relock_pulse_left <= 5'd16;
+                    relock_covered <= 1;
+                end
+            end
+            if ($signed({23'd0, hSyncCount}) == output_fall) HSYNC_O <= 0;
+        end
 
 	end
 end
