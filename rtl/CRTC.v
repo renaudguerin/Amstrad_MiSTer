@@ -758,8 +758,11 @@ reg vsync_allow;
 wire vsync_parity = CRTC_TYPE ?
     ((CLKEN && e1_pf_write) ? e1_pf_value : parity_frame) :
     ((CLKEN && e0_pf_write) ? e0_pf_value : parity_frame);
-// Retain the established R8-exit field lifecycle outside interlace mode.
-wire vsync_mid = R8_interlace[0] ? !vsync_parity : field;
+// French ACCC v1.11 §19.7.2 p.219: resolve the incoming field before
+// the Type 0 origin comparison. An off-strobe R7 write can still start
+// a pulse in the departing field, and an active pulse owns its phase.
+wire type0_progressive_origin = !CRTC_TYPE && CLKEN && frame_new;
+wire vsync_mid = R8_interlace[0] ? !vsync_parity : (field && !type0_progressive_origin);
 // French section 16.4 p.170 accepts R7 through C0=R0 before C4=R7.
 // On the origin edge, the register write and parity transition both precede
 // the new C4/R7 comparison. Type 0's additional line can end the frame

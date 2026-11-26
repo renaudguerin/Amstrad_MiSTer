@@ -9232,6 +9232,49 @@ void test_vsync_active_r8_transitions(TestBench& test, unsigned type) {
     throw TestFailure("D1 R8 transition fixture did not finish a pulse");
 }
 
+// Reduce the 0186 R8-to-origin crossing to CRTC pins while removing the
+// caller's unrelated C4/C9 and palette writes. R7=0 and R6 unreachable
+// preserve the even frame. Keep a full deasserted interval before R8=0.
+void test_type0_b1_progressive_origin_after_ivm(TestBench& test) {
+    test.prepare_for_reset(0);
+    test.load_snapshot_registers({63, 40, 46, 0x4e, 38, 6, 127, 0, 3, 7});
+    if (!test.run_to_frame_start(400)) throw TestFailure("B1 IVM origin missing");
+    test.expect_byte("IVM starts with VSYNC quiet before midpoint", 0, test.raw_vsync());
+    test.run_to_c0(31);
+    test.expect_byte("IVM starts VSYNC at its midpoint", 1, test.raw_vsync());
+    test.run_characters(5 * 64);
+    test.expect_vsync_low("IVM pulse has expired");
+    test.write_register(8, 0);
+    if (!test.run_to_frame_start(400)) throw TestFailure("B1 ordinary origin missing");
+    test.expect_vsync_high("first completed R8=0 origin emits VSYNC before midpoint");
+    test.run_characters(4 * 64);
+    test.expect_vsync_low("R8=0 pulse expires on ordinary line cadence");
+}
+
+// A write before the Type 0 origin runs in the departing field,
+// even on a terminal R4=0 character where frame_new is already true.
+void test_type0_terminal_r7_keeps_preorigin_phase(TestBench& test) {
+    test.prepare_for_reset(0);
+    test.load_snapshot_registers({63, 40, 46, 0x4e, 38, 0, 127, 127, 3, 7});
+    if (!test.run_to_frame_start(400)) throw TestFailure("B1 IVM origin missing");
+    test.write_register(8, 0);
+    test.write_register(4, 0);
+    test.select_register(7);
+    unsigned wait = 0;
+    while (!test.frame_end_pending() && ++wait < 20*64*16) test.run_clock_ticks(1);
+    if (wait == 20*64*16) throw TestFailure("terminal R4=0 frame missing");
+    test.expect_byte("R7 write is in old C0=63", 63, test.c0());
+    test.expect_c4("terminal row still has old C4=0", 0);
+    test.expect_vsync_low("VSYNC quiet before R7 write");
+    test.write_selected_register_at_nclken(0);
+    test.expect_byte("R7 write completes before origin edge", 63, test.c0());
+    test.expect_byte("R7 equality starts immediate raw VSYNC", 1, test.raw_vsync());
+    unsigned pulse = 0;
+    while (test.raw_vsync() && ++pulse < 6*64) test.run_characters(1);
+    if (pulse == 6*64) throw TestFailure("R7 pulse failed to expire");
+    test.expect_byte("off-CLKEN R7 preserves departing midpoint phase", 31, test.c0());
+}
+
 // t24: type-1 IVM VSYNC positions (ACCC v1.11 section 19.5.3 p.209 table).
 //
 // R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
@@ -11121,6 +11164,10 @@ int main(int argc, char** argv) {
          [](TestBench& t) { test_vsync_frames(t, 0, 8, 3, 1); }},
         {"d1_type0_r8_bus_entry", "French 19.7.2 R8 transitions", false,
          [](TestBench& t) { test_vsync_frames(t, 0, 7, 3, 0, 31, 4, true); }},
+        {"b1_type0_progressive_origin_after_ivm", "SHAKER B1 0186 and French §19.7.2 p.219", false,
+         test_type0_b1_progressive_origin_after_ivm},
+        {"b1_type0_terminal_r7_keeps_preorigin_phase", "French §16.4.1 and §19.7.2", false,
+         test_type0_terminal_r7_keeps_preorigin_phase},
         {"d1_type0_active_r8", "French 16.2/19.7.2 width lifecycle", false,
          [](TestBench& t) { test_vsync_active_r8_transitions(t, 0); }},
         {"d1_type1_is_r9_7", "French 19.7.2 p.219 R8=1", false,
