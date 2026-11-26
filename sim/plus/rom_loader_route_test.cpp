@@ -20,6 +20,9 @@ struct RouteExpectation {
     uint16_t expected_dest_a_hi;
     bool expected_promote;
     const char* description;
+    uint8_t selected_bank = 0;
+    uint8_t selected_slot = 0;
+    bool selected_full = false;
 };
 
 struct RouteResult {
@@ -64,6 +67,9 @@ bool check_case(Vrom_loader_route& dut, const RouteExpectation& test) {
     dut.ioctl_index = test.ioctl_index;
     dut.ioctl_addr = static_cast<uint32_t>((test.ioctl_addr >> 14) & 0x7FF);
     dut.page = test.page & 0x1FF;
+    dut.selected_bank = test.selected_bank;
+    dut.selected_slot = test.selected_slot;
+    dut.selected_full = test.selected_full;
     dut.eval();
 
     bool pass = true;
@@ -106,7 +112,9 @@ bool check_case(Vrom_loader_route& dut, const RouteExpectation& test) {
 
 bool check_exhaustive_equivalence(Vrom_loader_route& dut) {
     constexpr std::array<uint16_t, 6> pages = {0x000, 0x001, 0x0ff, 0x100, 0x1ee, 0x1ff};
+    dut.selected_full = true; // retained from a previous direct transfer
     for (unsigned index = 0; index < 256; ++index) {
+        if (index == 9) continue; // new picker, checked below
         for (unsigned chunk = 0; chunk < 2048; ++chunk) {
             for (uint16_t page : pages) {
                 const RouteResult expected = legacy_route(index, chunk, page);
@@ -184,6 +192,17 @@ const RouteExpectation kGenericCases[] = {
     {0x1F, 0x00000, 0x000, false, true, 0, 0x000, true,  "Index 0x1F: rom_active false"}
 };
 
+const RouteExpectation kNumberedSlotCases[] = {
+    {9, 0x00000, 0x1ee, true, true, 2, 0x000, false, "464 lower OS", 2, 0},
+    {9, 0x03fff, 0x000, true, true, 0, 0x10a, false, "6128 upper slot 10", 0, 11},
+    {9, 0x00000, 0x1ff, true, true, 1, 0x100, false, "664 upper slot 0", 1, 1},
+    {9, 0x00000, 0x1ee, true, true, 2, 0x10f, false, "464 upper slot 15", 2, 16},
+    {9, 0x04000, 0x1ff, true, false, 0, 0x107, false, "oversize cannot write the next slot", 0, 8},
+    {9, 0x00000, 0x1ff, true, false, 0, 0x107, false, "address wrap cannot overwrite the completed slot", 0, 8, true},
+    {9, 0x00000, 0x100, true, false, 3, 0x107, false, "reject Dandanator bank", 3, 8},
+    {9, 0x00000, 0x100, true, false, 0, 0x110, false, "reject unlisted menu slot", 0, 17},
+};
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -202,6 +221,9 @@ int main(int argc, char** argv) {
 
     // 3. Run generic and auto route tests
     for (const auto& test : kGenericCases) {
+        check_case(dut, test);
+    }
+    for (const auto& test : kNumberedSlotCases) {
         check_case(dut, test);
     }
 
