@@ -8876,6 +8876,104 @@ void t22_run_exit(TestBench& test, bool odd_frame, std::uint8_t exit_offset,
     t22_walk(test, "t22 exit", steps);
 }
 
+// Original SHAKER B1 base-five Odd cases I/J differ by one raster at R8=0.
+// &7640 retires during C0=33, with R9=5, and &7652 restores R9=7
+// at C0=15 on the next raster. Stock/peer 03ED and the first PPI poll
+// distinguish a four-raster loss only in J. The following case K exits
+// one raster later, after the outgoing character row is already complete.
+// A snapshot on the rollover replaces the exit context without retiring
+// its terminal match. The normal C0 rollover still advances C9.
+// A phase-matched peer holdout changes R9 after the outgoing C0
+// sample; the four-raster result still follows the live comparison.
+void test_type0_b1_odd_r9_ivm_exit(TestBench& test) {
+    const struct {
+        unsigned offset, outgoing_c4, outgoing_c9, outgoing_ra;
+        unsigned incoming_c4, incoming_c9, address_row;
+        unsigned snapshot_c0;
+        bool frame_last, late_r9;
+    } cases[] = {
+        {2, 15, 2, 4, 15, 3, 15, 0, false, false},
+        {4, 16, 0, 1, 16, 1, 16, 0, false, false},
+        {3, 15, 3, 6, 15, 4, 15, 38, false, false},
+        {3, 15, 3, 6, 15, 4, 15, 63, false, false},
+        {3, 15, 3, 6, 16, 0, 15, 0, true, false},
+        {3, 15, 3, 6, 16, 0, 16, 0, false, false},
+        {3, 15, 3, 6, 16, 0, 16, 0, false, true},
+    };
+    for (const auto& item : cases) {
+        test.write_register(12, 0x30);
+        test.write_register(13, 0);
+        t22_configure(test, true);
+        if (item.frame_last) {
+            test.write_register(4, 15);
+            test.write_register(5, 3);
+        }
+        test.write_register(9, 7);
+        test.run_characters(6 * 8 * 64);
+        test.expect_c4("original IVM entry C4", 6);
+        test.expect_line("original IVM entry C9", 0);
+        test.run_to_c0(21);
+        test.write_register(9, 5);
+        test.run_to_c0(35);
+        test.write_register(8, 3);
+        test.run_to_c0(0);
+        for (unsigned raster = 0; raster < 45 && test.c4() != 15; ++raster)
+            test.run_characters(64);
+        test.expect_c4("steady Odd IVM reaches C4=15", 15);
+        test.expect_line("first raster of the exit row", 0);
+        if (item.late_r9) {
+            test.run_characters((item.offset - 1) * 64);
+            test.run_to_c0(40);
+            test.write_register(9, 7);
+            test.run_to_c0(0);
+            test.run_to_c0(8);
+            test.write_register(9, 5);
+        } else {
+            test.run_characters(item.offset * 64);
+        }
+        test.expect_c4("C4 before the IVM exit", item.outgoing_c4);
+        test.expect_line("C9 before the IVM exit", item.outgoing_c9);
+        test.run_to_c0(33);
+        test.write_register(8, 0);
+        test.expect_ra("R8=0 keeps the outgoing VMA", item.outgoing_ra);
+        const bool snapshot_on_rollover = item.snapshot_c0 == 63;
+        if (item.snapshot_c0) {
+            const std::array<std::uint8_t, 10> registers{63, 40, 50, 0, 63, 0, 1, 63, 0, 7};
+            test.run_to_c0(item.snapshot_c0);
+            if (snapshot_on_rollover) {
+                test.load_snapshot_registers_at_clken(registers);
+                test.expect_byte("snapshot coincides with the C0 rollover", 0, test.c0());
+            } else {
+                test.load_snapshot_registers(registers);
+            }
+        }
+        test.run_to_c0(15);
+        const std::string label = item.snapshot_c0 ? "IVM exit with snapshot" :
+                                  item.frame_last ? "IVM exit at adjustment entry" :
+                                  item.late_r9 ? "IVM exit after late R9 rewrite" :
+                                  "IVM exit offset " + std::to_string(item.offset);
+        test.expect_c4(label + " incoming C4", item.incoming_c4);
+        test.expect_line(label + " incoming C9", item.incoming_c9);
+        test.expect_ra(label + " incoming ordinary RA", item.incoming_c9);
+        // Replacement on the rollover cannot rewind an address already
+        // saved at the previous R1. The earlier snapshot tests the MA path.
+        if (!snapshot_on_rollover)
+            test.expect_ma(label + " incoming VMA", 0x3000 + 40 * item.address_row + 15);
+        test.write_register(9, 7);
+        if (item.frame_last) {
+            test.expect_adjustment_active("the last row owns the adjustment entry");
+            test.run_characters(3 * 64);
+            test.expect_c4("adjustment exits into the next C4 origin", 0);
+            test.expect_line("adjustment exits into the next C9 origin", 0);
+            test.expect_ma("frame origin reloads R12/R13", 0x3000 + 15);
+            continue;
+        }
+        test.run_characters(64);
+        test.expect_c4(label + " next raster stays on the same row", item.incoming_c4);
+        test.expect_line(label + " next ordinary raster increments C9", item.incoming_c9 + 1);
+    }
+}
+
 // French19.8.1 pp220-221: enter after the half-height limit to reach
 // raw6/VMA12, then exit at C0=1. The exit line tests VMA12 vs plainR9=6.
 void t22_c1_exit_uses_current_line(TestBench& test) {
@@ -11616,6 +11714,8 @@ int main(int argc, char** argv) {
         {"t22k_type0_ivm_entry_odd_c9_6",
          "ACCC v1.11 section 19.8.1 pp.220-221 and table p.224 top (switch at C9=6, odd frame overflow); F10",
          false, t22_entry_odd_6},
+        {"type0_b1_odd_r9_ivm_exit", "Original SHAKER 0138/013A exit and 03ED calibration",
+         false, test_type0_b1_odd_r9_ivm_exit},
         {"t22l_type0_ivm_exit_even_at_limit",
          "ACCC v1.11 section 19.8.1 p.221 and table p.224 bottom (exit at C9.VMA=R9); F10",
          false, t22_exit_even_at_limit},

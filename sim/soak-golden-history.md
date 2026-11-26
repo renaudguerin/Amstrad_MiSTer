@@ -4,6 +4,7 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 
 | Hash | Set on | Scope |
 |---|---|---|
+| `0x55f5f7eef0be785f` | 2026-11-26 | CRTC0 uses the live adjusted odd R9 target on the departing ordinary IVM raster (SHAKER B1 `013A`/inherited `03ED`). The first saved VMA changes at zero-based sample 186,669, where R9=3 and outgoing RA=4. At sample 186,674 the next raster is C4/C9=2/0 instead of 1/3, with MA=2 instead of 16383. The projection and 2,845,088-sample count are unchanged. |
 | `0x0ad6b1feb4ad39a2` | 2026-11-26 | CRTC0 captures the first video address owner at the actual raster rollover (SHAKER B1 `010C/0119/0182`, French ACCC §19.8.1 pp.220–221). The old projection yields `0xfaaf3f167d8f6ca0`. The new projection includes the address owner, which persists through the first character even if R0 freezes C0. |
 | `0x8537bd9e65d4fc14` | 2026-11-26 | CRTC0 ordinary terminal R9 row step (SHAKER E `0403/0404`, French ACCC §10.3.1.2 pp.76–77). The previous projection first differs at zero-based sample 1,332,459. A terminal R9 write at C0=R0=3 advances C4 from 39 to 40 while C9 continues from 3 to 4. The new projection samples both strobe history and pending row ownership. |
 | `0xc562452fcee0d70b` | 2026-11-26 | CRTC0 progressive off-strobe R7.JIT pin onset (SHAKER DT `02EC/02ED`, French ACCC §16.2.1 pp.161–162). In the prior projection, only the published VSYNC pin changes at seven CLKEN samples, first at 54,225 (C0=22, C4/C9=0/0). The new projection also samples the pending publication latch. |
@@ -28,4 +29,4 @@ The fixed seed randomized CRTC soak uses this current expected hash:
 | `0x6bb49f9262b5c886` | 2026-11-13 | CRTC1 active VSYNC width held at R0=0; bounded B26 candidate for original SHAKER AI/008D high samples, with C4/C9 still advancing (French ACCC 13.3 p115) |
 | `0x974e5c048eb7f877` | 2026-11-06 | Current type 0 and type 1 behaviour |
 
-Run `make -C sim soak SOAK_EXPECT=0xcd159e582e4f3e12` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.
+Run `make -C sim soak SOAK_EXPECT=0x55f5f7eef0be785f` to compare a change. If a behaviour preserving refactor changes the hash, investigate the difference. For an intentional behaviour change, add a new top row with the source or hardware basis and affected behaviour.

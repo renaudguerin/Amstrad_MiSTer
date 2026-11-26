@@ -443,11 +443,20 @@ wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line);
 // R9, even-parity rows at R9+1, producing the documented 5/4 line
 // alternation.  For even R9 the addend reduces to ParityC9 and R9+P equals
 // the previous R9-or-P form bit-for-bit, so the t22 vectors are unchanged.
-// Exit/toggle-leave and IVM-off lines: plain R9.  The 6-bit compare keeps
+// IVM-off lines use plain R9. The 6-bit compare keeps
 // an overflowed target (R9=31 with an even addend) unmatchable, preserving
 // the old degenerate no-row-end behavior.
+// MODEL LIMIT (B26): the original SHAKER 013A odd-R9 exit needs the
+// adjusted odd target on the outgoing IVM raster. A phase-matched
+// late-R9 holdout in AmSpirit also reaches that target after C0.
+// The French §19.8.1 pp.221, 224-225 exit diagrams use even R9.
+// Restrict this to ordinary progressive exits. The frame-terminal
+// owner retains its existing adjustment and VMA save decisions.
+wire type0_ivm_exit_odd_limit = nRESET && !SNA_LOAD && ivm_disp_r &&
+                               (R8_interlace == 2'b00) && !in_adj && !row_last_r &&
+                               R9_v_max_line[0] && !parity_c9;
 wire [5:0] type0_limit_addend = tog_line ? (tog_enter_line ? {5'b00000, parity_frame}
-                                                           : 6'd0) :
+                                                           : {5'b00000, type0_ivm_exit_odd_limit}) :
                              type0_ivm_extra_raw ? {5'b00000, parity_frame} :
                              ivm_disp_r ? {4'b0000, parity_c9 ^ R9_v_max_line[0]} : 6'd0;
 wire [5:0] type0_limit_target6 = {1'b0, R9_v_max_line} + type0_limit_addend;
