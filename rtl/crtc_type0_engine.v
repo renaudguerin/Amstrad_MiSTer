@@ -192,21 +192,13 @@ assign hcc_terminal = hcc_last ||
 // pp.224-225 tables), which is exactly value-doubled=1 with target
 // parity=0 -- the same form the tables show.
 //
-// ParityC9 is seeded from ParityFrame when IVM turns on at a seam (the
-// tables' doubled display carries the frame parity from the first doubled
-// line on).  With even R9 it never changes afterwards: the p.220 row-end
-// ParityC9 update is gated on R9 odd -- the printed token `If R9.0=0` was
-// adjudicated 2026-08-25 as a typo for `R9.0=1` (author question Q19 main
-// token, resolved by default reading; see accc-author-questions.md item 19
-// and finding F15).  With odd R9 the update is live (F15, implemented
-// 2026-08-26): ParityC9 := C4.0(new) xor ParityFrame at every IVM row end
-// and the frame parity at each origin, and the limit target becomes
-// R9 + (ParityC9 xor R9.0) -- the p.207 worked example's 5/4 line
-// alternation.  The section 19.5.2 VSYNC delay-by-1-line correction for
-// odd-C4 R7 on ParityFrame-odd frames is implemented with it (see the
-// vsync delay block below). French v1.11 section19.8.1 p221 and rendered
-// exit tables pp224-225 retain the IVM-derived comparison for the exit
-// line, then resume ordinary raw-C9 counting from the following line.
+// At IVM entry, even R9 seeds ParityC9 from ParityFrame, and odd R9
+// includes C4.0 on ordinary rows (§19.5.2 pp.206–208). The p.220 row-end
+// assignment is gated on odd R9 (author question Q19). It refreshes
+// ParityC9 from the new C4 and frame parity, producing the 5/4 line
+// alternation with target R9 + (ParityC9 xor R9.0). Frame origin
+// re-anchors the odd-R9 seed to frame parity. See the VSYNC delay
+// block below for the corresponding odd-R7 timing.
 reg        ivm_disp_r;    // this line started with IVM active
 reg        tog_line;      // an R8 toggle write landed during this line
 reg        tog_enter_line;
@@ -251,9 +243,18 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// ParityC9 seeding: IVM turning on at this seam plants the frame parity
-// (the tables' doubled display parity from the first doubled line on).
+// On the first doubled line, seed ParityC9 with the current C4 parity
+// XOR ParityFrame for odd R9 (French ACCC v1.11 §19.5.2 pp.206,208,
+// SHAKER 02DD). Even R9 keeps the frame parity (§19.8.1 pp.221–223).
+// Keep the switch-line compare against R9 + ParityFrame; the new parity
+// takes effect only after that line, at the same seam as IVM.
 wire type0_ivm_turn_on = type0_seam && !ivm_disp_r && (R8_interlace == 2'b11);
+// MODEL LIMIT (B26): the worked entry example covers ordinary C4 rows.
+// Keep the existing seed during vertical adjustment and the added line.
+// R0=0 can advance C4 on the seed edge. The seed samples pre-edge C4
+// in that unmeasured case.
+wire type0_pc9_entry = parity_frame ^
+                       (R9_v_max_line[0] && row[0] && !in_adj && !type0_add_line_active);
 
 // F15: with R9 odd the p.220 row-end update re-derives the parity at every
 // IVM row end, ParityC9 := C4.0(new) xor ParityFrame (the pseudocode's
@@ -263,7 +264,7 @@ wire type0_ivm_turn_on = type0_seam && !ivm_disp_r && (R8_interlace == 2'b11);
 wire type0_pc9_odd_update = R9_v_max_line[0] && ivm_disp_r &&
                             (pf_write || (row_new && !in_adj));
 assign pc9_write = type0_ivm_turn_on || type0_pc9_odd_update;
-assign pc9_value = type0_ivm_turn_on ? parity_frame :
+assign pc9_value = type0_ivm_turn_on ? type0_pc9_entry :
                    pf_write         ? parity_r6 :
                                       (row_next[0] ^ parity_frame);
 assign ivm_disp  = ivm_disp_r;

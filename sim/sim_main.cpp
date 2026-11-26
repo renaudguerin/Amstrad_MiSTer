@@ -9909,6 +9909,61 @@ void t29_type0_odd_r9_switch_line_overflow(TestBench& test) {
     test.expect_ra("t29d overflow: doubled display from the frame parity", 17);
 }
 
+// SHAKER 02DD, French ACCC v1.11 §19.5.2 p.208. Switching during C4=1
+// leaves C4=0 at eight lines. With R9=7, C4=1 then lasts five lines in
+// the odd frame and four in the even frame. Odd R7 delays the odd frame
+// another line at the destination; the even frame starts at C0=R0/2.
+void t29_type0_odd_r9_ivm_entry_on_odd_row(TestBench& test) {
+    const std::array<std::array<unsigned, 4>, 2> vsync_lines = {{
+        {{12, 17, 21, 26}}, // Even: 8 + 4, then alternating 5/4.
+        {{13, 18, 22, 27}}, // Odd: 8 + 5, plus one at odd R7.
+    }};
+    test.set_crtc_type(0);
+    for (unsigned parity : {0u, 1u}) {
+        for (unsigned entry_c9 : {0u, 1u}) {
+            for (unsigned r7 = 2; r7 <= 5; ++r7) {
+                const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+                    {0, 63}, {1, 40}, {2, 46}, {3, 0x0e}, {4, 8},
+                    {5, 0},  {6, 7},  {7, static_cast<std::uint8_t>(r7)}, {8, 0}, {9, 7},
+                }};
+                for (const auto& [address, value] : registers) {
+                    test.write_register(address, value);
+                }
+                test.reset();
+                test.run_to_c0(TestBench::kF10TargetC0);
+                test.expect_high("02DD fixture reaches odd frame", test.run_to_frame_start(72));
+                if (!parity) {
+                    test.expect_high("02DD fixture reaches even frame", test.run_to_frame_start(72));
+                }
+                test.expect_parity_frame("02DD fixture frame parity", parity);
+                test.run_characters((8 + entry_c9) * 64);
+                test.run_to_c0(40); // Original OUT (C),C at &59FC.
+                test.expect_c4("02DD R8 write row", 1);
+                test.expect_line("02DD R8 write raster", entry_c9);
+                test.select_register(8);
+                test.write_selected_register_at_nclken(3);
+
+                unsigned lines = 8 + entry_c9;
+                while (!test.published_vsync() && lines < 30) {
+                    const auto c0 = test.c0();
+                    test.run_clock_ticks(1);
+                    if (test.c0() < c0) {
+                        ++lines;
+                    }
+                }
+                const auto label = "02DD parity=" + std::to_string(parity) +
+                                   " C9=" + std::to_string(entry_c9) +
+                                   " R7=" + std::to_string(r7);
+                test.expect_vsync_high(label + " first VSYNC");
+                test.expect_byte(label + " VSYNC line", vsync_lines[parity][r7 - 2], lines);
+                test.expect_byte(label + " VSYNC character", parity ? 0 : 31, test.c0());
+                test.expect_c4(label + " VSYNC row", r7);
+                test.expect_ra(label + " VSYNC raster", parity && (r7 & 1) ? 2 : (parity ^ (r7 & 1)));
+            }
+        }
+    }
+}
+
 // t29e: the F15 delay state must not leak across a live type switch
 // (review blocking 1).  An armed d1 clears on the first CLOCK edge after
 // CRTC_TYPE rises, and the wrapper samples the pre-edge value on that same
@@ -10911,6 +10966,9 @@ int main(int argc, char** argv) {
         {"t29e_type0_delay_arm_clears_on_type_switch",
          "Live CRTC_TYPE contract with the F15 delay state; review blocking 1",
          false, t29_type0_delay_arm_clears_on_type_switch},
+        {"t29f_type0_odd_r9_ivm_entry_on_odd_row",
+         "French ACCC v1.11 section 19.5.2 p.208 and SHAKER CRTC0 02DD",
+         false, t29_type0_odd_r9_ivm_entry_on_odd_row},
         // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.11 §19.8.1 p.221)
         {"t30a_type0_post_ivm_exit_recovery_recipe_odd",
          "ACCC v1.11 section 19.8.1 p.221 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
