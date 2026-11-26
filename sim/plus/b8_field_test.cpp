@@ -643,6 +643,50 @@ int run() {
         failures += !owns_frame;
     }
 
+    {
+        // Keep the real VSYNC progressive, then let a short interlaced
+        // segment cross raw origins without reaching the next VSYNC.
+        const char* ctx = "partial R8 across raw origins";
+        program_at_origin(b, 0, 5, ctx);
+        const auto next_raw_vsync = [&] {
+            bool previous = *b.plus_vsync_raw();
+            for (uint64_t n = 0; n < kFieldTimeout; ++n) {
+                b.tick();
+                const bool current = *b.plus_vsync_raw();
+                if (current && !previous) return;
+                previous = current;
+            }
+            fail("partial R8: missing raw VSYNC");
+        };
+        next_raw_vsync();
+        run_to_plus_origin(b, kOriginTimeout, ctx);
+        write_crtc(b, 4, 1, ctx);
+        write_crtc(b, 8, 3, ctx);
+
+        unsigned origins = 0, raw_high = 0, scaler_high = 0, raw_vsyncs = 0;
+        bool old_origin = at_plus_origin(b), old_vsync = *b.plus_vsync_raw();
+        for (uint64_t n = 0; origins < 4; ++n) {
+            if (n >= kOriginTimeout) fail("partial R8: missing short origins");
+            b.tick();
+            const bool origin = at_plus_origin(b), vsync = *b.plus_vsync_raw();
+            origins += origin && !old_origin;
+            raw_vsyncs += vsync && !old_vsync;
+            raw_high += b.dut.vsync_field;
+            scaler_high += b.dut.vga_f1;
+            old_origin = origin;
+            old_vsync = vsync;
+        }
+        write_crtc(b, 8, 0, ctx);
+        write_crtc(b, 4, 42, ctx);
+        next_raw_vsync();
+
+        const bool progressive = raw_high && !scaler_high && !raw_vsyncs;
+        std::printf("%s %s origins=%u raw_high=%u scaler_high=%u raw_vsyncs=%u\n",
+                    progressive ? "PASS" : "FAIL", ctx, origins, raw_high,
+                    scaler_high, raw_vsyncs);
+        failures += !progressive;
+    }
+
     if (failures != 0)
         fail("B8-2 FIELD ownership: " + std::to_string(failures) + " case(s) failed");
     std::printf("PASS B8-2: selected FIELD follows Plus R8/VSYNC phase over production I/O; "

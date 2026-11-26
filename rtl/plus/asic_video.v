@@ -410,6 +410,8 @@ reg        in_adj;
 reg        interlace_line;
 reg        parity_frame;
 reg        frame_interlace;
+reg        presentation_interlace;
+wire       presentation_sync_start;
 reg        parity_c9;
 
 wire       ivm_active    = (R8_interlace == 2'b11);
@@ -523,7 +525,8 @@ always @(posedge CLOCK) begin
 			// starts from a well-defined frame state.
 			if (frame_restart) begin
 				parity_frame <= frame_parity_n;
-				frame_interlace <= R8_interlace[0];
+				frame_interlace <= R8_interlace[0] &
+	                                  (presentation_interlace | presentation_sync_start);
 				parity_c9    <= frame_parity_n;
 			end
 			else if (ivm_active && c9_done && !enter_adj &&
@@ -922,6 +925,20 @@ wire        vsync_r0_zero_fire = vsync_r0_zero_pending && (hcc_next != 8'd0);
 wire        vsync_fire = (vsync_seam_fire && !vsync_r0_zero_schedule) |
                           vsync_mid_fire | vsync_delay_fire |
                           vsync_r0_zero_fire;
+// Several raw ParityFrame origins can occur between successive visible
+// VSYNCs. Admit interlaced presentation when the most recent raw VSYNC
+// was generated with interlace enabled. Keep field identity bound to the
+// real origin so the scaler's DE-start ownership retains its parity.
+assign presentation_sync_start = CLKEN && vsync_fire && !in_vsync;
+always @(posedge CLOCK) begin
+    if (!nRESET)
+        presentation_interlace <= 1'b0;
+    else if (SNA_LOAD)
+        presentation_interlace <= SNA_REGS[64];
+    else if (presentation_sync_start)
+        presentation_interlace <= R8_interlace[0];
+end
+
 wire [3:0]  vsc_next        = vsc + 4'd1;
 wire        vsync_width_hit = (vsc_next == R3_v_sync_width);
 wire        vsync_count_tick = hcc_last;
@@ -1037,8 +1054,8 @@ assign ADJ  = in_adj;
 // FR §19.5.5 p.214: FIELD follows frame parity, not raster parity.
 // Live ASIC FIELD follows the retained parity and the stored R8 mode.
 assign FIELD = ~parity_frame & R8_interlace[0];
-// Platform frame identity uses the mode at the actual ParityFrame update.
-// R8 writes inside a frame still affect the live ASIC FIELD and timing.
+// Platform frame identity changes at ParityFrame update, after a VSYNC
+// witnesses the interlaced presentation. The ASIC FIELD remains live.
 assign FRAME_FIELD = ~parity_frame & frame_interlace;
 assign MA   = vma;
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
