@@ -710,7 +710,20 @@ assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end &&
 									 !crtc1_stuck_r5_row_reset) ?
 								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_row_structure_last);
 assign vsc_load = 4'd0 - 1'd1;
-assign r7_write_fire = !VSYNC_r && vsync_allow;
+
+// MODEL LIMIT (B26): B6C1 on AmSpirit reports no VSYNC at the fifth-us
+// OUTI on a nonterminal raster, where C4 still matches the new R7. Model
+// the first clock after this raster carry as unavailable to immediate
+// onset. The wrapper consumes the equality even if the bus write remains
+// asserted. A later strobe in the same character can still start VSYNC.
+// The original CPC 019D photo covers the terminal raster. French ACCC
+// v1.11 §16.4.2 p171 specifies immediate onset without resolving this
+// sub-character boundary. The nonterminal pin onset still needs measurement.
+reg r7_raster_carry;
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE) r7_raster_carry <= 0;
+    else r7_raster_carry <= CLKEN && line_new && !row_new;
+end
 
 // French ACCC v1.11 sections 19.7.1/19.7.2 p.219: an eligible live
 // type-1 comparison before the midpoint retains its MID onset. The write
@@ -721,6 +734,8 @@ wire r7_write_hit = ENABLE && RS && !nCS && !R_nW && addr == 5'd7;
 wire type1_r7_mid_now = CLKEN && field_count_tick;
 assign r7_write_defer = CRTC_TYPE && R8_interlace[0] && vsync_mid &&
     (hcc < {1'b0, R0_h_total[7:1]}) && !type1_r7_mid_now;
+// Deferred MID onset keeps its own comparison and ticket.
+assign r7_write_fire = !VSYNC_r && vsync_allow && (!r7_raster_carry || r7_write_defer);
 always @(posedge CLOCK) begin
     if (!nRESET || SNA_LOAD || !CRTC_TYPE) type1_r7_mid_pending <= 0;
     else begin
