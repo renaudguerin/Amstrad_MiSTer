@@ -7274,6 +7274,79 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     test.expect_saved_address("A7 first recovered line retains VMA prime", 0x1234);
 }
 
+void reach_live_freeze_r5_target(TestBench& test, std::uint8_t initial_r5, bool interlace) {
+    test.set_crtc_type(0);
+    const std::uint8_t last_row = interlace ? 1 : 0;
+    const RegisterProgram registers = {{
+        {0, 7}, {1, 1}, {2, 20}, {3, 14}, {4, last_row},
+        {5, initial_r5}, {6, interlace ? 1 : 127}, {7, 127}, {8, interlace ? 1 : 0}, {9, 2},
+    }};
+    program_registers(test, registers);
+    test.write_register(12, 0x30);
+    test.write_register(13, 0);
+    test.select_register(0);
+    test.reset();
+    test.run_characters(15 + last_row * 3 * 8);
+    test.expect_byte("freeze write meets the outgoing R0 edge", 7, test.c0());
+    test.expect_ra("incoming freeze raster reaches C9=2", 1);
+    test.write_selected_register_at_clken(0);
+    test.run_characters(2);
+    test.expect_c4("frozen entry advances C4 once", last_row + 1);
+    test.expect_ra("freeze retains C9=2", 2);
+    test.expect_adjustment_active("freeze enters additional management");
+    test.write_register(12, 0);
+    test.select_register(0);
+    test.write_selected_register_at_nclken(43);
+    test.run_characters(21 * 44);
+    test.expect_ra("recovered rasters advance to C9=23", 23);
+}
+
+void test_live_freeze_compares_r5_at_recovered_rollover(TestBench& test) {
+    reach_live_freeze_r5_target(test, 0, false);
+    test.select_register(5);
+    test.run_characters(16 - test.c0());
+    test.expect_byte("CAPS writes late R5 at C0=16", 16, test.c0());
+    test.write_selected_register_at_nclken(24);
+    test.run_characters(44 - test.c0());
+    test.expect_c4("C9+1 equals R5 at first rollover", 0);
+    test.expect_ra("completed adjustment resets C9", 0);
+    test.expect_adjustment_inactive("R5 finishes the frozen adjustment");
+    test.expect_ma("that frame origin loads the bank-zero caption", 0);
+}
+
+void test_live_freeze_keeps_sampled_r5_end(TestBench& test) {
+    reach_live_freeze_r5_target(test, 24, false);
+    test.select_register(5);
+    test.run_characters(16 - test.c0());
+    test.write_selected_register_at_nclken(25);
+    test.run_characters(44 - test.c0());
+    test.expect_c4("late R5 departure retains the sampled frame end", 0);
+    test.expect_ra("sampled end resets C9", 0);
+    test.expect_adjustment_inactive("sampled R5 completes adjustment");
+}
+
+void test_live_freeze_preserves_added_interlace_line(TestBench& test) {
+    reach_live_freeze_r5_target(test, 24, true);
+    test.run_characters(44 - test.c0());
+    test.expect_c4("interlace intercept holds C4", 2);
+    test.expect_ra("added interlace line starts at stored R5", 24);
+    test.run_characters(44);
+    test.expect_c4("one added interlace line completes at C4=0", 0);
+    test.expect_ra("one added interlace line completes at C9=0", 0);
+    test.expect_adjustment_inactive("added line completes adjustment");
+}
+
+void test_live_freeze_keeps_exact_terminal_r5_policy(TestBench& test) {
+    reach_live_freeze_r5_target(test, 0, true);
+    test.select_register(5);
+    test.run_characters(43 - test.c0());
+    test.expect_byte("R5 write on the outgoing R0 edge", 43, test.c0());
+    test.write_selected_register_at_clken(24);
+    test.expect_c4("terminal write retains the current adjustment row", 2);
+    test.expect_ra("terminal write does not intercept the line", 24);
+    test.expect_adjustment_active("terminal write leaves adjustment active");
+}
+
 void test_type0_r0_zero_after_short_frame(TestBench& test) {
     test.set_crtc_type(0);
     constexpr RegisterProgram registers = {{
@@ -11130,6 +11203,14 @@ int main(int argc, char** argv) {
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
         {"type0_r0_zero_after_short_frame", "French ACCC §13.2.6 p110",
          false, test_type0_r0_zero_after_short_frame},
+        {"live_freeze_r5_rollover", "French ACCC §13.2.6 p110 and original CAPS 01CF",
+         false, test_live_freeze_compares_r5_at_recovered_rollover},
+        {"live_freeze_r5_departure", "French ACCC §11.3.1 and live R0=0 history",
+         false, test_live_freeze_keeps_sampled_r5_end},
+        {"live_freeze_r5_interlace", "French ACCC §19.6.1 p217 and live R0=0 history",
+         false, test_live_freeze_preserves_added_interlace_line},
+        {"live_freeze_r5_terminal", "French ACCC §11.3.1 and live R0=0 history",
+         false, test_live_freeze_keeps_exact_terminal_r5_policy},
         {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
          "ACCC v1.11 section 20.3.2 p.243 chronogram 2; F11h", false,
          test_type1_r12_write_on_row0_boundary_edge_reloads},

@@ -277,6 +277,7 @@ reg        type0_r9_early_write_held;
 reg        type0_c0_1_adjust;
 reg        type0_r0_zero_entry_consumed;
 reg        type0_zero_adj_entry;
+reg        type0_r5_after_freeze;
 reg        type0_r5_adjust_override;
 reg  [4:0] type0_r5_adjust_target;
 reg        type0_r0_widen_pending;
@@ -434,6 +435,10 @@ wire       type0_c0_1_r5_end = type0_c0_1_r5_owner &&
 // write keep their existing distinct rollover priorities.
 wire       type0_c0_1_r9_match = type0_c0_1_adjust && type0_c0_1_r9_owner &&
                                !type0_r9_at_r0_active && type0_live_line_last;
+// A stored R5 write can arm a terminal raster after a live R0=0 entry.
+// The C0 latch owns an already armed end and the added interlace raster.
+wire       type0_frozen_r5_match = in_adj && type0_r5_after_freeze &&
+                                 !type0_add_line_active && (line == crtc0_line_max);
 wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
                                      (type0_c0_1_r5_end | type0_c0_1_r9_match) :
                                     c1_last_line_validate ? 1'b1 :
@@ -444,7 +449,8 @@ wire       type0_selected_rollover_line_last = type0_c0_1_adjust_active ?
 								 type0_r9_compare_active ? type0_live_line_last :
 								 type0_r5_override_active ?
 									 ((line == type0_adjust_line_max) | type0_zero_adj_entry_active) :
-								 (in_adj | type0_last_line_armed) ? line_last_r :
+								 (in_adj | type0_last_line_armed) ?
+									 (line_last_r | type0_frozen_r5_match) :
 									 type0_live_line_last;
 // Dual comparator during ordinary additional management. French ACCC v1.11
 // §11.2.2 p82: "En gestion additionnelle, C9 est ainsi comparé avec R9 et
@@ -710,6 +716,7 @@ always @(posedge CLOCK) begin
 		type0_c0_1_adjust <= 0;
 		type0_r0_zero_entry_consumed <= 0;
 		type0_zero_adj_entry <= 0;
+		type0_r5_after_freeze <= 0;
 		type0_r5_adjust_override <= 0;
 		type0_r5_adjust_target <= 0;
 	end
@@ -773,6 +780,15 @@ always @(posedge CLOCK) begin
 		if(type0_r5_write && (hcc <= 2) && (|DI[4:0])) type0_zero_adj_entry <= 0;
 
 		if(CLKEN) begin
+			// French ACCC v1.11 §13.2.6 p110 compares the calculated C9
+			// with R5 after the R0=0 freeze.
+			// MODEL LIMIT (B26): the late-write aperture follows the
+			// original CAPS 01CF caller in AmSpirit. Its R5=24 write at
+			// C0=16 on C9=23 opens the following bank-zero caption.
+			if(frame_new_w) type0_r5_after_freeze <= 0;
+			else if(frozen_row_advance && row == R4_v_total)
+				type0_r5_after_freeze <= 1;
+
 			if(line_new && (type0_r4_switch_active | type0_r9_compare_active |
 							type0_c0_1_adjust_active))
 				// French §12.2 p95 and §13.2.4 p108: forced C0=1
