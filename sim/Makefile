@@ -59,7 +59,7 @@ test full:
 	@"$(MAKE)" --no-print-directory $(PARALLEL) $@-run
 
 list-tests:
-	@echo $(SIM_TESTS) classic-mode-boundary-test classic-r3-position-test asic-r3-position-test classic-r2-phase-test b18-snapshot-test asic-r0-terminal-test asic-blank-alignment-test t80-irq-sample-test classic-irq-phase-test classic-b25-test ssm-provider-test ssm-s-trace-provider-test ascal-field-test
+	@echo $(SIM_TESTS) classic-mode-boundary-test classic-r3-position-test asic-r3-position-test classic-r2-phase-test b18-snapshot-test asic-r0-terminal-test asic-blank-alignment-test t80-irq-sample-test classic-irq-phase-test classic-b25-test ssm-provider-test ssm-s-trace-provider-test ascal-field-test crtc-t80-test
 
 # One sub-make per directory: plus-test and plus-full never run together.
 test-run: $(SIM_TESTS) plus-test

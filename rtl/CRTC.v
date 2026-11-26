@@ -950,7 +950,11 @@ always @(posedge CLOCK) begin
 			// An equal comparison is consumed even when type 0 blocks the
 			// pulse at C0=0/1.  Qualifying with the old allow state also makes
 			// a bus write held for several clocks one comparison, not many.
-			vsync_allow <= 0;
+			// On the edge that commits a different C4 the comparison with the
+			// row being left is stale: the row-change rearm above keeps the
+			// new row eligible (French 16.3 p169; t02r4).
+			if(!(CLKEN && row_commit && row_commit_value != DI[6:0]))
+				vsync_allow <= 0;
 			if(r7_write_fire && !e1_r7_write_defer) begin
 				VSYNC_r <= 1;
 				vsync_active_mid <= vsync_mid;

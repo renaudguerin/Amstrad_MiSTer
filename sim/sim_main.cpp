@@ -146,8 +146,9 @@ public:
         bus_write(true, value);
     }
 
-    // Assert the selected data write now, before the next character edge,
-    // and keep it held through that edge, as the CPU bus does.
+    // Drive the CRTC data write pins within the current character and keep
+    // them asserted through its final CLKEN edge. Motherboard I/O timing is
+    // outside this direct-pin fixture.
     void hold_selected_register_through_next_clken(std::uint8_t value) {
         if (tick_in_character_ == kClkEnPhase) {
             throw TestFailure("held write must start within the character");
@@ -834,6 +835,101 @@ void test_type0_r7_hcc0_blocked(TestBench& test) {
 
 void test_type0_r7_hcc1_blocked(TestBench& test) {
     test_type0_r7_hcc_blocked(test, 1);
+}
+
+// French ACCC v1.11 section 16.4 p170: at C0=R0 of a row's last line the R7
+// comparison already concerns the next row, so writing the current C4 there
+// is the next row's blocked C0vs<2 case (16.4.1.1 p170). SHAKER 019D on CRTC 0
+// photographs this as an inactive PPI read; the same write one line earlier
+// is an ordinary C0vs>1 write and starts VSYNC at once.
+void test_type0_r7_row_end_write(TestBench& test, bool last_line) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x21}, {4, 3},
+        {5, 0}, {6, 3}, {7, 3}, {8, 0},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+    // Row C4=1 spans characters 16..31; its line 1 is the last line (R9=1)
+    // and C0=7 is R0. R7=1 avoids the separate R7=0 frame-origin route.
+    test.run_characters(16 + (last_line ? 8 : 0) + 7);
+    test.expect_c4("row-end fixture reaches C4=1", 1);
+    test.expect_vsync_low("VSYNC before the C0=R0 R7=C4 write");
+    test.write_selected_register_at_clken(1);
+    test.run_clock_ticks(1);
+    if (!last_line) {
+        test.expect_vsync_high("C0=R0 R7=C4 write on a non-last line starts VSYNC");
+        return;
+    }
+    test.expect_vsync_low("C0=R0 R7=C4 write on the row's last line is blocked");
+    test.run_characters(2 * 8);
+    test.expect_vsync_low("row-end R7 write starts no VSYNC on the next row");
+}
+
+// The row-end block concerns a row that actually changes. Here R4 is
+// rewritten to 4 inside the last line of the frame (C4=2, C9=3), after the
+// adjustment was armed; the R5 adjustment keeps C4 at 2 and C9 runs on to 4,
+// so a C0=R0 write of R7=2 still compares with the C4 that follows and is an
+// ordinary C0vs>1 write (French ACCC v1.11 16.4 and 16.4.1.1 p170).
+void test_type0_r7_row_end_write_held_row(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x21}, {4, 2},
+        {5, 5}, {6, 3}, {7, 6}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+    // Row C4=2 starts at character 64; its line C9=3 at 88.
+    test.run_characters(88 + 3);
+    test.expect_c4("held-row fixture reaches C4=2", 2);
+    test.write_register(4, 4);
+    test.select_register(7);
+    test.run_characters(3);
+    test.expect_vsync_low("VSYNC before the held-row R7 write");
+    test.write_selected_register_at_clken(2);
+    test.run_clock_ticks(1);
+    test.expect_vsync_high("C0=R0 R7=C4 write before an adjustment line starts VSYNC");
+    test.expect_c4("adjustment keeps C4 at 2", 2);
+}
+
+// A blocked row-end write held through the edge must not consume the next
+// row's eligibility: C4 changed, so a later R7=C4 write at C0>1 starts VSYNC
+// (French ACCC v1.11 16.3 p169 and 16.4.1.1 p170).
+void test_type0_r7_row_end_held_write_keeps_next_row(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x21}, {4, 3},
+        {5, 0}, {6, 3}, {7, 3}, {8, 0},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+    test.run_characters(16 + 8 + 6);
+    test.run_clock_ticks(1);
+    test.expect_c4("held-write fixture is on C4=1", 1);
+    test.hold_selected_register_through_next_clken(1);
+    test.expect_vsync_low("held C0=R0 write of the leaving row is blocked");
+    test.expect_c4("row advanced to C4=2", 2);
+    test.run_characters(3);
+    test.write_selected_register_at_clken(2);
+    test.run_clock_ticks(1);
+    test.expect_vsync_high("R7=C4 write at C0>1 on the new row starts VSYNC");
+}
+
+void test_type0_r7_row_end_write_blocked(TestBench& test) {
+    test_type0_r7_row_end_write(test, true);
+}
+
+void test_type0_r7_row_end_write_nonlast(TestBench& test) {
+    test_type0_r7_row_end_write(test, false);
 }
 
 void test_type0_r7_midline_duration_extended(TestBench& test) {
@@ -5718,9 +5814,8 @@ void test_type1_rfd_successful_save_retires_parity_management(
 // (C0=0..7), R4=1 gives rows C4={0,1}, R9=1 gives lines C9={0,1}, so the
 // frame is 4 lines and its true last line carries C4=1, C9=1 with R5=0.
 // After reset, run_characters(24) lands on that line's first character and
-// run_characters(7) reaches C0=R0=7.  A CLKEN-aligned write there lands on
-// the exact C0==R0 rollover edge, matching the OUT(C),reg8 alignment the
-// recipe requires.
+// run_characters(7) reaches C0=R0=7.  The fixture drives the write on the
+// CRTC rollover edge to exercise the recipe's C0=R0 boundary directly.
 // ---------------------------------------------------------------------------
 
 void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
@@ -9723,6 +9818,14 @@ int main(int argc, char** argv) {
          false, test_type0_r7_hcc0_blocked},
         {"t02b_type0_r7_hcc1_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc1_blocked},
+        {"t02r1_type0_r7_row_end_write_blocked", "French ACCC v1.11 sections 16.4 and 16.4.1.1 p170; SHAKER 019D",
+         false, test_type0_r7_row_end_write_blocked},
+        {"t02r2_type0_r7_row_end_write_nonlast", "French ACCC v1.11 section 16.4.1.1 p170",
+         false, test_type0_r7_row_end_write_nonlast},
+        {"t02r3_type0_r7_row_end_write_held_row", "French ACCC v1.11 sections 16.4 and 16.4.1.1 p170",
+         false, test_type0_r7_row_end_write_held_row},
+        {"t02r4_type0_r7_row_end_held_write_keeps_next_row", "French ACCC v1.11 sections 16.3 p169 and 16.4.1.1 p170",
+         false, test_type0_r7_row_end_held_write_keeps_next_row},
         {"t02c_type0_r7_midline_extended", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_midline_duration_extended},
         {"t02d_type1_r7_early_hcc_immediate", "ACCC v1.10 section 16.4.2; F3",

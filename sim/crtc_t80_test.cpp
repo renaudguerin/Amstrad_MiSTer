@@ -159,6 +159,10 @@ void test_out_r5_rfd() {
 }
 
 // Case 2: Type 1 OUTI for R5 RFD (French ACCC v1.11 §11.6 pp.89-92 and §13.7.1 p.126)
+// The RFD write must be accepted at C0=R0, as in case 1. The OUTI strobe starts
+// 7 clocks before the CLKEN that enters C0=R0 and the board attributes it to
+// that character (FR §4.4.3 p26, §4.4.4 Diagram B p31), so the program starts
+// one character earlier than the OUT (C),C case.
 void test_outi_r5_rfd() {
   Bench b(true, 5, 15, 3);
   // Program:
@@ -172,7 +176,7 @@ void test_outi_r5_rfd() {
   b.load_prog(0, {0x01, 0x05, 0xBC, 0xED, 0x49, 0x01, 0x02, 0xBE, 0x21, 0x40, 0x00, 0xED, 0xA3, 0x76});
   b.prog_byte(0x40, 0x01);
 
-  b.pos(0, 3, 14);
+  b.pos(0, 3, 13);
   unsigned start_tick = b.ticks;
   b.d.cpu_reset = 0;
 
@@ -198,15 +202,21 @@ void test_outi_r5_rfd() {
   b.check(b.d.t80_a == 0xBD02, "OUTI write address mismatch (B decremented to 0xBD, port 0xBD02)");
   b.check(b.d.t80_dout == 1, "OUTI write data mismatch (RAM[0x40])");
   b.check(b.d.crtc_addr == 5, "OUTI write target reg mismatch");
-  b.check(b.d.row == 1 && b.d.line == 0 && b.d.c0 == 15, "OUTI write not landed at row=1 line=0 c0=15");
+  b.check(b.d.row == 1 && b.d.line == 0 && b.d.c0 == 14, "OUTI strobe did not start in the character before row=1 line=0 c0=15");
 
   unsigned outi_interval = b.ticks - fetch_tick;
   b.check(outi_interval >= 256 && outi_interval < 320, "OUTI write not in 5th microsecond [256, 320) per FR ACCC §13.7.1 p.126");
 
-  // Assert first system-edge storage capture before next CLKEN decision
-  b.check(b.d.r5 == 0, "r5 must hold old value 0 before first system edge");
+  // The straddled edge must not see the write; storage follows on the first
+  // clock of C0=R0, before that character's CLKEN decision.
+  b.check(b.d.r5 == 0, "r5 must hold old value 0 before the straddled edge");
   b.tick();
-  b.check(b.d.r5 == 1, "r5 must capture new value 1 on first system clock edge");
+  b.check(b.d.r5 == 0, "OUTI write must not store before the straddled CLKEN");
+  b.seam();
+  b.check(b.d.row == 1 && b.d.line == 0 && b.d.c0 == 15, "OUTI write not accepted at row=1 line=0 c0=15");
+  b.check(b.d.r5 == 0, "OUTI write must not store on the straddled CLKEN itself");
+  b.tick();
+  b.check(b.d.r5 == 1, "r5 must capture new value 1 on the first clock of C0=R0");
 
   unsigned margin = b.seam();
   b.check(margin > 0, "positive margin required from first store to next CLKEN decision");
@@ -369,9 +379,11 @@ void p124_r0_publication(bool outi, bool earlier) {
           "p124 release/program did not qualify target character");
   b.check(b.d.seq==(outi?0x01:0x1f),"p124 production GA write class changed");
   b.check(b.d.r0==63,"p124 R0 changed before first store");
-  b.tick();b.check(b.d.r0==127,"p124 R0 publication must remain immediate");
+  b.tick();b.check(b.d.r0==(outi?63:127),outi?"p124 OUTI must not publish before the straddled CLKEN":"p124 OUT R0 publication must remain immediate");
   b.check(b.d.c0==(earlier?62:63),"p124 storage unexpectedly advanced counter");
   b.seam();
+  if(outi){b.check(b.d.r0==63,"p124 OUTI must not publish on the straddled CLKEN itself");
+    b.tick();b.check(b.d.r0==127,"p124 OUTI publishes on the first clock after the straddled CLKEN");}
   if(earlier){b.check(b.d.c0==63,"p124 OUTI3B first decision");b.seam();}
   const bool wraps=outi&&!earlier;
   b.check(b.d.c0==(wraps?0:64),"p124 instruction-class terminal outcome wrong");
@@ -396,8 +408,10 @@ void p124_zero_outi() {
   // following terminal. Leaving a consumed R0=0 freeze must not make
   // either of these two seams a new line/row event.
   const unsigned frozen_line=b.d.line, frozen_row=b.d.row;
-  b.tick();b.check(b.d.r0==16&&b.d.c0==0,"p124 zero immediate publication");
-  b.seam();b.check(b.d.c0==0,"p124 zero OUTI must retain first zero");
+  b.tick();b.check(b.d.r0==0&&b.d.c0==0,"p124 zero OUTI must not publish before the straddled CLKEN");
+  b.seam();b.check(b.d.r0==0,"p124 zero OUTI must not publish on the straddled CLKEN itself");
+  b.tick();b.check(b.d.r0==16,"p124 zero OUTI publishes after the straddled CLKEN");
+  b.check(b.d.c0==0,"p124 zero OUTI must retain first zero");
   b.check(b.d.line==frozen_line&&b.d.row==frozen_row,
           "p124 zero held seam must preserve C9/C4");
   b.seam();b.check(b.d.c0==1,"p124 zero OUTI must leave at second decision");
@@ -434,27 +448,18 @@ int main(int argc, char **argv) {
   run_case("p124 OUTI3C publication", []{p124_r0_publication(true,false);});
   run_case("p124 zero-total OUTI", p124_zero_outi);
 
-  unsigned xfailed = 0;
-  unsigned xpassed = 0;
-  std::cout << "[TEST] SHAKER 019D fifth-us OUTI... " << std::flush;
-  try {
-    if (outi_r7_boundary_vsync(false)) {
-      std::cout << "XFAIL: VSYNC is high; hardware expects low\n";
-      ++xfailed;
-    } else {
-      std::cout << "XPASS: remove expected-failure marker\n";
-      ++xpassed;
-    }
-  } catch (const std::exception &e) {
-    std::cout << "FAIL: " << e.what() << "\n";
-    ++failures;
-  }
+  // SHAKER 019D on CRTC1: the photographed fifth-us call reads 1E. With the
+  // OUTI strobe attributed to the character it occupies (FR §4.4.3 p26,
+  // §4.4.4 p31), the write lands on C4=33 and no VSYNC starts.
+  run_case("SHAKER 019D fifth-us OUTI", [] {
+    if (outi_r7_boundary_vsync(false))
+      throw std::runtime_error("VSYNC high; hardware expects low");
+  });
   run_case("SHAKER 019D fourth-us OUTI", [] {
     if (!outi_r7_boundary_vsync(true))
       throw std::runtime_error("VSYNC low; hardware expects high");
   });
 
-  std::cout << "Summary: " << passes << " passed, " << failures << " failed, " << xfailed << " xfailed, "
-            << xpassed << " xpassed (total 10)\n";
-  return (failures == 0 && xpassed == 0) ? 0 : 1;
+  std::cout << "Summary: " << passes << " passed, " << failures << " failed (total 10)\n";
+  return failures == 0 ? 0 : 1;
 }
