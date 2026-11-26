@@ -283,6 +283,7 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_adj_r4_broken);
         // IA-6 / BL-018-BL-020: the one-character R0-widening action is
         // behavior-bearing private state and must be lifecycle-visible.
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_widen_pending);
