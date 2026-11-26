@@ -365,8 +365,8 @@ bool r7_boundary_vsync(unsigned line, R7WritePhase phase) {
 // FR §13.6.1 p124, with production-T80/GA phase classes independently
 // qualified by the full PPI-calibrated four-bin caller. These constants
 // release the existing R5/R7 instruction sequences; they are not guest NOP fits.
-void p124_r0_publication(bool outi, bool earlier) {
-  Bench b(false, 0, 63, 25, 38, 30, 7);
+void p124_r0_publication(bool outi, bool earlier, bool type1 = false) {
+  Bench b(type1, 0, 63, 25, 38, 30, 7);
   const unsigned pc = outi ? 11 : 8;
   b.load_prog(0, outi ? std::vector<uint8_t>{
       0x01,0x00,0xbc,0xed,0x49,0x01,0x00,0xbe,
@@ -390,6 +390,15 @@ void p124_r0_publication(bool outi, bool earlier) {
   b.check(b.d.row==1 && b.d.line==0 && b.d.c0==(earlier?62:63),
           "p124 release/program did not qualify target character");
   b.check(b.d.seq==(outi?0x01:0x1f),"p124 production GA write class changed");
+  if (type1) {
+    // FR §13.6.2 p124 (CRTC1 OUTI versus CRTC0, previous R0=#3F):
+    // the fifth-us write can revoke the pending C0/R0 equality. This
+    // ordinary row must continue to #40 without incrementing its raster.
+    b.seam();
+    b.check(b.d.c0==64 && b.d.line==0 && b.d.row==1,
+            "p124 Type 1 terminal OUTI must extend the current raster");
+    return;
+  }
   b.check(b.d.r0==63,"p124 R0 changed before first store");
   b.tick();b.check(b.d.r0==(outi?63:127),outi?"p124 OUTI must not publish before the straddled CLKEN":"p124 OUT R0 publication must remain immediate");
   b.check(b.d.c0==(earlier?62:63),"p124 storage unexpectedly advanced counter");
@@ -403,8 +412,8 @@ void p124_r0_publication(bool outi, bool earlier) {
   if(wraps){b.until([&]{return b.d.c0==127;});b.seam();
     b.check(b.d.c0==0&&b.d.line==2,"p124 newly published total lost after wrap");}
 }
-void p124_zero_outi() {
-  Bench b(false,0,63,25,38,30,7);
+void p124_zero_outi(bool type1) {
+  Bench b(type1,0,63,25,38,30,7);
   // Real OUT first sets R0=0. A 256-iteration DJNZ exceeds the maximum
   // 256-character old-counter wrap; no selected phase or NOP padding.
   b.load_prog(0,{0x01,0x00,0xbd,0xed,0x49,0x06,0x00,0x10,0xfe,
@@ -415,19 +424,26 @@ void p124_zero_outi() {
     return b.d.write_active&&b.d.t80_a==0xbd00&&b.d.t80_dout==16;
   });
   b.check(fetch&&b.ticks-fetch>=256&&b.ticks-fetch<320,"p124 zero OUTI class changed");
-  b.check(b.d.r0==0&&b.d.c0==0&&b.d.seq==1,"p124 own OUT did not establish frozen zero");
-  // FR §13.2.1 p105: C9 counting is re-authorized at C0=1 for a
-  // following terminal. Leaving a consumed R0=0 freeze must not make
-  // either of these two seams a new line/row event.
-  const unsigned frozen_line=b.d.line, frozen_row=b.d.row;
+  b.check(b.d.r0==0&&b.d.c0==0&&b.d.seq==1,"p124 own OUT did not establish a zero total");
+  const unsigned previous_line=b.d.line, previous_row=b.d.row;
+  if (type1) {
+    // FR §13.6.2 p124: with old R0=0 the Type 1 OUTI departure
+    // increments C0 at this decision, one character before Type 0.
+    b.seam();
+    b.check(b.d.c0==1 && b.d.line==previous_line && b.d.row==previous_row,
+            "p124 Type 1 zero-total OUTI must extend the current raster");
+    return;
+  }
+  // Type 0 keeps the consumed zero-total freeze through the straddled edge.
+  // C0=1 re-authorizes C9 counting for the following terminal (§13.2.1 p105).
   b.tick();b.check(b.d.r0==0&&b.d.c0==0,"p124 zero OUTI must not publish before the straddled CLKEN");
   b.seam();b.check(b.d.r0==0,"p124 zero OUTI must not publish on the straddled CLKEN itself");
   b.tick();b.check(b.d.r0==16,"p124 zero OUTI publishes after the straddled CLKEN");
   b.check(b.d.c0==0,"p124 zero OUTI must retain first zero");
-  b.check(b.d.line==frozen_line&&b.d.row==frozen_row,
+  b.check(b.d.line==previous_line&&b.d.row==previous_row,
           "p124 zero held seam must preserve C9/C4");
   b.seam();b.check(b.d.c0==1,"p124 zero OUTI must leave at second decision");
-  b.check(b.d.line==frozen_line&&b.d.row==frozen_row,
+  b.check(b.d.line==previous_line&&b.d.row==previous_row,
           "p124 zero departure must preserve C9/C4");
 }
 int main(int argc, char **argv) {
@@ -458,7 +474,9 @@ int main(int argc, char **argv) {
   run_case("p124 OUT(C)3D publication", []{p124_r0_publication(false,false);});
   run_case("p124 OUTI3B publication", []{p124_r0_publication(true,true);});
   run_case("p124 OUTI3C publication", []{p124_r0_publication(true,false);});
-  run_case("p124 zero-total OUTI", p124_zero_outi);
+  run_case("p124 Type 0 zero-total OUTI", []{p124_zero_outi(false);});
+  run_case("p124 Type 1 terminal OUTI", []{p124_r0_publication(true,false,true);});
+  run_case("p124 Type 1 zero-total OUTI", []{p124_zero_outi(true);});
 
   // SHAKER 019D on CRTC1: the photographed fifth-us call reads 1E. With the
   // OUTI strobe attributed to the character it occupies (FR §4.4.3 p26,

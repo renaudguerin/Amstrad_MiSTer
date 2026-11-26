@@ -1025,18 +1025,18 @@ assign cclk_en_n = plus_mode ? plus_cclk_en_n : ga_cclk_en_n;
 // board at different phases of the microsecond: OUT(C),r8 starts after the
 // CRTC CLKEN (IORQ on T2 of its I/O cycle), while the OUTI/OUTD strobe starts
 // 7 clocks before the CLKEN and lies almost entirely in the next character.
-// The CRTC must attribute such a strobe to the character it occupies, not
-// to the 7-clock sliver before the edge, or every OUTI write lands one
-// character early (SHAKER 019D, B6C0/B6C1 probes, CRTC1 A4 photo).
+// For CRTC1 R0, French ACCC v1.11 §13.3 p115, §13.6.2 p124 and §13.7.1.1
+// p126 place an eligible OUTI update before the terminal comparison. Keep
+// these data writes visible so the new R0 can take part in that comparison.
+// The original SHAKER B6 short-raster and zero-total cases exercise this
+// ordering. A4 0037 still needs a version-matched original-chip trace.
 // MODEL LIMIT (B26): the ACCC fixes the microsecond, not the sub-character
-// acceptance instant. This board rule hides a CRTC write strobe that begins
-// between nCLKEN and CLKEN until the clock after that CLKEN, which matches
-// every OUTI/OUT(C) chronogram and replay checked
-// (local/dev/docs/investigations/hardware-runs/b6-aperture-sweep-2026-11-24.md);
-// literal one-character delay and strobe-end storage were both refuted by the
-// p124 OUT(C) cases. The Plus ASIC path keeps its own B31 strobe-end store.
+// acceptance instant. Other classic writes starting between nCLKEN and
+// CLKEN are hidden until the clock after CLKEN. The Plus ASIC path retains
+// its own B31 strobe-end store.
 reg  crtc_wr_late_phase, crtc_wr_d, crtc_wr_hold;
 wire crtc_wr = io_wr & ~A[14];
+wire crtc_type1_r0_write = crtc_type && A[8] && !A[9] && (snap_crtc_addr == 5'd0);
 always @(posedge clk) begin
 	if (cclk_en_p) crtc_wr_late_phase <= 1'b1;
 	else if (cclk_en_n) crtc_wr_late_phase <= 1'b0;
@@ -1045,7 +1045,8 @@ always @(posedge clk) begin
 	else if (!crtc_wr_d && crtc_wr_late_phase) crtc_wr_hold <= 1'b1;
 	else if (cclk_en_n) crtc_wr_hold <= 1'b0;
 end
-wire crtc_wr_deferred = crtc_wr & ((!crtc_wr_d && crtc_wr_late_phase) | crtc_wr_hold);
+wire crtc_wr_deferred = crtc_wr & ~crtc_type1_r0_write &
+	((!crtc_wr_d && crtc_wr_late_phase) | crtc_wr_hold);
 
 wire e244_n;
 wire ga_cpu_n, ga_ras_n, ga_cas_n;

@@ -113,6 +113,7 @@ module crtc_t80_top(
   // board path is covered by the b18-snapshot-based classic benches.
   reg  crtc_wr_late_phase, crtc_wr_d, crtc_wr_hold;
   wire crtc_wr = io_wr & ~A[14];
+  wire crtc_type1_r0_write = crtc_type && crtc_rs && !crtc_rnw && (crtc_addr == 5'd0);
   always @(posedge clk) begin
     if (cclk_en_p) crtc_wr_late_phase <= 1'b1;
     else if (cclk_en_n) crtc_wr_late_phase <= 1'b0;
@@ -121,7 +122,8 @@ module crtc_t80_top(
     else if (!crtc_wr_d && crtc_wr_late_phase) crtc_wr_hold <= 1'b1;
     else if (cclk_en_n) crtc_wr_hold <= 1'b0;
   end
-  wire crtc_wr_deferred = crtc_wr & ((!crtc_wr_d && crtc_wr_late_phase) | crtc_wr_hold);
+  wire crtc_wr_deferred = crtc_wr & ~crtc_type1_r0_write &
+    ((!crtc_wr_d && crtc_wr_late_phase) | crtc_wr_hold);
   wire hs, vs, de;
   wire hs_restart;
 
