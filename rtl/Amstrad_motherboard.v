@@ -1100,6 +1100,8 @@ wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 reg vram_bs;
 reg [7:0] vram_d;
 reg [7:0] vram_din_shift;
+reg [15:0] vram_first_half_word = 16'd0;
+wire [15:0] vram_pair_word = vram_bs ? vram_first_half_word : vram_din;
 always @(posedge clk) begin
 	// simulate two 8-bit fetches in the vram cycle
 	reg cas_n_old;
@@ -1111,16 +1113,22 @@ always @(posedge clk) begin
 		else
 			vram_addr <= crtc_vram_addr;
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
-		if (!ras_n & !cas_n)
+		if (!ras_n & !cas_n) begin
+			// An SDRAM same-word refill can complete between the CPC's byte
+			// phases. Keep the word seen by the first phase for the second
+			// phase. The next pair observes subsequent completed refills.
+			// French ACCC v1.11 sections 8 and 8.3, pp. 44-45.
+			if (!vram_bs) vram_first_half_word <= vram_din;
 			// B6 byte policy: only Full compensates with the live filter
 			// SHIFT, sampled on each accepted fetch.  Both raw modes return
 			// the native low/high byte order, including when SHIFT changes
 			// between the two halves of one pair.
 			if ((sync_filter_applied == 2'd0) & crtc_shift) begin
-				if (vram_bs) vram_din_shift <= de_sel ? vram_din[15:8] : 8'd0;
-				vram_d <= vram_bs ? vram_din[7:0] : vram_din_shift;
+				if (vram_bs) vram_din_shift <= de_sel ? vram_pair_word[15:8] : 8'd0;
+				vram_d <= vram_bs ? vram_pair_word[7:0] : vram_din_shift;
 			end else
-				vram_d <= vram_bs ? vram_din[15:8] : vram_din[7:0];
+				vram_d <= vram_bs ? vram_pair_word[15:8] : vram_pair_word[7:0];
+		end
 	end
 	// Retained shifted history must not reappear from an earlier mode visit
 	// or from before a reset.  The first shifted high half afterwards primes
