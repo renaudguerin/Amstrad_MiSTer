@@ -243,7 +243,10 @@ always @(posedge CLOCK) begin
 			end
 		end
 
-		if (timing_write && last_line_enabled && !HSYNC && last_line_match)
+		// FR §12.4.1 pp.97–98: live writes cannot rearm Last Line
+		// until a mismatch has been sampled at the end of HSYNC.
+		if (timing_write && last_line_enabled && !previous_last_line &&
+		    !HSYNC && last_line_match)
 			last_line <= 1;
 
 		if (CLKEN) begin

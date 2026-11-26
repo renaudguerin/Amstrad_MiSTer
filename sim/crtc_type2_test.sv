@@ -160,6 +160,39 @@ module crtc_type2_test;
 		end
 	endtask
 
+	task automatic verify_previous_last_line(input bit previous_match);
+		nreset = 0;
+		step(0);
+		nreset = 1;
+		set_timing(8'h03);
+		write_reg(5, 0);
+		write_reg(7, 20);
+		find_origin();
+		repeat (38 * 32 + 12) step(1);
+		if (!hs || ra !== 0)
+			$fatal(1, "expected HSYNC on the first raster of C4=19");
+
+		// Set C9=R9 during HSYNC, where a live write cannot arm
+		// Last Line. Only the blocked case presents that equality
+		// on the last HSYNC character (FR §12.4.1 pp.97–98).
+		write_reg(9, 0);
+		if (!previous_match) write_reg(9, 2);
+		repeat (3) step(1);
+		if (previous_match) write_reg(9, 2);
+		repeat (19) step(1);
+		if (hs || ra !== 1 || vs)
+			$fatal(1, "expected second raster of C4=19 before the R9 pulse");
+		write_reg(9, 0);
+		write_reg(9, 1);
+		repeat (30) step(1);
+
+		// A write after a retained match must let C4 step to R7=20.
+		// The same write after a sampled mismatch reloads the frame.
+		if (previous_match ? (!vs || de) : (vs || !de || ma !== 14'h1280))
+			$fatal(1, "previous HSYNC match=%0b: VSYNC=%0b DE=%0b MA=%04x",
+			       previous_match, vs, de, ma);
+	endtask
+
 	task automatic verify_line_start_sync(
 		input logic [7:0] position, width,
 		input bit expect_hs, expect_vs, expect_de
@@ -347,6 +380,8 @@ module crtc_type2_test;
 		if (dout !== 8'hff) $fatal(1, "deselected CRTC must release the data bus");
 		enable = 0;
 		verify_hsync_collision();
+		verify_previous_last_line(0);
+		verify_previous_last_line(1);
 		verify_line_start_sync(0, 6, 1, 1, 0);
 		verify_line_start_sync(18, 14, 0, 0, 1);
 		verify_line_start_sync(18, 15, 1, 0, 0);
