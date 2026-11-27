@@ -1,9 +1,10 @@
-// GA-to-decoder mode acceptance: actual production modules, constant VRAM data.
+// GA-to-decoder mode acceptance: actual production modules and driven VRAM data.
 // RMR requests use the real GA port; no mode or qualification equation is copied.
 // Technical information sourced from the Amstrad CPC CRTC Compendium by Longshot
 // (CC BY-NC-ND 4.0). FR v1.11 §§9.3.1 p52,9.3.3 p53: all chips need >=2us HSYNC.
 module asic_mode_latch_test_top(input clk, RESET_N, sna_load,
  input [143:0] regs, input [7:0] ga_data, input ga_iorq_n, input snapshot_hs,
+ input [15:0] video_word, input [1:0] snapshot_mode,
  output dot, output [4:0] pen_o, output [7:0] hcc, output hs, de, mode_event, shaped_hs,
  output [1:0] requested_mode);
  reg[1:0] div=0; wire cen_16=(div==0);
@@ -59,7 +60,7 @@ module asic_mode_latch_test_top(input clk, RESET_N, sna_load,
 		.INKR_O(inkr),
 		.GAMODE_O(gamode),
         .SNA_LOAD(sna_load), .SNA_HS(snapshot_hs), .SNA_VS(1'b0),
-        .SNA_INKSEL(5'd0), .SNA_PALETTE(136'd0), .SNA_CONFIG(8'd0),
+        .SNA_INKSEL(5'd0), .SNA_PALETTE(136'd0), .SNA_CONFIG({6'd0,snapshot_mode}),
         .SNA_INTCNT(6'd0), .SNA_INT(1'b0), .SNA_VSDELAY(2'd0)
 	);
 
@@ -86,7 +87,7 @@ module asic_mode_latch_test_top(input clk, RESET_N, sna_load,
 		.SSA(14'd0),
 		.SSCR(8'd0),
 		.PIXEN(cen_16),
-		.VIDEOD(16'hffff),
+		.VIDEOD(video_word),
 		.VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(), .HSYNC_WRAP_DISPLAY(), .HSYNC_WRAP_REARM(),
 		.GAMODE(gamode),.MODE_UPDATE_EN(mode_event),
 		.BORDER_I(border),
@@ -106,7 +107,7 @@ module asic_mode_latch_test_top(input clk, RESET_N, sna_load,
         .SNA_HCC(8'd1), .SNA_LINE(7'd0),
         .SNA_RASTER(5'd0), .SNA_VTA(5'd0),
         .SNA_HSW(4'd0), .SNA_VSW(4'd0), .SNA_HS(snapshot_hs),
-        .SNA_VS(1'b0), .SNA_ADJ(1'b0), .SNA_MODE(2'd0)
+        .SNA_VS(1'b0), .SNA_ADJ(1'b0), .SNA_MODE(snapshot_mode)
 	);
 
  assign dot=cen_16;assign pen_o=pen;assign hs=crtc_hs;assign de=crtc_de;
