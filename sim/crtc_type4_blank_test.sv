@@ -46,7 +46,7 @@ module crtc_type4_blank_test;
 			.HSYNC(hs[profile]), .VSYNC(vs[profile]), .DE(), .FIELD(), .FRAME_FIELD(),
 			.MA(), .RA(), .HCC(), .LINE(), .ROW(), .ADJ(),
 			.SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
-			.PIXEN(pixen), .VIDEOD(video_word), .MODE_UPDATE_EN(use_ga_mode && ga_mode_update),
+			.PIXEN(pixen), .VIDEOD(video_word), .VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(), .MODE_UPDATE_EN(use_ga_mode && ga_mode_update),
 			.GAMODE(ga_mode),
 			.BORDER_I(border), .INKR_I(inks),
 			.RGB_R(red[profile]), .RGB_G(green[profile]), .RGB_B(blue[profile]),

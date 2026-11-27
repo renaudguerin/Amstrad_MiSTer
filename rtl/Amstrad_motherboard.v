@@ -546,6 +546,9 @@ wire [4:0]  leg_pal_data;
 wire [1:0]  plus_gamode;
 wire [3:0]  plus_rgb_r, plus_rgb_g, plus_rgb_b;
 reg  [15:0] plus_vidword;
+reg [3:0] plus_vid_de;
+wire plus_display_sample;
+wire plus_video_clear = filter_h_clear || !plus_mode;
 // P4 sprite engine plumbing (asic_video seam + composited plane, and the
 // asic_regs video services it consumes).
 wire         plus_hwrap;
@@ -685,7 +688,7 @@ wire sna_ga_int_pending = sna_int_pending & ~plus_dma_int_req;
 // classic CRTC sparse decode. On Plus hardware an IN on either write port
 // performs the corresponding write with the live bus byte ([KT] Ports;
 // asic-reference sections 4/13), so DI remains D during read cycles too.
-asic_video asic_vid
+asic_video #(.BYTE_DISPLAY_METADATA(1'b1)) asic_vid
 (
 	.CLOCK(clk),
 	.CLKEN(plus_cclk_en_n),
@@ -717,6 +720,9 @@ asic_video asic_vid
 
 	.PIXEN(ce_16),
 	.VIDEOD(plus_vidword),
+	.VIDEO_BYTE_DE(plus_vid_de),
+	.VIDEO_BYTE_CLEAR(plus_video_clear),
+	.VIDEO_DE_SAMPLE(plus_display_sample),
 	.GAMODE(plus_gamode),
 	.MODE_UPDATE_EN(plus_mode_update_en),
 	.BORDER_I(asic_border),
@@ -778,6 +784,9 @@ asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
 	.SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
 	.PIXEN(ce_16 && classic_crtc4),
 	.VIDEOD(plus_vidword),
+	.VIDEO_BYTE_DE(4'd0),
+	.VIDEO_BYTE_CLEAR(1'b0),
+	.VIDEO_DE_SAMPLE(),
 	.MODE_UPDATE_EN(plus_mode_update_en),
 	.GAMODE(plus_gamode),
 	.BORDER_I(asic_border),
@@ -1085,6 +1094,14 @@ always @(posedge clk) begin
 	end
 end
 
+always @(posedge clk) begin
+	if (plus_video_clear) plus_vid_de <= 4'd0;
+	else begin
+		if (plus_cclk_en_p) plus_vid_de[1:0] <= {vram_d_shifted_low, vram_d_de};
+		if (plus_cclk_en_n) plus_vid_de[3:2] <= {vram_d_shifted_low, vram_d_de};
+	end
+end
+
 wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 
 reg vram_bs;
@@ -1098,6 +1115,8 @@ initial begin
 	vram_d_shifted_low = 1'b0;
 end
 wire full_vram_shift = (sync_filter_applied == 2'd0) & crtc_shift;
+// The Plus byte carries the 40489's staged display decision.
+wire retained_byte_de = plus_mode ? plus_display_sample : de_sel;
 reg [15:0] vram_first_half_word;
 initial vram_first_half_word = 16'd0;
 wire [15:0] vram_pair_word = vram_bs ? vram_first_half_word : vram_din;
@@ -1124,8 +1143,8 @@ always @(posedge clk) begin
 			// between the two halves of one pair.
 			if (full_vram_shift) begin
 				if (vram_bs) begin
-					vram_din_shift <= de_sel ? vram_pair_word[15:8] : 8'd0;
-					vram_shift_de <= de_sel;
+					vram_din_shift <= retained_byte_de ? vram_pair_word[15:8] : 8'd0;
+					vram_shift_de <= retained_byte_de;
 				end
 				vram_d <= vram_bs ? vram_pair_word[7:0] : vram_din_shift;
 			end else

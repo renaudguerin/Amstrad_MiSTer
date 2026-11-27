@@ -43,7 +43,8 @@
 
 module asic_video #(
 	// The 40226 profile selects its horizontal RGB blank and Mode 2 phase.
-	parameter ASIC_40226 = 1'b0
+	parameter ASIC_40226 = 1'b0,
+	parameter BYTE_DISPLAY_METADATA = 1'b0
 )
 (
 	input            CLOCK,
@@ -112,6 +113,13 @@ module asic_video #(
 	input               PIXEN,     // 16 MHz dot enable; 16 dots per character
 	input      [15:0]   VIDEOD,    // VRAM word for the current MA address:
 	                               // {odd byte (second half), even byte}
+	// For each video half, bit 1 qualifies the recorded display decision.
+	// These inputs are unused when metadata is disabled for this instance.
+	/* verilator lint_off UNUSEDSIGNAL */
+	input      [3:0]    VIDEO_BYTE_DE,
+	input               VIDEO_BYTE_CLEAR,
+	/* verilator lint_on UNUSEDSIGNAL */
+	output              VIDEO_DE_SAMPLE,
 	input               MODE_UPDATE_EN, // qualified GA event; one CLOCK pulse
 	input      [1:0]    GAMODE,    // legacy GA screen mode (RMR VM bits)
 	input      [4:0]    BORDER_I,  // border hardware colour number
@@ -1270,6 +1278,29 @@ wire display_sample_de = ASIC_40226 ? DE :
                          display_skew == 2'b00 ? disp_raw :
                          display_skew == 2'b01 ? dde[0] :
                          display_skew == 2'b10 ? dde[1] : 1'b0;
+assign VIDEO_DE_SAMPLE = display_sample_de;
+
+wire byte_display_enabled;
+generate
+if (BYTE_DISPLAY_METADATA) begin : g_byte_display_metadata
+    reg [1:0] even_display, odd_display;
+    always @(posedge CLOCK) begin
+        if (!nRESET || SNA_LOAD || VIDEO_BYTE_CLEAR) begin
+            even_display <= 2'd0;
+            odd_display <= 2'd0;
+        end else if (PIXEN) begin
+            if (CLKEN) even_display <= VIDEO_BYTE_DE[1:0];
+            else if (pix_cnt == 4'd7) odd_display <= VIDEO_BYTE_DE[3:2];
+        end
+    end
+    wire [1:0] byte_display = pix_cnt[3] ? odd_display : even_display;
+    assign byte_display_enabled = !VIDEO_BYTE_CLEAR && byte_display[1] ?
+                                  byte_display[0] : de_hold;
+end else begin : g_character_display_only
+    assign byte_display_enabled = de_hold;
+end
+endgenerate
+
 reg  [1:0] mode_q;     // GAMODE latched on the qualified GA event
 reg  [3:0] type4_mode_hsync_history;
 reg  [1:0] type4_previous_mode;
@@ -1513,7 +1544,7 @@ end
 // At the character seam the 40226's first advanced Mode 2 dot belongs
 // to the incoming byte and its coincident display qualification.
 wire mode2_display_seam = ASIC_40226 && mode_q == 2'b10 && CLKEN;
-wire eff_de   = (mode2_display_seam ? DE : de_hold) & ~(SSCR[7] & de_first_char);
+wire eff_de   = (mode2_display_seam ? DE : byte_display_enabled) & ~(SSCR[7] & de_first_char);
 
 // FR §9.2.2 pp.49–50: the 40226 presents the new legacy colour on
 // the second video byte. Mode 2 presents that byte one dot earlier.

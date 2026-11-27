@@ -1,7 +1,7 @@
 // Technical information sourced from the "Amstrad CPC CRTC Compendium"
 // by Longshot (CC BY-NC-ND 4.0), French v1.11 §14.4 pp134-135.
 // Ordinary R3l4->5 moves the whole rendered line LEFT8 Mode2 dots.
-// Full5/6 hashes preserve the old source, not an analogue timing oracle.
+// Full6 retains its exact old RGB anchor; the guest marker proves the edges.
 #include "Vasic_r3_position_top.h"
 #include "verilated.h"
 #include <algorithm>
@@ -225,12 +225,15 @@ uint64_t rgb_hash(const std::vector<Sample>& samples, bool source) {
     }
     return hash;
 }
-// Original-source capture, FNV1a over all8192 uint32-LE 12-bit RGB values.
-// Frozen private qualifying run4 at c0939d8, before the RGB-owner change.
-// Source hashes protect the upstream path; public5/6 retain the baseline.
-// These are regression anchors, not expected analogue/monitor behavior.
-constexpr std::array<uint64_t, 3> original_rgb = {
-    0x8dec7e0eae46dab5ull, 0x9aff0de4e72aa2b5ull, 0x5c53983a7b15020dull
+// FNV-1a over all 8192 uint32-LE RGB values. The width-4/5
+// references replace only the two retained-byte edge strips on each
+// raster with the guest's border and the independently decoded last byte.
+// Width 6 keeps the original c0939d8 reference.
+constexpr std::array<uint64_t, 3> source_rgb_anchors = {
+    0xacc1464984c0d20dull, 0x5febb81fa824da0dull, 0x5c53983a7b15020dull
+};
+constexpr std::array<uint64_t, 3> public_rgb_anchors = {
+    0x908906adb514b20dull, 0x5febb81fa824da0dull, 0x5c53983a7b15020dull
 };
 void nonvacuous(const std::vector<Sample>& samples, unsigned width) {
     unsigned sourceDiff = 0, white = 0, red = 0, green = 0, visible = 0;
@@ -262,9 +265,22 @@ void nonvacuous(const std::vector<Sample>& samples, unsigned width) {
         if (std::equal(expected.begin(), expected.end(), dots.begin() + i)) { ++matches; origin = i; }
     }
     require(matches == 1, "independent complete six-byte Mode2 bitmap origin not unique");
-    require(rgb_hash(samples, true) == original_rgb.at(width - 4), "upstream ASIC source RGB anchor changed");
-    if (width >= 5)
-        require(rgb_hash(samples, false) == original_rgb.at(width - 4), "old public Full5/6 RGB anchor changed");
+    if (width != 6) {
+        // The guest supplies a unique Mode2 marker in RAM. Its inactive
+        // predecessor is border; its final active byte is decoded MSB first.
+        for (unsigned raster = 0; raster < 2; ++raster) {
+            const unsigned value = marker(0xc000 + 6*80 + 79 + raster*0x800);
+            for (unsigned bit = 0; bit < 8; ++bit) {
+                require(samples[71 + raster*4096 + bit*4].source_rgb == 0x0f0,
+                        "inactive retained byte must select border");
+                const unsigned expected = value & (0x80 >> bit) ? 0xf00 : 0xfff;
+                require(samples[2631 + raster*4096 + bit*4].source_rgb == expected,
+                        "final retained Mode2 byte must select marker colour");
+            }
+        }
+    }
+    require(rgb_hash(samples, true) == source_rgb_anchors.at(width - 4), "whole ASIC RGB reference changed");
+    require(rgb_hash(samples, false) == public_rgb_anchors.at(width - 4), "whole public RGB reference changed");
     std::cout << "width" << width << " nonvacuity: public/source differences=" << sourceDiff
               << " visibleDots=" << visible << " white/red/green=" << white << '/' << red << '/' << green
               << " marker48_dot_origin=" << origin << " rawRises/Falls=" << rawRise << '/' << rawFall
@@ -334,7 +350,7 @@ int main(int argc, char** argv) {
         position(captures[0], captures[1]);
         nonvacuous(returnedFull, 4);
         position(returnedFull, captures[1]);
-        std::cout << "asic-r3-position: PASS Full4/5 LEFT8, four visible border edges, source/old5/6 anchors, raw modes and Full return\n";
+        std::cout << "asic-r3-position: PASS Full4/5 LEFT8, four visible border edges, width6 anchor, Mode2 paper edges, raw modes and Full return\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "asic-r3-position: FAIL " << error.what() << '\n'; return 1;
