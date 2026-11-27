@@ -799,6 +799,7 @@ reg       in_hsync;
 reg [3:0] hsc;
 reg       in_vsync;
 reg [3:0] vsc;
+reg       vsync_ivm_mid_width;
 reg       vsync_mid_pending;
 reg       vsync_delay_pending;
 reg       vsync_r0_zero_pending;
@@ -939,8 +940,14 @@ always @(posedge CLOCK) begin
         presentation_interlace <= R8_interlace[0];
 end
 
-wire [3:0]  vsc_next        = vsc + 4'd1;
-wire        vsync_width_hit = (vsc_next == R3_v_sync_width);
+wire [3:0]  vsc_next = vsc + 4'd1;
+// FR ACCC v1.11 §§16.1, 19.7.3 and 21.3.4.1 separate C0=0 width
+// counts, MID onset and the last STATUS1 line. Original Plus DU G16
+// (and directed widths 1/2 in AmSpirit) excludes the initial partial
+// IVM raster from the positive programmed width. Keep the width live.
+wire [3:0]  vsync_last_count = (vsync_ivm_mid_width && R3_v_sync_width != 0) ?
+                               R3_v_sync_width : R3_v_sync_width - 4'd1;
+wire        vsync_last_line = (vsc == vsync_last_count);
 wire        vsync_count_tick = hcc_last;
 
 // Snapshot headers do not serialize deferred events. Consume this event
@@ -999,6 +1006,7 @@ always @(posedge CLOCK) begin
 		VSYNC    <= 1'b0;
 		in_vsync <= 1'b0;
 		vsc      <= 4'd0;
+		vsync_ivm_mid_width <= 1'b0;
 	end
 	else if (SNA_LOAD) begin
 		// Header B0 bit 0 + AF, same "only meaningful while executing" rule
@@ -1006,12 +1014,16 @@ always @(posedge CLOCK) begin
 		VSYNC    <= SNA_VS;
 		in_vsync <= SNA_VS;
 		vsc      <= SNA_VS ? SNA_VSW : 4'd0;
+		// v3 carries the elapsed count with no partial-launch state.
+		vsync_ivm_mid_width <= 1'b0;
 	end
 	else if (CLKEN) begin
 		if (in_vsync) begin
 			if (vsync_count_tick) begin
 				vsc <= vsc_next;
-				if (vsync_width_hit) begin
+				if (vsync_last_line) begin
+					// Renewal here starts at the raster seam.
+					vsync_ivm_mid_width <= 1'b0;
 					if (vsync_fire) begin
 						vsc <= 4'd0;   // renewed without a gap
 					end
@@ -1026,6 +1038,12 @@ always @(posedge CLOCK) begin
 			in_vsync <= 1'b1;
 			VSYNC    <= 1'b1;
 			vsc      <= 4'd0;
+			// MODEL LIMIT (B26): original Plus SHAKER DU G16 (03D2)
+			// and its width controls qualify ordinary IVM body launches.
+			// Keep origin, adjustment and added-line launch conventions.
+			vsync_ivm_mid_width <= !ASIC_40226 && ivm_active &&
+			                       vsync_mid_fire && !hcc_last &&
+			                       !in_adj && !interlace_line && charline != 7'd0;
 		end
 	end
 end
@@ -1119,8 +1137,8 @@ wire s1_bit4 = ~(hcc == status1_hsync_end);                 // 0 at C0=R2+R3l
 // FR §21.3.4.1 p248 gives opposite event polarity at R3h=0:
 // fifteen HIGH lines, LOW outside that band (original DU03C0 check).
 wire s1_bit5 = (R3_v_sync_width == 0) ?
-                 (in_vsync && (vsc != 4'd15)) :
-                 ~(in_vsync && (vsc == (R3_v_sync_width - 4'd1)));
+                 (in_vsync && !vsync_last_line) :
+                 ~(in_vsync && vsync_last_line);
 // C0=0..R0-1 with VMA LSB 0xFF, or C0=R0 with VMA' LSB 0x00: the next
 // character resets the video-pointer low byte (§21.3.4.1 prose).
 wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||

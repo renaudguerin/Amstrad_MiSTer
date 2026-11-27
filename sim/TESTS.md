@@ -64,7 +64,7 @@ Mac, including the Verilator build.
 | `sim u765-test` | fast | `rtl/u765/*` | u765 floppy controller |
 | `sim/plus run/asic_unlock_tests` | fast | `rtl/plus/asic_unlock.v` | ASIC unlock sequence detector |
 | `sim/plus run/asic_mode_latch_tests` | fast | `rtl/plus/asic_ga_timing.v` `rtl/plus/asic_video.v` `sim/plus/asic_mode_latch_test*` | Actual GA RMR writes to decoded pens: short/exact-two-us HSYNC, request during valid pulse, ASIC six-to-seven-us deadline, late and absent pulse controls |
-| `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC counters and register bus, including STATUS2 at field and adjustment boundaries and the next-row address after late 40489 R1 writes |
+| `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC counters and register bus, including raw IVM MID-VSYNC and STATUS 1 terminal line coupling, STATUS2 at field and adjustment boundaries, and the next-row address after late 40489 R1 writes |
 | `sim/plus run/b6_menu_mask_tests` | fast | `rtl/plus/plus_menu_capability_mask.v` `rtl/plus/plus_model_select.v` `rtl/classic_crtc_select.v` `rtl/plus/plus_sna_apply.v` | OSD capability mask and RAM size per machine model, live and reset-only classic CRTC selection, and snapshot admission and legacy fallback when Plus is deselected during an admitted upload |
 | `sim/plus run/dandanator_loader_bounds_tests` | fast | `rtl/dandanator/*` | Dandanator loader address bounds |
 | `sim/plus run/rom_loader_route_tests` | fast | `Amstrad.sv` `rtl/rom_loader_route.v` `sim/plus/rom_loader_route_test.cpp` | Legacy routes against the old decoder and numbered slot isolation, including oversize uploads |

@@ -88,20 +88,20 @@ public:
 
     // Apply an inactive SNA through the production snapshot pins. Its
     // unreachable R7 distinguishes stale pre-load events from new ones.
-    void load_idle_snapshot() {
+    void load_v3_snapshot(bool active_vsync = false) {
         idle_bus();
         for (unsigned word = 0; word < 5; ++word) dut.SNA_REGS[word] = 0;
-        dut.SNA_REGS[0] = 45;                     // R0
+        dut.SNA_REGS[0] = 45 | (active_vsync ? (0x20U << 24) : 0U); // R0, R3
         dut.SNA_REGS[1] = 38U | (127U << 24);    // R4, R7
         dut.SNA_REGS[2] = 7U << 8;               // R9
-        dut.SNA_ADDR = 0;
+        dut.SNA_ADDR = active_vsync ? 2 : 0;
         dut.SNA_HCC = 0;
         dut.SNA_LINE = 10;
         dut.SNA_RASTER = 3;
         dut.SNA_VTA = 0;
         dut.SNA_HSW = 0;
-        dut.SNA_VSW = 0;
-        dut.SNA_VS = 0;
+        dut.SNA_VSW = active_vsync ? 1 : 0;
+        dut.SNA_VS = active_vsync;
         dut.SNA_HS = 0;
         dut.SNA_ADJ = 0;
         dut.SNA_MODE = 0;
@@ -976,7 +976,7 @@ void t04p_deferred_vsync_lifecycle(TestBench& test, bool snapshot) {
     test.run_characters(17);  // pending event; current C4 has passed R7
     test.expect_vsync("zero stretch remains inactive before lifecycle edge", false);
     if (snapshot) {
-        test.load_idle_snapshot();
+        test.load_v3_snapshot();
     } else {
         test.reset(true);
         test.write_register(7, 127);  // before the first post-reset CLKEN
@@ -1606,15 +1606,17 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.run_characters(1);
     test.expect_hcc("t04j MID-VSYNC horizontal phase", 31);
     test.expect_vsync("t04j even frame fires at C0=R0/2", true);
-    // ACCC v1.11 §16.1 p.160 (FR p.161) counts R3h lines at C0=0 even when the
-    // interlace rule moved only the start to mid-line.  R3h=1 therefore
-    // ends at the immediately following seam, not at the next midpoint.
+    // Original Plus DU G16 with the authored R3h set to 1 retains one
+    // complete raster after the initial partial IVM raster in AmSpirit.
+    // The raw fall remains on C0=0 (FR ACCC v1.11 §16.1 p.161).
     test.run_characters(32);
     test.expect_hcc("t04j before C0=0 width count", 63);
     test.expect_vsync("t04j one-line pulse remains high through C0=R0", true);
     test.run_characters(1);
     test.expect_hcc("t04j C0=0 width count", 0);
-    test.expect_vsync("t04j R3h=1 MID-VSYNC ends at the next seam", false);
+    test.expect_vsync("t04j R3h=1 MID-VSYNC retains its full raster", true);
+    test.run_characters(kLineCharacters);
+    test.expect_vsync("t04j R3h=1 falls at the following raster seam", false);
 
     // The even frame has one §19.6.4 line; the next frame starts on odd C9.
     test.run_to_state(0, 1, 0, "t04j following odd frame origin");
@@ -1706,10 +1708,11 @@ void t04l_r7_r4_adjustment_and_interlace_line_seams(TestBench& test) {
     // vector pins the source-backed even-frame added-line seam only.
 }
 
-// ACCC v1.11 §16.1 p.160 (FR p.161): C3h advances at C0=0.  With R3h=2, a pulse
-// starting at C0=R0/2 remains high across the first seam and ends at the
-// second seam.  §19.3.4 pp.202-203 (FR pp.202-203) makes interlace management live, so an
-// R8 exit before the pending midpoint must cancel that scheduled start.
+// The original Plus DU G16 with the authored R3h set to 2 preserves both
+// complete rasters after its MID-VSYNC launch in AmSpirit. The C0=0 tick
+// and the live R3h comparison are from French ACCC v1.11 §§16.1, 14.2
+// (pp.161, 133). §19.3.4 pp.202-203 makes interlace management live, so
+// an R8 exit before the pending midpoint cancels that scheduled start.
 void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     program_ivm_sync_frame(test, 1, 2);
     test.run_to_state(1, 1, 0, "t04m R3h=2 target line");
@@ -1720,7 +1723,9 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     test.expect_vsync("t04m R3h=2 remains high after first seam", true);
     test.run_characters(64);
     test.expect_hcc("t04m second C0=0 width count", 0);
-    test.expect_vsync("t04m R3h=2 ends at second seam", false);
+    test.expect_vsync("t04m R3h=2 retains the second complete raster", true);
+    test.run_characters(64);
+    test.expect_vsync("t04m R3h=2 ends at third seam", false);
 
     TestBench exit;
     program_ivm_sync_frame(exit, 1);
@@ -1742,9 +1747,9 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     live_r0.expect_hcc("t04m rewritten live R0/2 position", 15);
     live_r0.expect_vsync("t04m pending MID-VSYNC follows live R0", true);
 
-    // §14.2 p.132 permits live R3h changes during VSYNC.  After one C0=0
-    // count of an R3h=3 MID pulse, lowering R3h to 2 makes the second seam
-    // the live equality and ends the pulse there.
+    // §14.2 p.133 permits live R3h changes during VSYNC. Applying that
+    // rule to the measured MID count makes the second full raster the
+    // final one when a write lowers R3h from 3 to 2 after the first seam.
     TestBench live_r3;
     program_ivm_sync_frame(live_r3, 1, 3);
     live_r3.run_to_state(1, 1, 0, "t04m live-R3 target line");
@@ -1754,7 +1759,9 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     live_r3.expect_vsync("t04m live-R3 pulse survives first seam", true);
     live_r3.write_register(3, 0x21);
     live_r3.run_to_state(1, 5, 0, "t04m live-R3 second seam");
-    live_r3.expect_vsync("t04m live R3h=2 ends on second seam", false);
+    live_r3.expect_vsync("t04m live R3h=2 starts the final full raster", true);
+    live_r3.run_to_state(1, 7, 0, "t04m live-R3 retirement seam");
+    live_r3.expect_vsync("t04m live R3h=2 retires on third seam", false);
 
     // Reset must cancel latent and visible sync state, rather than merely
     // being sampled after a pulse has already ended.
@@ -2844,6 +2851,66 @@ void t07d_status1_vsync_band_polarity(TestBench& test) {
                 0x20, 0x00);
 }
 
+// Original Plus DU G16, AmSpirit 1.18.3 stopped around the guest's BF10
+// instruction. The active bit-5 event must share the full last raw raster
+// on both launch phases. Include the zero alias and an active v3 restore
+// so a MID launch cannot leak across a saved C3h epoch.
+void du_g16_vsync_and_status(TestBench& test) {
+    const auto pulse = [](TestBench& bench, bool midpoint, unsigned full_rasters,
+                          bool zero_width) {
+        unsigned guard = 0;
+        while (!bench.vsync()) {
+            bench.run_characters(1);
+            if (++guard > 8192) throw TestFailure("DU G16 did not reach VSYNC");
+        }
+        bench.expect_field("DU G16 observed IVM field", midpoint);
+        bench.expect_hcc("DU G16 public VSYNC rise", midpoint ? 31 : 0);
+        const unsigned length = full_rasters*64 + (midpoint ? 33 : 0);
+        for (unsigned elapsed = 0; elapsed < length; ++elapsed) {
+            bench.expect_vsync("DU G16 remains active", true);
+            expect_mask("DU G16 STATUS 1 bit 5 on the active pulse",
+                        bench.sample_selected(), 0x20, elapsed < length-64 ? 0x20 : 0);
+            bench.run_characters(1);
+        }
+        bench.expect_hcc("DU G16 public VSYNC fall", 0);
+        bench.expect_vsync("DU G16 expires at the end of the final raster", false);
+        expect_mask("DU G16 STATUS 1 bit 5 outside the active pulse",
+                    bench.sample_selected(), 0x20, zero_width ? 0 : 0x20);
+    };
+
+    const auto arm = [](TestBench& bench, unsigned width) {
+        program_ivm_sync_frame(bench, 127, width);
+        bench.write_register(4, 7);
+        bench.run_until_vsync_idle();
+        bench.run_to_frame_start(8192);
+        if (!bench.field()) bench.run_to_frame_start(8192);
+        bench.write_register(7, 2);
+        bench.select_register(2);
+    };
+
+    arm(test, 7);
+    pulse(test, true, 7, false);
+    pulse(test, false, 7, false);
+
+    TestBench zero;
+    arm(zero, 0);
+    pulse(zero, true, 15, true);
+    pulse(zero, false, 16, true);
+
+    TestBench restore;
+    arm(restore, 7);
+    restore.run_to_state(2, 0, 31, "DU G16 active midpoint before v3 restore");
+    restore.expect_vsync("DU G16 restore precondition", true);
+    restore.load_v3_snapshot(true);
+    restore.expect_vsync("DU G16 v3 restores active VSYNC", true);
+    expect_mask("DU G16 v3 elapsed count is the old final line",
+                restore.sample_selected(), 0x20, 0);
+    restore.run_characters(45);
+    restore.expect_vsync("DU G16 v3 active through R0", true);
+    restore.run_characters(1);
+    restore.expect_vsync("DU G16 v3 expires at the next C0=0", false);
+}
+
 // ACCC §21.3.4.2 p.250 (FR p.249): bit6=0; bit4=1 for this R5=0 case.
 // Bit5 is zero throughout C9=R9. Bit7 is one at C9=0 before C0=R0 and at the final
 // C9=R9/C0=R0 character. Bits 1/2/0 pulse low at the three named line ends.
@@ -3763,7 +3830,7 @@ void test_display_skew_sampling(TestBench& test) {
     test.align_to_character_start();
     test.run_dots(2);
     test.expect_pen("snapshot starts with an active display sample", false, 0);
-    test.load_idle_snapshot();
+    test.load_v3_snapshot();
     test.run_dots(2);
     test.expect_pen("idle snapshot clears old display from the output", true, 0);
 
@@ -3772,7 +3839,7 @@ void test_display_skew_sampling(TestBench& test) {
     test.expect_pen("reset clears display sampling history", true, 0);
 }
 
-constexpr std::array<TestCase, 93> kTests = {{
+constexpr std::array<TestCase, 94> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3844,6 +3911,7 @@ constexpr std::array<TestCase, 93> kTests = {{
      t04l_r7_r4_adjustment_and_interlace_line_seams},
     {"t04m IVM MID-VSYNC width and R8 exit",
      t04m_ivm_mid_vsync_width_and_exit},
+    {"DU G16 midpoint VSYNC and STATUS 1 terminal raster", du_g16_vsync_and_status},
     {"t04n sync-only interlace half-line VSYNC",
      t04n_sync_interlace_half_line_vsync},
     {"t05a legacy-colour ROM sweep ([KT])", t05a_legacy_colour_rom_sweep},
