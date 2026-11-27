@@ -67,6 +67,7 @@ module asic_video #(
 	// types 3/4, ACCC §11.2.6).
 	output reg       HSYNC,
 	output reg       HSYNC_WRAP_DISPLAY,
+	output           HSYNC_WRAP_REARM,
 	output reg       VSYNC,
 	output           DE,
 	output           FIELD,
@@ -368,10 +369,17 @@ reg [7:0] hcc;
 reg  [7:0]  r0_live;
 // An index committing on this clock is the select in force for the data.
 wire [4:0]  r0_addr_now = (wr_commit & ~wr_rs_q) ? wr_d_q[4:0] : addr;
+wire r0_write_now = wr_now && RS && (r0_addr_now == 5'd0);
+wire r0_write_pending = wr_q && wr_rs_q && (addr == 5'd0);
+// Supply the filter with real Plus raster geometry. A short physical R0
+// can alias to a nominal learned period after masking multiple raw rises.
+assign HSYNC_WRAP_REARM = EXTERNAL_VIDEO_HSYNC && !ASIC_40226 &&
+    nRESET && !SNA_LOAD && !r0_write_now && !r0_write_pending &&
+    (r0_live == R0_h_total) && (r0_live >= 8'd62);
 always @(posedge CLOCK) begin
     if (!nRESET) r0_live <= 8'd0;
     else if (SNA_LOAD) r0_live <= SNA_REGS[0 +: 8];
-    else if (wr_now & RS & (r0_addr_now == 5'd0)) r0_live <= DI;
+    else if (r0_write_now) r0_live <= DI;
 end
 
 wire        hcc_equal = (hcc == r0_live);
