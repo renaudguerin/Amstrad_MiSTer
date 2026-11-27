@@ -202,6 +202,7 @@ module p10_dma_mobo_test_top (
 
 		.mode(mode),
 
+		.full_phase_valid(), .full_phase_rgb(),
 		.red(red),
 		.green(green),
 		.blue(blue),

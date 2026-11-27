@@ -112,6 +112,7 @@ module b8_palette_bench_top (
 
 		.mode(mode_o),
 
+		.full_phase_valid(), .full_phase_rgb(),
 		.red(),
 		.green(),
 		.blue(),

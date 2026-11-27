@@ -159,6 +159,8 @@ module Amstrad_motherboard #(
 	output        vsync,
 	output        field,
 	output        frame_field,
+	output        full_phase_valid,
+	output [11:0] full_phase_rgb,
 
 	// B6 applied output policy
 	// (hardware observations).  raw_crt is
@@ -1406,7 +1408,8 @@ end else begin : g_no_crt_response
     assign {crt_hs, crt_vs, crt_hbl, crt_vbl, crt_field, crt_frame_field} = 6'd0;
 end
 endgenerate
-reg [11:0] full_rgb_history [0:7];
+localparam FULL_RGB_TAPS = 14;
+reg [11:0] full_rgb_history [0:FULL_RGB_TAPS-1];
 reg rgb_owner;
 reg rgb_sampled, rgb_old_hs;
 reg rgb_raw_open, rgb_raw_fell, rgb_start_owned;
@@ -1433,7 +1436,7 @@ integer rgb_i;
 always @(posedge clk) begin
     rgb_owner <= plus_mode;
     if (rgb_context_clear) begin
-        for (rgb_i = 0; rgb_i < 8; rgb_i = rgb_i + 1)
+        for (rgb_i = 0; rgb_i < FULL_RGB_TAPS; rgb_i = rgb_i + 1)
             full_rgb_history[rgb_i] <= 12'd0;
         rgb_sampled <= 0;
         rgb_old_hs <= hs_sel;
@@ -1448,7 +1451,7 @@ always @(posedge clk) begin
             // Both owners publish their new pixel on this edge. Sample the
             // preceding complete pixel; slot7 is exactly eight M2 dots old.
             full_rgb_history[0] <= selected_source_rgb;
-            for (rgb_i = 1; rgb_i < 8; rgb_i = rgb_i + 1)
+            for (rgb_i = 1; rgb_i < FULL_RGB_TAPS; rgb_i = rgb_i + 1)
                 full_rgb_history[rgb_i] <= full_rgb_history[rgb_i-1];
         end
         rgb_old_hs <= hs_sel;
@@ -1482,6 +1485,124 @@ always @(posedge clk) begin
         end
     end
 end
+// MODEL LIMIT (B26): The Full presentation origin on original D6 alternates
+// with completed ordinary four- and five-character HS pulses. A stable pair
+// shares a width-based center. An earlier rise adds the corresponding eight
+// dots on alternating 63/65-character intervals. Stock establishes coherent
+// text. The signed per-line phase is reconstructed from peer and native
+// caller replays. Keep this display policy outside the raw timing paths.
+localparam [1:0] PHASE_PERIOD_OTHER = 2'd0;
+localparam [1:0] PHASE_PERIOD_NOMINAL = 2'd1;
+localparam [1:0] PHASE_PERIOD_EARLY = 2'd2;
+localparam [1:0] PHASE_PERIOD_LATE = 2'd3;
+reg [12:0] phase_raw_age;
+reg [1:0] phase_period, phase_previous_period, phase_older_period;
+reg [8:0] phase_previous_width, phase_older_width, phase_oldest_width;
+reg [2:0] phase_recent_mix;
+reg phase_old_vsync, phase_old_hblank;
+reg phase_pending_valid, phase_line_valid;
+reg [3:0] phase_pending_delay, phase_line_delay;
+initial begin
+    phase_raw_age = 0;
+    phase_period = PHASE_PERIOD_OTHER;
+    phase_previous_period = PHASE_PERIOD_OTHER;
+    phase_older_period = PHASE_PERIOD_OTHER;
+    phase_previous_width = 0;
+    phase_older_width = 0;
+    phase_oldest_width = 0;
+    phase_recent_mix = 0;
+    phase_old_vsync = 0;
+    phase_old_hblank = 0;
+    phase_pending_valid = 0;
+    phase_line_valid = 0;
+    phase_pending_delay = 0;
+    phase_line_delay = 0;
+end
+
+wire phase_clear = filter_h_clear || (!plus_mode && crtc_type[1]) || sync_filter_applied != 2'd0;
+wire [1:0] phase_measured_period = phase_raw_age == 13'd4096 ? PHASE_PERIOD_NOMINAL :
+                                   phase_raw_age == 13'd4032 ? PHASE_PERIOD_EARLY :
+                                   phase_raw_age == 13'd4160 ? PHASE_PERIOD_LATE : PHASE_PERIOD_OTHER;
+wire [8:0] phase_width = phase_raw_age[8:0];
+wire [2:0] phase_width_chars = phase_width[8:6];
+wire [2:0] phase_previous_chars = phase_previous_width[8:6];
+wire phase_mixed_width = phase_width_chars != phase_previous_chars;
+wire phase_ordinary_pair = (phase_width_chars == 4 || phase_width_chars == 5) &&
+                           (phase_previous_chars == 4 || phase_previous_chars == 5) &&
+                           (phase_raw_age < 336) && (phase_width[5:4] == 0) &&
+                           (phase_previous_width[5:4] == 0) &&
+                           (phase_width == phase_older_width) &&
+                           (phase_previous_width == phase_oldest_width) &&
+                           (phase_width == phase_previous_width || phase_mixed_width);
+wire phase_steady_rise = phase_period == PHASE_PERIOD_NOMINAL &&
+                         phase_previous_period == PHASE_PERIOD_NOMINAL &&
+                         phase_older_period == PHASE_PERIOD_NOMINAL;
+wire phase_early_rise = phase_period == PHASE_PERIOD_EARLY &&
+                        phase_previous_period == PHASE_PERIOD_LATE &&
+                        phase_older_period == PHASE_PERIOD_EARLY;
+wire phase_late_rise = phase_period == PHASE_PERIOD_LATE &&
+                       phase_previous_period == PHASE_PERIOD_EARLY &&
+                       phase_older_period == PHASE_PERIOD_LATE;
+wire phase_matching_pair = phase_ordinary_pair &&
+                           (phase_steady_rise || (phase_mixed_width && (phase_early_rise || phase_late_rise)));
+// The 640-clock reference centers two five-character pulses. Add 32 clocks
+// for the common transport, then convert the budget to signed native dots.
+// The qualified range consumes at most fourteen history taps.
+wire [9:0] phase_width_budget = 10'd672 - {1'b0, phase_width} - {1'b0, phase_previous_width};
+wire [3:0] phase_tap = phase_width_budget[7:4] + (phase_early_rise ? 4'd8 : 4'd0);
+
+always @(posedge clk) begin
+    phase_old_vsync <= profile_vsync;
+    phase_old_hblank <= profile_hblank;
+    if (phase_clear || crt_source_missing) begin
+        phase_raw_age <= 0;
+        phase_period <= PHASE_PERIOD_OTHER;
+        phase_previous_period <= PHASE_PERIOD_OTHER;
+        phase_older_period <= PHASE_PERIOD_OTHER;
+        phase_previous_width <= 0;
+        phase_older_width <= 0;
+        phase_oldest_width <= 0;
+        phase_recent_mix <= 0;
+        phase_pending_valid <= 0;
+        phase_pending_delay <= 0;
+        phase_line_valid <= 0;
+        phase_line_delay <= 0;
+    end else begin
+        if (profile_vsync && !phase_old_vsync)
+            phase_recent_mix <= {phase_recent_mix[1:0], 1'b0};
+        if (rgb_raw_rise) begin
+            phase_older_period <= phase_previous_period;
+            phase_previous_period <= phase_period;
+            phase_period <= phase_measured_period;
+            phase_raw_age <= 1;
+        end else if (!(&phase_raw_age)) begin
+            phase_raw_age <= phase_raw_age + 1'b1;
+        end
+
+        if (profile_hblank && !phase_old_hblank) phase_pending_valid <= 0;
+        if (rgb_raw_fall) begin
+            phase_oldest_width <= phase_older_width;
+            phase_older_width <= phase_previous_width;
+            phase_previous_width <= phase_raw_age < 336 ? phase_width : 9'd0;
+            if (profile_hblank) begin
+                phase_pending_valid <= phase_matching_pair && ((|phase_recent_mix) || phase_mixed_width);
+                phase_pending_delay <= phase_tap;
+                // Only a mixed fall usable in blanking can seed the recent
+                // history that qualifies subsequent steady-width lines.
+                if (phase_matching_pair && phase_mixed_width) phase_recent_mix[0] <= 1;
+            end
+        end
+        if (!profile_hblank && phase_old_hblank) begin
+            phase_line_valid <= phase_pending_valid;
+            phase_line_delay <= phase_pending_delay;
+            phase_pending_valid <= 0;
+        end
+    end
+end
+
+assign full_phase_valid = phase_line_valid && !phase_clear;
+assign full_phase_rgb = phase_line_delay == 0 ? selected_source_rgb : full_rgb_history[phase_line_delay - 1'b1];
+
 // An owner change must bypass the old history immediately, before the
 // clocked context clear can run. The new owner then needs a complete pulse.
 wire [11:0] rendered_rgb = crt_response_active ? crt_rgb :

@@ -301,6 +301,7 @@ sna_cpu_header sna_cpu_header
         .audio_l(),
         .audio_r(),
         .mode(),
+        .full_phase_valid(), .full_phase_rgb(),
         .red(board_rgb[11:8]),
         .green(board_rgb[7:4]),
         .blue(board_rgb[3:0]),

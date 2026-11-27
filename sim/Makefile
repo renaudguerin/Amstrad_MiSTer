@@ -29,6 +29,8 @@ VIDEO_OUTPUT_SRC := ../rtl/amstrad_video_output.sv ../rtl/amstrad_video_color.sv
     ../sys/gamma_corr.sv ../sys/video_freezer.sv ../sys/scandoubler.v \
     ../sys/hq2x.sv ../sys/video_freak.sv ../sys/math.sv
 VIDEO_OUTPUT_BIN := $(OBJ_DIR)/video_output/Vamstrad_video_output
+VIDEO_PRESENTATION_SRC := video_presentation_test.sv ../rtl/amstrad_video_presentation.v $(VIDEO_OUTPUT_SRC)
+VIDEO_PRESENTATION_BIN := $(OBJ_DIR)/video_presentation/Vvideo_presentation_test
 
 
 .PHONY: all build test lint soak clean crt-filter-blank-build crt-filter-blank-test
@@ -54,7 +56,7 @@ JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 SIM_TESTS := crtc-test crtc-type2-test crtc-type4-blank-test \
 	crt-filter-blank-test crtc-cpu-phase-test video-color-test \
-	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
+	video-output-test video-presentation-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
 	ga40010-test u765-test b18-save-admission-test hardware-loop-host-test crt-response-test
 
 .PHONY: full test-run full-run list-tests crtc-test plus-test plus-full ga40010-test u765-test
@@ -352,7 +354,15 @@ $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
 		--Mdir $(OBJ_DIR)/crtc_t80_old -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o crtc_t80_old_tests $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp
 
-.PHONY: video-output-test
+.PHONY: video-output-test video-presentation-test
+video-presentation-test: $(VIDEO_PRESENTATION_BIN)
+	./$(VIDEO_PRESENTATION_BIN)
+
+$(VIDEO_PRESENTATION_BIN): $(VIDEO_PRESENTATION_SRC)
+	mkdir -p $(dir $@)
+	$(VERILATOR) --binary --timing --top-module video_presentation_test -Wno-fatal -Wno-PROCASSWIRE \
+		--Mdir $(dir $@) $(VIDEO_PRESENTATION_SRC)
+
 video-output-test: $(VIDEO_OUTPUT_BIN)
 	$<
 
