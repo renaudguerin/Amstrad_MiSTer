@@ -539,6 +539,7 @@ reg        jit_on_pending;
 reg  [3:0] jit_on_count;
 reg        hsync_type_d;
 reg        register_write_d;
+reg        type0_short_r3_jit;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
 // ACCC v1.11 FR section 15.3.2 p.150, 15.3.4 p.152: on type 1, when C0 == R2
@@ -551,7 +552,10 @@ wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
 // engine because the crtc_t80_old negative-control bench compiles this
 // wrapper against historic engine files, which fixes the engine port list.
 wire type1_hsync_overflow = (hcc == R2_h_sync_pos) && (R3_h_sync_width != 0);
-wire hsync_off = CRTC_TYPE ? (e1_hsync_off && !type1_hsync_overflow) : e0_hsync_off;
+wire type0_r3_jit_hold = type0_short_r3_jit && !CLKEN && !SNA_LOAD &&
+                         (hsync_char_phase < 7'd16);
+wire hsync_off = CRTC_TYPE ? (e1_hsync_off && !type1_hsync_overflow) :
+                            (e0_hsync_off && !type0_r3_jit_hold);
 
 // French ACCC v1.11 §15.3.4 p.152: C3l keeps overflowing, but the GA sees
 // an invisible end/restart at the ordinary trailing-edge phase. A level-low
@@ -586,6 +590,17 @@ always @(posedge CLOCK) begin
 	end
 end
 wire register_write = ENABLE & RS & ~nCS & ~R_nW;
+// French ACCC v1.11 §14.5.4.1 p.141: with the later OUT(C),r8
+// write at C3=0 or 1, GA40010 keeps blanking for 4 or 20 Mode 2 dots.
+// MODEL LIMIT (B26): qualify the production OUT phase and release at the
+// nominal quarter-character point. The optical evidence has dot precision.
+// Widths >=2 also drive the GA's mode-update and C-HSYNC sequence.
+wire type0_short_r3_jit_write = register_write && !register_write_d &&
+                               !CRTC_TYPE && HSYNC && !hsync_phaseful &&
+                               (addr == 5'd03) && (hsync_char_phase == 7'd8) &&
+                               (DI[3:0] == hsc) && (hsc < 4'd2) &&
+                               (R3_h_sync_width > DI[3:0]);
+
 wire r1_write_border = register_write && addr == 5'd01 && hcc == DI;
 // ACCC v1.11 section 14.7.1 p.142 (FR §14.7.1 p.143): an OUT(C),r8 update which makes
 // R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
@@ -636,12 +651,17 @@ always @(posedge CLOCK) begin
 		jit_on_count <= 0;
 		hsync_type_d <= CRTC_TYPE;
 		register_write_d          <= 0;
+		type0_short_r3_jit       <= 0;
 	end
 	else begin
 		register_write_d <= register_write;
 		hsync_type_d <= CRTC_TYPE;
 		if (CLKEN) hsync_char_phase <= 0;
 		else       hsync_char_phase <= hsync_char_phase + 1'd1;
+
+		if (SNA_LOAD || CRTC_TYPE || CRTC_TYPE != hsync_type_d || CLKEN)
+			type0_short_r3_jit <= 0;
+		else if (type0_short_r3_jit_write) type0_short_r3_jit <= 1;
 
 		if (r2_jit_write) r2_jit_pending <= 1;
 		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;

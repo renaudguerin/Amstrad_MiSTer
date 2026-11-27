@@ -4,7 +4,8 @@
 // by Longshot (CC BY-NC-ND 4.0), French v1.11 §§9.1, 9.3.4 pp47, 56-67;
 // fixed Mode 3 bitplane decoding and cadence: French ACCC v1.11 §9.1 p47, §9.3.4.3.4 p63;
 // GA40010 ordinary 2->0 transition residual 5: French ACCC v1.11 §9.3.4.3.1 p59 (not p60 GA40007/8);
-// same-mode genuine R3.JIT controls: French ACCC v1.11 §9.3.4 pp56-57 table.
+// Same-mode R3.JIT: French ACCC v1.11 §9.3.4 pp56–57.
+// Short Type 0 R3.JIT blackout widths: §14.5.4.1 p141 (GA40010).
 // Fixture absolute clocks are from verified test harness alignment, not physical measurements.
 // Pixel/blank oracles evaluate public classic RGB and true fullblank from
 // independent French bitplanes/source oracles, without model metadata.
@@ -55,9 +56,10 @@ struct TestCase {
     std::array<uint8_t, 6> markers;
     std::array<uint8_t, 16> inks;
     bool same_mode_jit = false;
+    bool short_r3_jit = false;
 };
 
-// All 64 qualified cases: 56 original retained cases + 8 same-numeric JIT controls
+// All 66 qualified cases: 56 original cases, 8 same-mode controls and 2 short pulses
 const std::vector<TestCase> ALL_CASES = {
     // --- Original 56 Retained Cases ---
     {"ordinary_2to0-type0-2to0", true, false, 2, 22, 22, 2, 0, 0, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}},
@@ -125,7 +127,9 @@ const std::vector<TestCase> ALL_CASES = {
     {"jit-same-mode0-type1", false, false, 14, 20, 2, 0, 0, 1, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, true},
     {"jit-same-mode1-type1", false, false, 14, 20, 2, 1, 1, 1, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, true},
     {"jit-same-mode2-type1", false, false, 14, 20, 2, 2, 2, 1, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, true},
-    {"jit-same-mode3-type1", false, false, 14, 20, 2, 3, 3, 1, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, true}
+    {"jit-same-mode3-type1", false, false, 14, 20, 2, 3, 3, 1, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, true},
+    {"jit-short-r3-zero-type0", false, false, 14, 22, 0, 2, 2, 0, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, false, true},
+    {"jit-short-r3-one-type0", false, false, 14, 21, 1, 2, 2, 0, {{182, 109, 227, 156, 93, 166}}, {{0, 4, 6, 31, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15}}, false, true}
 };
 
 struct CaseResult {
@@ -226,8 +230,8 @@ CaseResult run_case(const TestCase& c) {
             if (relative != 840 || d.c0 != 22 || d.dbg_char_phase != 8 || d.cpu_addr != 0xbd03 ||
                 d.crtc_reg != (c.ordinary ? 2 : 3) || d.r2_value != c.r2 || d.r3_value != c.width)
                 fail_setup("CRTC accepted write phase/selection/old registers");
-            if (!c.ordinary && !c.fixed && (!d.raw_hs || d.hsc != 2))
-                fail_setup("genuine R3.JIT activeHS/C3=2");
+            if (!c.ordinary && !c.fixed && (!d.raw_hs || d.hsc != c.value))
+                fail_setup("genuine R3.JIT requires active HS at the written C3");
         }
 
         const unsigned first_load = c.ordinary ? 819 : 691;
@@ -338,15 +342,31 @@ CaseResult run_case(const TestCase& c) {
     if (!restored || !store_tick) throw std::runtime_error("CPU OUT not reached " + std::string(c.name));
     if (rmr_edges != 8 || marker_loads != 6 || store_tick != 840 || store_c0 != 22 || store_phase != 8 || wait_samples != 104)
         throw std::runtime_error("ACTUAL_SETUP_GUARD complete CPU/READY/marker counts " + std::string(c.name));
-    if (!c.fixed && (rise_tick != (c.ordinary ? 832u : 704u) + 4 * c.type || fall_tick != (c.ordinary ? 960u : 841u) + 4 * c.type))
+    if (c.short_r3_jit) {
+        if (rise_tick != 704u + 64u * (c.r2 - 20u) || !fall_tick)
+            throw std::runtime_error("ACTUAL_SETUP_GUARD short rawHS setup " + std::string(c.name));
+    } else if (!c.fixed && (rise_tick != (c.ordinary ? 832u : 704u) + 4 * c.type ||
+                           fall_tick != (c.ordinary ? 960u : 841u) + 4 * c.type)) {
         throw std::runtime_error("ACTUAL_SETUP_GUARD rawHS schedule " + std::string(c.name));
+    }
 
     res.setup_passed = true;
 
     // 8. Public RGB and Blank Evaluation
     const unsigned source_origin = c.ordinary ? 827 : 699;
 
-    if (c.same_mode_jit) {
+    if (c.short_r3_jit) {
+        // Both Mode 2 inks are nonblack. The fixture's GA RGB begins blanking
+        // eleven clocks after raw HS rises. The French chart specifies the
+        // four- and twenty-dot spans, including the first lit dot after each.
+        const unsigned first_blank = rise_tick + 11;
+        const unsigned end_blank = first_blank + 4 * (4 + 16 * c.value);
+        for (unsigned tick = first_blank - 4; tick < end_blank + 4; ++tick) {
+            const bool expected_black = tick >= first_blank && tick < end_blank;
+            ++res.blank_constraints;
+            res.blank_bad += ((recorded_rgb[tick] == 0) != expected_black);
+        }
+    } else if (c.same_mode_jit) {
         // Same-mode JIT controls: independently qualified fixed 192-clock sequence masked by JIT black
         // French ACCC v1.11 §9.3.4 pp56-57 (table); fixed Mode 3 French §9.1 p47, §9.3.4.3.4 p63.
         // Fixture absolute clocks are from verified test harness alignment, not physical measurements.
