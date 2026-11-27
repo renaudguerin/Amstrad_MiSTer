@@ -184,7 +184,7 @@ module p1_video_test_top (
 		.SSCR(8'd0),
 		.PIXEN(cen_16),
 		.VIDEOD(vidword),
-		.VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(),
+		.VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(), .HSYNC_WRAP_DISPLAY(),
 		.MODE_UPDATE_EN(video_mode_update_en),
 		.GAMODE(gamode),
 		.BORDER_I(border),

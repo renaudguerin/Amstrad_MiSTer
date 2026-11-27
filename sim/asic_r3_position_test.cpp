@@ -23,7 +23,7 @@ uint8_t marker(unsigned address) {
 struct Guest {
     std::vector<uint8_t> bytes = std::vector<uint8_t>(16384, 0xff);
     unsigned idle = 0;
-    explicit Guest(unsigned width, bool in_paper = false) {
+    Guest(unsigned width, unsigned hsync_position, bool solid) {
         unsigned address = 0x100;
         auto emit = [&](unsigned value) { bytes.at(address++) = value; };
         auto out = [&](unsigned port, unsigned value) {
@@ -33,13 +33,13 @@ struct Guest {
         };
         bytes[0] = 0xc3; bytes[1] = 0; bytes[2] = 1;
         emit(0xf3); emit(0x31); emit(0xf0); emit(0xbf);
-        const unsigned regs[] = {63,40,in_paper ? 12u : 50u,width,38,0,25,30,0,7,0,0,48,0};
+        const unsigned regs[] = {63,40,hsync_position,width,38,0,25,30,0,7,0,0,48,0};
         for (unsigned reg = 0; reg < 14; ++reg) {
             out(0xbc00, reg); out(0xbd00, regs[reg]);
         }
         out(0x7f00, 0); out(0x7f00, 0x4b);  // pen0 white
-        out(0x7f00, 1); out(0x7f00, in_paper ? 0x4b : 0x4c);  // pen1
-        out(0x7f00, 16); out(0x7f00, in_paper ? 0x4b : 0x52); // border
+        out(0x7f00, 1); out(0x7f00, solid ? 0x4b : 0x4c);  // pen1
+        out(0x7f00, 16); out(0x7f00, solid ? 0x4b : 0x52); // border
         out(0x7f00, 0x82);                  // Mode2
         idle = address; emit(0x18); emit(0xfe);
     }
@@ -65,7 +65,7 @@ struct Bench {
     Vasic_r3_position_top dut;
     Guest guest;
     unsigned width;
-    bool in_paper;
+    unsigned hsync_position;
     std::vector<uint8_t> ram = std::vector<uint8_t>(0x800000, 0xff);
     std::ofstream ledger;
     uint64_t ticks = 0;
@@ -73,8 +73,8 @@ struct Bench {
     bool oldInsn = false, armed = false, leftOrigin = false, oldWrite = false;
     bool oldHS = false, rise = false, fall = false, oldEnd = false;
 
-    Bench(unsigned width_, const std::string& directory, bool in_paper_ = false)
-        : guest(width_, in_paper_), width(width_), in_paper(in_paper_) {
+    Bench(unsigned width_, const std::string& directory, unsigned hsync_position_ = 50, bool solid = false)
+        : guest(width_, hsync_position_, solid), width(width_), hsync_position(hsync_position_) {
         // Plus bypasses the classic ROM decoder. B18 has no cartridge overlay;
         // the original guest executes from base RAM at logical PC0.
         std::copy(guest.bytes.begin(), guest.bytes.end(), ram.begin() + 0x20000);
@@ -148,18 +148,18 @@ struct Bench {
         dut.reset_btn = 0;
         return body();
     }
-    std::vector<Sample> body() {
+    std::vector<Sample> body(unsigned row = 6) {
         // A Full return must earn fresh receipts after its committed mode change.
         const unsigned completeAtEntry = complete, readyLowAtEntry = readyLow;
         bool found = false;
         for (unsigned i = 0; i < 12000000; ++i) {
-            if (armed && frames >= 3 && dut.c4 == 6 && dut.c9 == 0 && dut.c0 == 0) {
+            if (armed && frames >= 3 && dut.c4 == row && dut.c9 == 0 && dut.c0 == 0) {
                 found = true; break;
             }
             tick();
         }
         require(found, "bounded natural frame/body capture timed out");
-        require(writes == 1 && dut.r0 == 63 && dut.r1 == 40 && dut.r2 == (in_paper ? 12u : 50u) && dut.r3 == width,
+        require(writes == 1 && dut.r0 == 63 && dut.r1 == 40 && dut.r2 == hsync_position && dut.r3 == width,
                 "actual CPU nominal CRTC registers");
         const unsigned completeDelta = complete - completeAtEntry;
         const unsigned readyLowDelta = readyLow - readyLowAtEntry;
@@ -355,6 +355,31 @@ void in_paper_aperture(const std::vector<Sample>& samples) {
     require(checked == 2, "expected two in-paper HS pulses");
     std::cout << "in-paper HS: public RGB black dots [24,104), physical HS 80 dots\n";
 }
+// Original Plus SHAKER D3 left aperture. At R2=59 the HS fall
+// and the incoming DE rise coincide; at R2=60 they are one character apart.
+void wrapping_aperture(const std::vector<Sample>& samples, unsigned position, bool display) {
+    std::vector<Sample> dots;
+    for (const auto& sample : samples) if (sample.ce16) dots.push_back(sample);
+    unsigned checked = 0;
+    for (unsigned start = 1; start + 110 < dots.size(); ++start) {
+        if (dots[start-1].raw_hs || !dots[start].raw_hs) continue;
+        require(dots[start].c0 == position && dots[start].filter_shift && !dots[start].raw_de,
+                "wrapping Plus HS launches in shifted border");
+        const unsigned seam = (64 - position) * 16;
+        require(dots[start + seam].c0 == 0 && dots[start + seam].raw_de == display &&
+                !dots[start + seam - 1].raw_de, "incoming Plus display at the physical wrap");
+        const unsigned blank_start = display ? 24 : 16;
+        for (unsigned dot = 0; dot < 110; ++dot) {
+            require(dots[start+dot].raw_hs == (dot < 80), "wrapping Plus raw HS stays 80 dots wide");
+            const unsigned expected = dot >= blank_start && dot < blank_start + 80 ? 0 : 0xfff;
+            require(dots[start+dot].public_rgb == expected,
+                    "Plus wrapping RGB aperture R2=" + std::to_string(position) +
+                    " display=" + std::to_string(display) + " dot=" + std::to_string(dot));
+        }
+        ++checked;
+    }
+    require(checked == 1, "one complete wrapping HS aperture in the two-line window");
+}
 } // namespace
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
@@ -374,10 +399,15 @@ int main(int argc, char** argv) {
         position(captures[0], captures[1]);
         nonvacuous(returnedFull, 4);
         position(returnedFull, captures[1]);
-        Bench in_paper(5, "", true);
+        Bench in_paper(5, "", 12, true);
         in_paper_aperture(in_paper.capture());
         in_paper.raw_modes();
         in_paper_aperture(in_paper.body());
+        for (unsigned position : {59u, 60u}) {
+            Bench wrap(5, "", position, true);
+            wrapping_aperture(wrap.capture(), position, true);
+            wrapping_aperture(wrap.body(26), position, false);
+        }
         std::cout << "asic-r3-position: PASS Full4/5 LEFT8, four visible border edges, width6 anchor, Mode2 paper edges, raw modes and Full return\n";
         return 0;
     } catch (const std::exception& error) {
