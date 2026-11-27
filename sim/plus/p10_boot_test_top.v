@@ -613,6 +613,7 @@ module p10_boot_test_top #(
 		.vblank(mb_vblank),
 		.hsync(mb_hsync),
 		.vsync(mb_vsync),
+		.full_phase_valid(), .full_phase_rgb(),
 		.red(mb_red),
 		.green(mb_green),
 		.blue(mb_blue),

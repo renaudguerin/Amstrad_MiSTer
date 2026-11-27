@@ -141,6 +141,7 @@ module p1_mobo_bench_top (
 
 		.mode(mode_o),
 
+		.full_phase_valid(), .full_phase_rgb(),
 		.red(red_o),
 		.green(green_o),
 		.blue(blue_o),

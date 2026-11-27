@@ -122,6 +122,7 @@ module ssm_provider_top #(parameter CRTC_KIND=0) (
  .audio_l(),
  .audio_r(),
  .mode(),
+ .full_phase_valid(), .full_phase_rgb(),
  `ifdef SSM_S_PASSIVE_TRACE
  .red(s_trace_rgb[11:8]), .green(s_trace_rgb[7:4]), .blue(s_trace_rgb[3:0]),
 `else

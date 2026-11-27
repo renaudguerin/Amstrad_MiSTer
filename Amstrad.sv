@@ -1292,6 +1292,8 @@ wire  [7:0] ssm_bus_data;
 wire [20:0] ssm_sync_observation;
 wire        rd, wr, iorq, asic_iorq;
 wire        mreq;
+wire native_frame_field, full_phase_valid;
+wire [11:0] full_phase_rgb;
 wire        field;
 wire        cursor;
 wire  [9:0] Fn;
@@ -1628,7 +1630,9 @@ Amstrad_motherboard #(.ENABLE_CRT_RESPONSE(ENABLE_CRT_RESPONSE)) motherboard
 	.green(g4),
 	.blue(b4),
 	.field(field),
-	.frame_field(VGA_F1),
+	.frame_field(native_frame_field),
+	.full_phase_valid(full_phase_valid),
+	.full_phase_rgb(full_phase_rgb),
 
 	.vram_din(vram_dout),
 	.vram_addr(vram_addr),
@@ -1782,16 +1786,32 @@ wire raw_crt, native_cadence, pixel_vblank, en270p;
 wire obs_ce_pix, obs_hs, obs_vs, obs_hbl, obs_vbl, obs_field, obs_native_cadence;
 wire [7:0] obs_r, obs_g, obs_b;
 wire [7:0] obs_applied_config;
+wire [1:0] view_mode;
+wire [3:0] view_r4, view_g4, view_b4;
+wire view_plus_mode, view_raw_crt, view_native_cadence, view_pixel_vblank;
+wire view_hs, view_vs, view_hbl, view_vbl, view_field, view_progress_pix;
+amstrad_video_presentation video_presentation (
+    .clk(CLK_VIDEO), .rgb_in({r4,g4,b4}),
+    .full_phase_rgb(full_phase_rgb), .full_phase_valid(full_phase_valid),
+    .plus_in(plus_mode), .mode_in(mode), .raw_crt_in(raw_crt),
+    .native_cadence_in(native_cadence), .pixel_vblank_in(pixel_vblank),
+    .field_in(field), .frame_field_in(native_frame_field), .progress_in(progress_pix),
+    .hs_in(hs), .vs_in(vs), .hblank_in(hbl), .vblank_in(vbl),
+    .rgb_out({view_r4,view_g4,view_b4}), .plus_out(view_plus_mode), .mode_out(view_mode),
+    .raw_crt_out(view_raw_crt), .native_cadence_out(view_native_cadence), .pixel_vblank_out(view_pixel_vblank),
+    .field_out(view_field), .frame_field_out(VGA_F1), .progress_out(view_progress_pix),
+    .hs_out(view_hs), .vs_out(view_vs), .hblank_out(view_hbl), .vblank_out(view_vbl)
+);
 amstrad_video_output video_output (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
-    .raw_crt(raw_crt), .native_cadence(native_cadence), .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
-    .mode(mode), .scale(status[10:9]), .ar(status[26:25]),
+    .raw_crt(view_raw_crt), .native_cadence(view_native_cadence), .pixel_vblank(view_pixel_vblank), .plus_mode(view_plus_mode),
+    .mode(view_mode), .scale(status[10:9]), .ar(status[26:25]),
     .integer_scale(status[29:28]), .mix(status[13:11]),
-    .r4(r4), .g4(g4), .b4(b4), .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl),
+    .r4(view_r4), .g4(view_g4), .b4(view_b4), .hs(view_hs), .vs(view_vs), .hbl(view_hbl), .vbl(view_vbl),
     .pixel_rate_select(status[30]), .forced_scandoubler(forced_scandoubler),
-    .field_in(field), .vcrop_en(status[27]), .narrow_border(status[50]),
+    .field_in(view_field), .vcrop_en(status[27]), .narrow_border(status[50]),
     .HDMI_WIDTH(HDMI_WIDTH), .HDMI_HEIGHT(HDMI_HEIGHT),
-    .HDMI_FREEZE(HDMI_FREEZE), .progress_pix(progress_pix), .gamma_bus(gamma_bus),
+    .HDMI_FREEZE(HDMI_FREEZE), .progress_pix(view_progress_pix), .gamma_bus(gamma_bus),
     .CE_PIXEL(CE_PIXEL), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
     .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE), .VGA_SL(VGA_SL),
     .VIDEO_ARX(VIDEO_ARX), .VIDEO_ARY(VIDEO_ARY), .en270p(en270p),
