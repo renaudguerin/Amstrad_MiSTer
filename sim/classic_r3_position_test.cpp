@@ -18,11 +18,12 @@ void need(bool ok,const string& why){if(!ok)throw runtime_error(why);}
 uint8_t tag(unsigned a){return uint8_t((a*73u+(a>>7)*29u)^0xa6u);}
 struct Program {
  vector<uint8_t> rom=vector<uint8_t>(16384,0xff);vector<unsigned> waits;unsigned idle=0;
- Program(const vector<unsigned>& widths,bool rapid,bool border,unsigned rows){
+ unsigned hs_position;
+ Program(const vector<unsigned>& widths,bool rapid,bool border,unsigned rows,unsigned hs):hs_position(hs){
   unsigned a=0x100;auto e=[&](unsigned v){rom.at(a++)=v;};
   auto io=[&](unsigned port,unsigned v){e(1);e(port);e(port>>8);e(0x3e);e(v);e(0xed);e(0x79);};
   rom[0]=0xc3;rom[1]=0;rom[2]=1;e(0xf3);e(0x31);e(0xf0);e(0xbf);
-  const unsigned regs[]={63,40,50,widths[0],38,0,rows,30,0,7,0,0,0x30,0};
+  const unsigned regs[]={63,40,hs_position,widths[0],38,0,rows,30,0,7,0,0,0x30,0};
   for(unsigned r=0;r<14;r++){io(0xbc00,r);io(0xbd00,regs[r]);}
   io(0x7f00,0);io(0x7f00,0x4b);io(0x7f00,1);io(0x7f00,0x4c);
   io(0x7f00,16);io(0x7f00,0x52);io(0x7f00,0x82);
@@ -73,7 +74,7 @@ struct Bench {
  bool armed=false,ins=false,wr=false,pal=false,cart=false,clean=false,lastEnd=false,lastHS=false,postRise=false,postFall=false;
  unsigned classifications=0,visible=0,ink11=0,ink12=0;bool watch=false,pendingDirect=false;
  enum Probe {None,Delayed,Direct} probe=None;
- Bench(unsigned type,vector<unsigned> w,bool r=false,bool b=false,unsigned rows=25):program(w,r,b,rows),widths(w),rapid(r),border(b){
+ Bench(unsigned type,vector<unsigned> w,bool r=false,bool b=false,unsigned rows=25,unsigned hs=50):program(w,r,b,rows,hs),widths(w),rapid(r),border(b){
   copy(program.rom.begin(),program.rom.end(),ram.begin());
   if(!border)for(unsigned a=0xc000;a<0x10000;a++)ram[0x20000+a]=tag(a);
   d.crtc_type=type;d.pause=0;d.filter_request=0;d.save_req=0;d.cart_dout=255;d.cart_ack=0;
@@ -128,7 +129,7 @@ struct Bench {
  template<class F>void until(F f,unsigned cap,const string&why){while(!f()&&cap--)tick();need(f(),why);}
  void boot(){run(1024);d.reset_btn=0;}
  void source_class(){unsigned before=classifications;until([&]{return classifications>before;},3000000,"fresh complete source classification absent");}
- void setup(){need(d.r0_value==63&&d.r1_value==40&&d.r2_value==50&&d.r3_value==widths.at(stage)&&
+ void setup(){need(d.r0_value==63&&d.r1_value==40&&d.r2_value==program.hs_position&&d.r3_value==widths.at(stage)&&
   d.applied_mode==0&&d.requested_mode==2&&d.effective_decode==4&&!d.filter_nohs&&d.filter_size==256&&modeEvents>10,"real CPU/mode/Full acquisition guard");}
  vector<Pixel> capture(unsigned expectedStage=0){
   unsigned target=border?26:6;
@@ -208,6 +209,31 @@ void r6_shifted_sample_next(){
   }
  }
  need(samples==79&&settled==79,"R6 sample-next must overlap actual shifted fetches");
+}
+
+// Original D3 0323/0324: an in-paper CRTC0 HS shares the delayed
+// byte's eight-dot phase at the GA DAC. Observe the raw pin and actual
+// nonzero-to-black RGB rather than the aperture selection state.
+void classic0_in_paper_aperture(){
+ Bench b(0,{5},false,false,25,11);b.boot();
+ const auto captured=b.capture();
+ vector<unsigned> hsync,black;
+ unsigned dot=0;
+ for(const auto& sample:captured){
+  if(sample.c9!=0||!sample.ce)continue;
+  if(sample.hs){
+   if(hsync.empty())need(sample.de&&sample.shift,"in-paper raw HS rise must overlap real Full SHIFT");
+   hsync.push_back(dot);
+  }
+  if(sample.ga==0)black.push_back(dot);
+  dot++;
+ }
+ need(dot==1024&&hsync.size()==80&&black.size()==80,"one complete five-character HS and DAC blackout");
+ need(hsync.back()-hsync.front()==79&&black.back()-black.front()==79,"contiguous HS and DAC blackout pulses");
+ // Bench::tick samples HS before the clock and RGB after it.
+ constexpr unsigned ga_rgb_pipeline=2, delayed_byte_dots=8;
+ need(black.front()==hsync.front()+ga_rgb_pipeline+delayed_byte_dots,
+      "Type0 in-paper DAC blackout must include eight-dot byte phase");
 }
 
 unsigned compare_left8(const vector<Pixel>& a,const vector<Pixel>& b,unsigned lo,unsigned hi){
@@ -465,6 +491,7 @@ struct RelockBench {
 int main(int argc,char**argv){
  Verilated::commandArgs(argc,argv);cout<<unitbuf;
  try {
+  classic0_in_paper_aperture();
   Bench border4(1,{4},false,true),border5(1,{5},false,true);border4.boot();auto a=border4.capture();border5.boot();auto b=border5.capture();
   need(compare_left8(a,b,8,31)==752,"entire border sample window");
   unsigned staticRuns=0,anchors=0,transportRuns=0;

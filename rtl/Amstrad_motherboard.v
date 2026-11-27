@@ -1474,10 +1474,10 @@ assign phi_en_p = integrated_timing ? plus_phi_en_p : ga_phi_en_p;
 
 // The native Gate Array blacks out on raw CRTC HS (French ACCC v1.11
 // §14.3 p.134). Full byte transport can put the raster eight dots behind it.
-// Align the DAC aperture when the pulse begins inside classic type 1 display.
+// Align the DAC aperture when the pulse begins inside classic type 0 or 1 display.
 // Keep the classification through the fall, including R2 restarts while
 // HS stays high. The original pin continues to drive Gate Array timing.
-wire full_aperture_clear = filter_h_clear || plus_mode || !classic_type1 ||
+wire full_aperture_clear = filter_h_clear || plus_mode || crtc_type[1] ||
                           sync_filter_applied != 2'd0;
 reg full_aperture_shift;
 reg [7:0] full_aperture_history;
