@@ -44,10 +44,12 @@
 module asic_video #(
 	// The 40226 profile selects its horizontal RGB blank and Mode 2 phase.
 	parameter ASIC_40226 = 1'b0,
-	parameter BYTE_DISPLAY_METADATA = 1'b0
+	parameter BYTE_DISPLAY_METADATA = 1'b0,
+	parameter EXTERNAL_VIDEO_HSYNC = 1'b0
 )
 (
 	input            CLOCK,
+	input            VIDEO_HSYNC, // Optional Full-phase RGB blank source
 	input            CLKEN,      // 1 µs character-clock enable
 	input            nRESET,
 
@@ -1597,7 +1599,8 @@ always @(posedge CLOCK) begin
     // Seeding from old HSYNC or zero would leak color on an active-HS restore.
     else if (SNA_LOAD) horizontal_blank_history <= {HORIZONTAL_BLANK_DOTS{SNA_HS}};
     else if (PIXEN) horizontal_blank_history <=
-        {horizontal_blank_history[HORIZONTAL_BLANK_DOTS-2:0], HSYNC};
+        {horizontal_blank_history[HORIZONTAL_BLANK_DOTS-2:0],
+         EXTERNAL_VIDEO_HSYNC ? VIDEO_HSYNC : HSYNC};
 end
 wire        blank = horizontal_blank_history[HORIZONTAL_BLANK_DOTS-1];
 

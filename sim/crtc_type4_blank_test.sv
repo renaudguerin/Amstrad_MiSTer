@@ -43,7 +43,7 @@ module crtc_type4_blank_test;
 			.CLOCK(clock), .CLKEN(use_ga_mode ? ga_char : clken), .nRESET(nreset),
 			.ENABLE(crtc_write), .nCS(1'b0), .R_nW(1'b0),
 			.RS(crtc_data_port), .DI(crtc_data), .DO(),
-			.HSYNC(hs[profile]), .VSYNC(vs[profile]), .DE(), .FIELD(), .FRAME_FIELD(),
+			.HSYNC(hs[profile]), .VIDEO_HSYNC(hs[profile]), .VSYNC(vs[profile]), .DE(), .FIELD(), .FRAME_FIELD(),
 			.MA(), .RA(), .HCC(), .LINE(), .ROW(), .ADJ(),
 			.SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
 			.PIXEN(pixen), .VIDEOD(video_word), .VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(), .MODE_UPDATE_EN(use_ga_mode && ga_mode_update),

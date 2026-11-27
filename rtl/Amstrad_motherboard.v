@@ -688,9 +688,10 @@ wire sna_ga_int_pending = sna_int_pending & ~plus_dma_int_req;
 // classic CRTC sparse decode. On Plus hardware an IN on either write port
 // performs the corresponding write with the live bus byte ([KT] Ports;
 // asic-reference sections 4/13), so DI remains D during read cycles too.
-asic_video #(.BYTE_DISPLAY_METADATA(1'b1)) asic_vid
+asic_video #(.BYTE_DISPLAY_METADATA(1'b1), .EXTERNAL_VIDEO_HSYNC(1'b1)) asic_vid
 (
 	.CLOCK(clk),
+	.VIDEO_HSYNC(plus_mode ? full_video_hs : plus_crtc_hs),
 	.CLKEN(plus_cclk_en_n),
 	.nRESET(~reset),
 
@@ -765,6 +766,7 @@ asic_video #(.BYTE_DISPLAY_METADATA(1'b1)) asic_vid
 // Its experimental profile has no snapshot support.
 asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
 	.CLOCK(clk),
+	.VIDEO_HSYNC(type4_crtc_hs),
 	.CLKEN(plus_cclk_en_n && classic_crtc4),
 	.nRESET(~reset && classic_crtc4),
 	.ENABLE((io_rd | io_wr) && classic_crtc4),
@@ -1493,10 +1495,10 @@ assign phi_en_p = integrated_timing ? plus_phi_en_p : ga_phi_en_p;
 
 // The native Gate Array blacks out on raw CRTC HS (French ACCC v1.11
 // §14.3 p.134). Full byte transport can put the raster eight dots behind it.
-// Align the DAC aperture when the pulse begins inside classic type 0 or 1 display.
+// Align the DAC aperture when the pulse begins inside type 0, 1 or Plus display.
 // Keep the classification through the fall, including R2 restarts while
-// HS stays high. The original pin continues to drive Gate Array timing.
-wire full_aperture_clear = filter_h_clear || plus_mode || crtc_type[1] ||
+// HS stays high. The original pins continue to drive CRTC and timing consumers.
+wire full_aperture_clear = filter_h_clear || (!plus_mode && crtc_type[1]) ||
                           sync_filter_applied != 2'd0;
 reg full_aperture_shift;
 reg [7:0] full_aperture_history;
@@ -1504,11 +1506,12 @@ initial begin
     full_aperture_shift = 0;
     full_aperture_history = 0;
 end
-wire full_aperture_at_rise = crtc_de && crtc_shift;
-wire full_aperture_delayed = crtc_hs &&
+wire full_aperture_at_rise = de_sel && crtc_shift;
+wire full_aperture_delayed = hs_sel &&
     (rgb_raw_rise ? full_aperture_at_rise : full_aperture_shift);
-wire ga_video_hs = full_aperture_clear ? crtc_hs :
-    ((crtc_hs && !full_aperture_delayed) || full_aperture_history[7]);
+wire full_video_hs = full_aperture_clear ? hs_sel :
+    ((hs_sel && !full_aperture_delayed) || full_aperture_history[7]);
+wire ga_video_hs = (plus_mode || crtc_type[1]) ? crtc_hs : full_video_hs;
 always @(posedge clk) begin
     if (full_aperture_clear) begin
         full_aperture_shift <= 0;

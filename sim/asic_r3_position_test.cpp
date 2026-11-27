@@ -23,7 +23,7 @@ uint8_t marker(unsigned address) {
 struct Guest {
     std::vector<uint8_t> bytes = std::vector<uint8_t>(16384, 0xff);
     unsigned idle = 0;
-    explicit Guest(unsigned width) {
+    explicit Guest(unsigned width, bool in_paper = false) {
         unsigned address = 0x100;
         auto emit = [&](unsigned value) { bytes.at(address++) = value; };
         auto out = [&](unsigned port, unsigned value) {
@@ -33,13 +33,13 @@ struct Guest {
         };
         bytes[0] = 0xc3; bytes[1] = 0; bytes[2] = 1;
         emit(0xf3); emit(0x31); emit(0xf0); emit(0xbf);
-        const unsigned regs[] = {63,40,50,width,38,0,25,30,0,7,0,0,48,0};
+        const unsigned regs[] = {63,40,in_paper ? 12u : 50u,width,38,0,25,30,0,7,0,0,48,0};
         for (unsigned reg = 0; reg < 14; ++reg) {
             out(0xbc00, reg); out(0xbd00, regs[reg]);
         }
         out(0x7f00, 0); out(0x7f00, 0x4b);  // pen0 white
-        out(0x7f00, 1); out(0x7f00, 0x4c);  // pen1 red
-        out(0x7f00, 16); out(0x7f00, 0x52); // green border differs from both
+        out(0x7f00, 1); out(0x7f00, in_paper ? 0x4b : 0x4c);  // pen1
+        out(0x7f00, 16); out(0x7f00, in_paper ? 0x4b : 0x52); // border
         out(0x7f00, 0x82);                  // Mode2
         idle = address; emit(0x18); emit(0xfe);
     }
@@ -65,6 +65,7 @@ struct Bench {
     Vasic_r3_position_top dut;
     Guest guest;
     unsigned width;
+    bool in_paper;
     std::vector<uint8_t> ram = std::vector<uint8_t>(0x800000, 0xff);
     std::ofstream ledger;
     uint64_t ticks = 0;
@@ -72,7 +73,8 @@ struct Bench {
     bool oldInsn = false, armed = false, leftOrigin = false, oldWrite = false;
     bool oldHS = false, rise = false, fall = false, oldEnd = false;
 
-    Bench(unsigned width_, const std::string& directory) : guest(width_), width(width_) {
+    Bench(unsigned width_, const std::string& directory, bool in_paper_ = false)
+        : guest(width_, in_paper_), width(width_), in_paper(in_paper_) {
         // Plus bypasses the classic ROM decoder. B18 has no cartridge overlay;
         // the original guest executes from base RAM at logical PC0.
         std::copy(guest.bytes.begin(), guest.bytes.end(), ram.begin() + 0x20000);
@@ -157,7 +159,7 @@ struct Bench {
             tick();
         }
         require(found, "bounded natural frame/body capture timed out");
-        require(writes == 1 && dut.r0 == 63 && dut.r1 == 40 && dut.r2 == 50 && dut.r3 == width,
+        require(writes == 1 && dut.r0 == 63 && dut.r1 == 40 && dut.r2 == (in_paper ? 12u : 50u) && dut.r3 == width,
                 "actual CPU nominal CRTC registers");
         const unsigned completeDelta = complete - completeAtEntry;
         const unsigned readyLowDelta = readyLow - readyLowAtEntry;
@@ -331,6 +333,28 @@ void position(const std::vector<Sample>& four, const std::vector<Sample>& five) 
         }
         require(!mismatches && !edgeFailures, "French ordinary4/5 whole-line LEFT8 missing (bitmap and border)");
 }
+// Original SHAKER 0324: the in-paper raw-HS RGB blackout has the same
+// one-byte Full phase as its raster. All pens are white to expose the public
+// RGB aperture independently of byte data. The raw HS remains 80 dots wide.
+void in_paper_aperture(const std::vector<Sample>& samples) {
+    std::vector<Sample> dots;
+    for (const auto& s : samples) if (s.ce16) dots.push_back(s);
+    unsigned checked = 0;
+    for (unsigned i = 1; i + 120 < dots.size(); ++i) {
+        if (!dots[i-1].raw_hs && dots[i].raw_hs) {
+            require(dots[i].raw_de && dots[i].filter_shift, "HS rise in shifted paper");
+            for (unsigned j = 0; j < 120; ++j) {
+                require(dots[i+j].raw_hs == (j < 80), "physical HS width changed");
+                const unsigned expected = (j >= 24 && j < 104) ? 0 : 0xfff;
+                require(dots[i+j].public_rgb == expected,
+                        "public RGB aperture mismatch at dot " + std::to_string(j));
+            }
+            ++checked;
+        }
+    }
+    require(checked == 2, "expected two in-paper HS pulses");
+    std::cout << "in-paper HS: public RGB black dots [24,104), physical HS 80 dots\n";
+}
 } // namespace
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
@@ -350,6 +374,10 @@ int main(int argc, char** argv) {
         position(captures[0], captures[1]);
         nonvacuous(returnedFull, 4);
         position(returnedFull, captures[1]);
+        Bench in_paper(5, "", true);
+        in_paper_aperture(in_paper.capture());
+        in_paper.raw_modes();
+        in_paper_aperture(in_paper.body());
         std::cout << "asic-r3-position: PASS Full4/5 LEFT8, four visible border edges, width6 anchor, Mode2 paper edges, raw modes and Full return\n";
         return 0;
     } catch (const std::exception& error) {
