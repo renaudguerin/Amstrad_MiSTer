@@ -18,11 +18,11 @@ void need(bool ok,const string& why){if(!ok)throw runtime_error(why);}
 uint8_t tag(unsigned a){return uint8_t((a*73u+(a>>7)*29u)^0xa6u);}
 struct Program {
  vector<uint8_t> rom=vector<uint8_t>(16384,0xff);vector<unsigned> waits;unsigned idle=0;
- Program(const vector<unsigned>& widths,bool rapid,bool border){
+ Program(const vector<unsigned>& widths,bool rapid,bool border,unsigned rows){
   unsigned a=0x100;auto e=[&](unsigned v){rom.at(a++)=v;};
   auto io=[&](unsigned port,unsigned v){e(1);e(port);e(port>>8);e(0x3e);e(v);e(0xed);e(0x79);};
   rom[0]=0xc3;rom[1]=0;rom[2]=1;e(0xf3);e(0x31);e(0xf0);e(0xbf);
-  const unsigned regs[]={63,40,50,widths[0],38,0,25,30,0,7,0,0,0x30,0};
+  const unsigned regs[]={63,40,50,widths[0],38,0,rows,30,0,7,0,0,0x30,0};
   for(unsigned r=0;r<14;r++){io(0xbc00,r);io(0xbd00,regs[r]);}
   io(0x7f00,0);io(0x7f00,0x4b);io(0x7f00,1);io(0x7f00,0x4c);
   io(0x7f00,16);io(0x7f00,0x52);io(0x7f00,0x82);
@@ -57,14 +57,14 @@ uint64_t capture_hash(const vector<Pixel>& a,unsigned Pixel::*colour){
  return h;
 }
 // Canonical uint32-LE FNV-1a over the projection above for 8192 clocks.
-// The historical RGB anchors and Type 1 transport digests come from the
-// original captures. Colour is zero in the transport projection.
-static constexpr uint64_t type0_capture[3] = {
- 0x2bec75f3250ff595ull, 0x34e68c66cfb473adull, 0xaa07a67c324faa55ull,
+// The historical RGB anchors and classic transport digests come from
+// the original captures. Colour is zero in the transport projection.
+static constexpr uint64_t width6_capture[2] = {
+ 0xaa07a67c324faa55ull, 0xe8ad563d13c8d815ull,
 };
-static constexpr uint64_t type1_width6_capture = 0xe8ad563d13c8d815ull;
-static constexpr uint64_t type1_transport[2] = {
- 0x5cd59b75237db375ull, 0x5e2699158672897dull,
+static constexpr uint64_t shifted_transport[2][2] = {
+ {0x50ca8a8344854ef5ull, 0xace33265ae09b47dull},
+ {0x5cd59b75237db375ull, 0x5e2699158672897dull},
 };
 struct Bench {
  Vclassic_mode_boundary_top d;Program program;vector<unsigned> widths;bool rapid,border;
@@ -73,7 +73,7 @@ struct Bench {
  bool armed=false,ins=false,wr=false,pal=false,cart=false,clean=false,lastEnd=false,lastHS=false,postRise=false,postFall=false;
  unsigned classifications=0,visible=0,ink11=0,ink12=0;bool watch=false,pendingDirect=false;
  enum Probe {None,Delayed,Direct} probe=None;
- Bench(unsigned type,vector<unsigned> w,bool r=false,bool b=false):program(w,r,b),widths(w),rapid(r),border(b){
+ Bench(unsigned type,vector<unsigned> w,bool r=false,bool b=false,unsigned rows=25):program(w,r,b,rows),widths(w),rapid(r),border(b){
   copy(program.rom.begin(),program.rom.end(),ram.begin());
   if(!border)for(unsigned a=0xc000;a<0x10000;a++)ram[0x20000+a]=tag(a);
   d.crtc_type=type;d.pause=0;d.filter_request=0;d.save_req=0;d.cart_dout=255;d.cart_ack=0;
@@ -161,7 +161,7 @@ struct Bench {
 // §17.1–17.2.1 pp.177–179: R1=40 presents 80 complete bytes. The
 // real CPU fixture writes Mode 2 and distinct pen and border colours.
 // Check the payload on both complete raster lines at the board pins.
-void type1_paper(const vector<Pixel>& pixels, unsigned width){
+void classic_paper(const vector<Pixel>& pixels, unsigned width){
  constexpr unsigned border=8, ink0=42, ink1=32;
  constexpr unsigned raster_clocks=64*64, first_unshifted=59, byte_clocks=8*4;
  constexpr unsigned line_dots=40*16;
@@ -177,12 +177,37 @@ void type1_paper(const vector<Pixel>& pixels, unsigned width){
     const auto& sample=pixels[first+dot*4];
     const unsigned bit=(tag(addr+dot/8)>>(7-dot%8))&1;
     need(sample.ce && sample.c4==6 && sample.c9==raster &&
-         sample.*colour==(bit ? ink1 : ink0),"Type 1 paper differs from RAM at Mode 2 dot "+to_string(dot));
+         sample.*colour==(bit ? ink1 : ink0),"Classic paper differs from RAM at Mode 2 dot "+to_string(dot));
    }
    const auto& after=pixels[first+line_dots*4];
    need(after.ce && after.*colour==border,"border after last RAM byte");
   }
  }
+}
+
+// French ACCC v1.11 §18.3.2 p.191 and the stock B7 slot ordering:
+// the advancing Type 0 R6=0 case takes both real DE observations even
+// when a shifted video byte was already accepted under Full.
+void r6_shifted_sample_next(){
+ Bench b(0,{5},false,false,0);b.boot();
+ b.until([&]{return b.armed&&b.frames>=3&&b.d.c4==0&&b.d.c9==0&&b.d.c0==0;},
+         24000000,"Type 0 R6=0 frame origin");
+ b.setup();
+ unsigned samples=0,settled=0;
+ for(unsigned n=0;n<4096;n++){
+  const bool observe=b.d.ga_de_sample_next;
+  const bool pending=b.d.ga_de_sample_pending;
+  const auto p=b.tick();
+  if(observe&&p.shift&&p.ce&&(p.seq==0xe0||p.seq==0x03)){
+   need(bool(b.d.ga_buffer_de)==bool(p.de),"R6 initial GA sample must see raw DE");
+   samples++;
+  }
+  if(pending){
+   need(bool(b.d.ga_buffer_de)==bool(p.de),"R6 deferred GA sample must see raw DE");
+   settled++;
+  }
+ }
+ need(samples==79&&settled==79,"R6 sample-next must overlap actual shifted fetches");
 }
 
 unsigned compare_left8(const vector<Pixel>& a,const vector<Pixel>& b,unsigned lo,unsigned hi){
@@ -447,18 +472,18 @@ int main(int argc,char**argv){
    array<vector<Pixel>,3> p;
    for(unsigned w=4;w<=6;w++){
     Bench h(type,{w});h.boot();p[w-4]=h.capture();
-    if(type==0 || w==6){
-     const uint64_t expected=type==0 ? type0_capture[w-4] : type1_width6_capture;
+    if(w==6){
+     const uint64_t expected=width6_capture[type];
      need(capture_hash(p[w-4],&Pixel::ga)==expected,"whole old VRAM/rawGA/acquisition regression");
      if(w!=4){
       need(capture_hash(p[w-4],&Pixel::rgb)==expected,"whole unchanged public RGB");
       anchors++;
      }
     } else {
-     need(capture_hash(p[w-4],nullptr)==type1_transport[w-4],"unchanged Type 1 byte transport and timing");
+     need(capture_hash(p[w-4],nullptr)==shifted_transport[type][w-4],"unchanged classic byte transport and timing");
      transportRuns++;
     }
-    if(type==1) type1_paper(p[w-4],w);
+    classic_paper(p[w-4],w);
     staticRuns++;
    }
    need(compare_left8(p[0],p[1],1,48)==1520,"whole Full-visible line");
@@ -471,26 +496,27 @@ int main(int argc,char**argv){
     const unsigned w=widths[s];
     p.push_back(h.capture(s));
     if(w==6){
-     need(capture_hash(p.back(),&Pixel::ga)==type1_width6_capture,"rapid width6 rawGA/VRAM identity");
-     need(capture_hash(p.back(),&Pixel::rgb)==type1_width6_capture,"rapid width6 public anchor");
+     need(capture_hash(p.back(),&Pixel::ga)==width6_capture[1],"rapid width6 rawGA/VRAM identity");
+     need(capture_hash(p.back(),&Pixel::rgb)==width6_capture[1],"rapid width6 public anchor");
      anchors++;
     } else {
-     need(capture_hash(p.back(),nullptr)==type1_transport[w-4],"unchanged rapid Type 1 byte transport and timing");
+     need(capture_hash(p.back(),nullptr)==shifted_transport[1][w-4],"unchanged rapid Type 1 byte transport and timing");
      transportRuns++;
     }
-    type1_paper(p.back(),w);
+    classic_paper(p.back(),w);
     if(s&&w!=6){unsigned lo=widths[s-1]==4?s-1:s,hi=widths[s-1]==4?s:s-1;
      need(compare_left8(p[lo],p[hi],1,48)==1520,"first-following-frame visible relation");rapidRelations++;}
    }
   }
+  r6_shifted_sample_next();
   // Two actual normal callers produce unedited save headers and coherent RAM.
   Bench producer6(1,{6});producer6.boot();producer6.until([&]{return producer6.armed&&producer6.frames>=3&&producer6.d.c4==6&&producer6.d.c9==0&&producer6.d.c0==20;},5000000,"normal6 capture source");producer6.setup();auto six=producer6.save();
   Bench h(1,{4});h.boot();h.until([&]{return h.armed&&h.frames>=3&&h.d.c4==6&&h.d.c9==0&&h.d.c0==20;},5000000,"normal4 lifecycle source");h.setup();h.nonzero();h.probe=Bench::Delayed;
   h.mode(1);h.mode(2);h.mode(0);h.source_class();h.probe=Bench::Delayed;h.active();h.nonzero();
   h.d.reset_btn=1;h.run(1024);h.stage=-1;h.writes=0;h.armed=false;h.frames=0;h.d.reset_btn=0;
   h.source_class();h.probe=Bench::Delayed;h.active();h.nonzero();auto four=h.save();h.restore(four,4);h.restore(six,6);
-  need(staticRuns==6&&rapidRelations==6&&anchors==5&&transportRuns==10,"fixed owner coverage count");
-  cout<<"classic-r3-position: PASS12 callers; BORDER0/752; both types visible0/1520 DE0/80+0/144; 10 Type1 transport anchors and complete RAM paper; Type0/width6 exact; 6 rapid relations; public nonzero reset/Full-rearm; loader-reset SNA4to4+4to6\n";
+  need(staticRuns==6&&rapidRelations==6&&anchors==4&&transportRuns==12,"fixed owner coverage count");
+  cout<<"classic-r3-position: PASS12 callers; BORDER0/752; both types visible0/1520 DE0/80+0/144; 12 classic transport anchors and complete RAM paper; width6 exact; Type0 R6 shifted aperture; 6 rapid relations; public nonzero reset/Full-rearm; loader-reset SNA4to4+4to6\n";
 
   // Combined R2 relocation and R3 width transition regression:
   // Full width6 publicRGB must follow rawGA after complete new width6 raw pulses.

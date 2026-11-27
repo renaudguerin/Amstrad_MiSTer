@@ -170,7 +170,7 @@ module crtc_t80_top(
     .IORQ_N(IORQ_n),
     .HSYNC_I(hs), .VIDEO_HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart),
     .VSYNC_I(vs),
-    .DISPEN(de), .DISPEN_SAMPLE_NEXT(de_sample_next),
+    .DISPEN(de), .VIDEO_DISPEN(de), .DISPEN_SAMPLE_NEXT(de_sample_next),
     .CCLK_EN_P(cclk_en_p),
     .CCLK_EN_N(cclk_en_n),
     .PHI_EN_P(phi_en_p),

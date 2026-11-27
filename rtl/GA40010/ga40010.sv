@@ -41,6 +41,7 @@ module ga40010 (
 	input  HSYNC_RESTART_I,
 	input  VSYNC_I,
 	input  DISPEN,
+	input  VIDEO_DISPEN,
 	input  DISPEN_SAMPLE_NEXT,
 
 	output CCLK,
@@ -268,7 +269,9 @@ always @(posedge clk) begin
 	// conflict, sample settled DE before the next serializer load.
 	DISPEN_SAMPLE_PENDING <= !reset && !SNA_LOAD && vidbuf_clk_en && DISPEN_SAMPLE_NEXT;
 	if (vidbuf_clk_en) begin
-		DISPEN_BUF <= DISPEN;
+		// The advancing Type 0 R6 conflict owns both raw observations.
+		// Otherwise sample the display tag paired with the accepted byte.
+		DISPEN_BUF <= DISPEN_SAMPLE_NEXT ? DISPEN : VIDEO_DISPEN;
 		VIDEO_BUF <= D;
 	end
 	if (DISPEN_SAMPLE_PENDING && !reset && !SNA_LOAD)

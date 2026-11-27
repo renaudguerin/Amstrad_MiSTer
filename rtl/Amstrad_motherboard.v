@@ -1148,10 +1148,10 @@ always @(posedge clk) begin
 end
 
 // French ACCC v1.11 §17.1–17.2.1 pp.177–179: R1 counts complete
-// two-byte characters. In Full on CRTC1 the retained byte crosses the
-// raw DISPEN seam. Its saved display tag belongs to the accepted byte,
+// two-byte characters. On the classic Full path the retained byte crosses
+// the raw DISPEN seam. Its saved display tag belongs to the accepted byte,
 // including when live SHIFT changes between RAM acceptance and GA load.
-wire ga_video_de = classic_type1 && !integrated_timing && !filter_h_clear &&
+wire ga_video_de = !plus_mode && !crtc_type[1] && !filter_h_clear &&
                    vram_d_shifted_low ? vram_d_de : crtc_de;
 
 wire cclk_en_n, cclk_en_p;
@@ -1515,7 +1515,8 @@ ga40010 GateArray (
 	.VIDEO_HSYNC_I(ga_video_hs),
 	.HSYNC_RESTART_I(crtc_hsync_restart & ~plus_mode),
 	.VSYNC_I(crtc_vs),
-	.DISPEN(ga_video_de),
+	.DISPEN(crtc_de),
+	.VIDEO_DISPEN(ga_video_de),
 	.DISPEN_SAMPLE_NEXT(legacy_de_sample_next && !classic_crtc2 && !integrated_timing),
 	.CCLK(),
 	.CCLK_EN_P(ga_cclk_en_p),

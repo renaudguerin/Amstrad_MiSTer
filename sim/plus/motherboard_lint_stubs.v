@@ -38,6 +38,7 @@ module ga40010 (
 	input  wire        HSYNC_RESTART_I,
 	input  wire        VSYNC_I,
 	input  wire        DISPEN,
+	input  wire        VIDEO_DISPEN,
 	input  wire        DISPEN_SAMPLE_NEXT,
 	output wire        CCLK,
 	output wire        CCLK_EN_P,

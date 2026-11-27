@@ -148,7 +148,7 @@ ga40010 ga (
 	.IORQ_N(IORQ_n),
 	.HSYNC_I(1'b0), .VIDEO_HSYNC_I(1'b0), .HSYNC_RESTART_I(1'b0),
 	.VSYNC_I(1'b0),
-	.DISPEN(1'b0), .DISPEN_SAMPLE_NEXT(1'b0),
+	.DISPEN(1'b0), .VIDEO_DISPEN(1'b0), .DISPEN_SAMPLE_NEXT(1'b0),
 	.CCLK_EN_P(cclk_en_p),
 	.CCLK_EN_N(cclk_en_n),
 	.PHI_EN_P(phi_en_p),

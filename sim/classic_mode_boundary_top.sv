@@ -48,7 +48,7 @@ module classic_mode_boundary_top (
     output [4:0] palette_target, palette_data,
     output [8:0] filter_size,
     output [1:0] applied_mode,
-    output classic_raw_blank,
+    output classic_raw_blank, ga_de_sample_next, ga_de_sample_pending, ga_buffer_de,
     output [7:0] c0,
     output [6:0] c4,
     output [4:0] c9,
@@ -172,6 +172,9 @@ module classic_mode_boundary_top (
 
     // Expose classic raw GA RGB {red, green, blue}
     assign classic_rgb = {machine.motherboard.ga_red, machine.motherboard.ga_green, machine.motherboard.ga_blue};
+    assign ga_de_sample_next = machine.motherboard.GateArray.DISPEN_SAMPLE_NEXT;
+    assign ga_de_sample_pending = machine.motherboard.GateArray.DISPEN_SAMPLE_PENDING;
+    assign ga_buffer_de = machine.motherboard.GateArray.DISPEN_BUF;
     assign classic_raw_blank = machine.motherboard.GateArray.HCNTLT28 | machine.motherboard.crtc_hs;
 
     // CRTC counter and timing status
