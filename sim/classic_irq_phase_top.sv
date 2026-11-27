@@ -197,6 +197,7 @@ module classic_irq_phase_top(
   );
 
   CRTC crtc(
+      .HSYNC_WRAP_DISPLAY(),
     .CLOCK(clk),
     .CLKEN(cclk_en_n),
     .nCLKEN(cclk_en_p),

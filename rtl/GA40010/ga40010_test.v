@@ -177,6 +177,7 @@ assign GA_MODE_IS_0 = ga40010.video_sync.mode_is_0;
 
 CRTC crtc
 (
+    .HSYNC_WRAP_DISPLAY(),
 	.CLOCK(clk),
 	.CLKEN(CCLK_EN_N),
 	.nCLKEN(CCLK_EN_P),

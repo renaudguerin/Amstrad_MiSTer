@@ -10,6 +10,7 @@ module video_field_test_top (
 );
     wire hsync, display;
     CRTC crtc (
+        .HSYNC_WRAP_DISPLAY(),
         .CLOCK(clk), .CLKEN(clken), .nCLKEN(nclken), .nRESET(reset_n),
         .CRTC_TYPE(crtc_type), .ENABLE(enable), .nCS(~enable),
         .R_nW(1'b0), .RS(rs), .DI(data), .DO(),
