@@ -46,21 +46,25 @@ struct Pixel {
  unsigned c0,c4,c9,seq,ce,ce4,hs,vs,de,blank,fhs,fvs,hb,vb,shs,shb,svb,shift;
  unsigned fetch,bs,addr,word,before,after,buf,ga,rgb,applied,mode,decode,ready;
 };
-uint64_t capture_hash(const vector<Pixel>& a,bool publicRGB){
+uint64_t capture_hash(const vector<Pixel>& a,unsigned Pixel::*colour){
  uint64_t h=14695981039346656037ull;
  for(const auto& p:a){
   const unsigned v[]={p.c0,p.c4,p.c9,p.seq,p.ce,p.ce4,p.hs,p.vs,p.de,p.blank,
    p.fhs,p.fvs,p.hb,p.vb,p.shs,p.shb,p.svb,p.shift,p.fetch,p.bs,p.addr,p.word,
-   p.before,p.after,p.buf,publicRGB?p.rgb:p.ga,p.applied,p.mode,p.decode,p.ready};
+   p.before,p.after,p.buf,colour ? p.*colour : 0,p.applied,p.mode,p.decode,p.ready};
   for(unsigned x:v)for(unsigned j=0;j<4;j++){h^=(x>>(8*j))&255;h*=1099511628211ull;}
  }
  return h;
 }
-// Canonical uint32-LE FNV-1a over the30 fields above, whole8192 clocks.
-// Extracted from unchanged source captures; never generated from this candidate.
-static constexpr uint64_t old_capture[2][3]={
- {0x2bec75f3250ff595ull,0x34e68c66cfb473adull,0xaa07a67c324faa55ull},
- {0x20dceefe221a89d5ull,0x73fc2596c0a128bdull,0xe8ad563d13c8d815ull},
+// Canonical uint32-LE FNV-1a over the projection above for 8192 clocks.
+// The historical RGB anchors and Type 1 transport digests come from the
+// original captures. Colour is zero in the transport projection.
+static constexpr uint64_t type0_capture[3] = {
+ 0x2bec75f3250ff595ull, 0x34e68c66cfb473adull, 0xaa07a67c324faa55ull,
+};
+static constexpr uint64_t type1_width6_capture = 0xe8ad563d13c8d815ull;
+static constexpr uint64_t type1_transport[2] = {
+ 0x5cd59b75237db375ull, 0x5e2699158672897dull,
 };
 struct Bench {
  Vclassic_mode_boundary_top d;Program program;vector<unsigned> widths;bool rapid,border;
@@ -154,6 +158,33 @@ struct Bench {
   probe=target==4?Delayed:Direct;run(8192);
  }
 };
+// §17.1–17.2.1 pp.177–179: R1=40 presents 80 complete bytes. The
+// real CPU fixture writes Mode 2 and distinct pen and border colours.
+// Check the payload on both complete raster lines at the board pins.
+void type1_paper(const vector<Pixel>& pixels, unsigned width){
+ constexpr unsigned border=8, ink0=42, ink1=32;
+ constexpr unsigned raster_clocks=64*64, first_unshifted=59, byte_clocks=8*4;
+ constexpr unsigned line_dots=40*16;
+ for(unsigned raster:{0u,1u}){
+  const unsigned addr=0xc000+6*80+raster*0x800;
+  const unsigned begin=raster*raster_clocks+first_unshifted;
+  const unsigned ga_start=begin+(width==6 ? 0 : byte_clocks);
+  const unsigned rgb_start=ga_start+(width==4 ? byte_clocks : 0);
+  for(auto [first,colour]: {pair{ga_start,&Pixel::ga},pair{rgb_start,&Pixel::rgb}}){
+   const auto& before=pixels[first-4];
+   need(before.ce && before.*colour==border,"border before first RAM byte");
+   for(unsigned dot=0;dot<line_dots;dot++){
+    const auto& sample=pixels[first+dot*4];
+    const unsigned bit=(tag(addr+dot/8)>>(7-dot%8))&1;
+    need(sample.ce && sample.c4==6 && sample.c9==raster &&
+         sample.*colour==(bit ? ink1 : ink0),"Type 1 paper differs from RAM at Mode 2 dot "+to_string(dot));
+   }
+   const auto& after=pixels[first+line_dots*4];
+   need(after.ce && after.*colour==border,"border after last RAM byte");
+  }
+ }
+}
+
 unsigned compare_left8(const vector<Pixel>& a,const vector<Pixel>& b,unsigned lo,unsigned hi){
  unsigned count=0;for(unsigned i=0;i+32<a.size();i++)if(a[i].ce&&a[i].c0>=lo&&a[i].c0<=hi&&a[i+32].c0>=lo&&a[i+32].c0<=hi){
   need(b[i].rgb==a[i+32].rgb,"French14.4 public LEFT8 mismatch");count++;
@@ -411,13 +442,24 @@ int main(int argc,char**argv){
  try {
   Bench border4(1,{4},false,true),border5(1,{5},false,true);border4.boot();auto a=border4.capture();border5.boot();auto b=border5.capture();
   need(compare_left8(a,b,8,31)==752,"entire border sample window");
-  unsigned staticRuns=0,anchors=0;
+  unsigned staticRuns=0,anchors=0,transportRuns=0;
   for(unsigned type:{0u,1u}){
    array<vector<Pixel>,3> p;
    for(unsigned w=4;w<=6;w++){
     Bench h(type,{w});h.boot();p[w-4]=h.capture();
-    need(capture_hash(p[w-4],false)==old_capture[type][w-4],"whole old VRAM/rawGA/acquisition regression");
-    if(w!=4){need(capture_hash(p[w-4],true)==old_capture[type][w-4],"whole old public5/6 regression");anchors++;}staticRuns++;
+    if(type==0 || w==6){
+     const uint64_t expected=type==0 ? type0_capture[w-4] : type1_width6_capture;
+     need(capture_hash(p[w-4],&Pixel::ga)==expected,"whole old VRAM/rawGA/acquisition regression");
+     if(w!=4){
+      need(capture_hash(p[w-4],&Pixel::rgb)==expected,"whole unchanged public RGB");
+      anchors++;
+     }
+    } else {
+     need(capture_hash(p[w-4],nullptr)==type1_transport[w-4],"unchanged Type 1 byte transport and timing");
+     transportRuns++;
+    }
+    if(type==1) type1_paper(p[w-4],w);
+    staticRuns++;
    }
    need(compare_left8(p[0],p[1],1,48)==1520,"whole Full-visible line");
    need(compare_left8(p[0],p[1],0,2)==80&&compare_left8(p[0],p[1],38,42)==144,"DE edge windows");edges(p[0],p[1]);
@@ -426,9 +468,18 @@ int main(int argc,char**argv){
   for(auto widths:{vector<unsigned>{4,5,4,5,6},vector<unsigned>{5,4,5,4,6}}){
    Bench h(1,widths,true);h.boot();vector<vector<Pixel>> p;
    for(unsigned s=0;s<widths.size();s++){
-    p.push_back(h.capture(s));need(capture_hash(p.back(),false)==old_capture[1][widths[s]-4],"rapid old rawGA/VRAM identity");
-    if(widths[s]!=4){need(capture_hash(p.back(),true)==old_capture[1][widths[s]-4],"rapid old5/6 anchor");anchors++;}
-    if(s&&widths[s]!=6){unsigned lo=widths[s-1]==4?s-1:s,hi=widths[s-1]==4?s:s-1;
+    const unsigned w=widths[s];
+    p.push_back(h.capture(s));
+    if(w==6){
+     need(capture_hash(p.back(),&Pixel::ga)==type1_width6_capture,"rapid width6 rawGA/VRAM identity");
+     need(capture_hash(p.back(),&Pixel::rgb)==type1_width6_capture,"rapid width6 public anchor");
+     anchors++;
+    } else {
+     need(capture_hash(p.back(),nullptr)==type1_transport[w-4],"unchanged rapid Type 1 byte transport and timing");
+     transportRuns++;
+    }
+    type1_paper(p.back(),w);
+    if(s&&w!=6){unsigned lo=widths[s-1]==4?s-1:s,hi=widths[s-1]==4?s:s-1;
      need(compare_left8(p[lo],p[hi],1,48)==1520,"first-following-frame visible relation");rapidRelations++;}
    }
   }
@@ -438,8 +489,8 @@ int main(int argc,char**argv){
   h.mode(1);h.mode(2);h.mode(0);h.source_class();h.probe=Bench::Delayed;h.active();h.nonzero();
   h.d.reset_btn=1;h.run(1024);h.stage=-1;h.writes=0;h.armed=false;h.frames=0;h.d.reset_btn=0;
   h.source_class();h.probe=Bench::Delayed;h.active();h.nonzero();auto four=h.save();h.restore(four,4);h.restore(six,6);
-  need(staticRuns==6&&rapidRelations==6&&anchors==10,"fixed owner coverage count");
-  cout<<"classic-r3-position: PASS12 callers; BORDER0/752; both types visible0/1520 DE0/80+0/144; 16 old rawGA/VRAM streams; 10 public5/6 anchors; 6 rapid relations; public nonzero reset/Full-rearm; loader-reset SNA4to4+4to6\n";
+  need(staticRuns==6&&rapidRelations==6&&anchors==5&&transportRuns==10,"fixed owner coverage count");
+  cout<<"classic-r3-position: PASS12 callers; BORDER0/752; both types visible0/1520 DE0/80+0/144; 10 Type1 transport anchors and complete RAM paper; Type0/width6 exact; 6 rapid relations; public nonzero reset/Full-rearm; loader-reset SNA4to4+4to6\n";
 
   // Combined R2 relocation and R3 width transition regression:
   // Full width6 publicRGB must follow rawGA after complete new width6 raw pulses.

@@ -1090,6 +1090,14 @@ wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 reg vram_bs;
 reg [7:0] vram_d;
 reg [7:0] vram_din_shift;
+reg vram_shift_de;
+reg vram_d_de, vram_d_shifted_low;
+initial begin
+	vram_shift_de = 1'b0;
+	vram_d_de = 1'b0;
+	vram_d_shifted_low = 1'b0;
+end
+wire full_vram_shift = (sync_filter_applied == 2'd0) & crtc_shift;
 reg [15:0] vram_first_half_word;
 initial vram_first_half_word = 16'd0;
 wire [15:0] vram_pair_word = vram_bs ? vram_first_half_word : vram_din;
@@ -1114,11 +1122,17 @@ always @(posedge clk) begin
 			// SHIFT, sampled on each accepted fetch.  Both raw modes return
 			// the native low/high byte order, including when SHIFT changes
 			// between the two halves of one pair.
-			if ((sync_filter_applied == 2'd0) & crtc_shift) begin
-				if (vram_bs) vram_din_shift <= de_sel ? vram_pair_word[15:8] : 8'd0;
+			if (full_vram_shift) begin
+				if (vram_bs) begin
+					vram_din_shift <= de_sel ? vram_pair_word[15:8] : 8'd0;
+					vram_shift_de <= de_sel;
+				end
 				vram_d <= vram_bs ? vram_pair_word[7:0] : vram_din_shift;
 			end else
 				vram_d <= vram_bs ? vram_pair_word[15:8] : vram_pair_word[7:0];
+			// Retimed low half and its display owner leave together.
+			vram_d_shifted_low <= full_vram_shift && !vram_bs;
+			vram_d_de <= vram_shift_de;
 		end
 	end
 	// Retained shifted history must not reappear from an earlier mode visit
@@ -1126,7 +1140,19 @@ always @(posedge clk) begin
 	// it through the normal rule above; a first shifted low half emits zero.
 	// Last assignment in this block deliberately wins over that rule.
 	if (reset | sync_filter_commit) vram_din_shift <= 8'd0;
+	if (filter_h_clear) begin
+		vram_shift_de <= 1'b0;
+		vram_d_de <= 1'b0;
+		vram_d_shifted_low <= 1'b0;
+	end
 end
+
+// French ACCC v1.11 §17.1–17.2.1 pp.177–179: R1 counts complete
+// two-byte characters. In Full on CRTC1 the retained byte crosses the
+// raw DISPEN seam. Its saved display tag belongs to the accepted byte,
+// including when live SHIFT changes between RAM acceptance and GA load.
+wire ga_video_de = classic_type1 && !integrated_timing && !filter_h_clear &&
+                   vram_d_shifted_low ? vram_d_de : crtc_de;
 
 wire cclk_en_n, cclk_en_p;
 wire ga_cclk_en_n, ga_cclk_en_p;
@@ -1489,7 +1515,7 @@ ga40010 GateArray (
 	.VIDEO_HSYNC_I(ga_video_hs),
 	.HSYNC_RESTART_I(crtc_hsync_restart & ~plus_mode),
 	.VSYNC_I(crtc_vs),
-	.DISPEN(crtc_de),
+	.DISPEN(ga_video_de),
 	.DISPEN_SAMPLE_NEXT(legacy_de_sample_next && !classic_crtc2 && !integrated_timing),
 	.CCLK(),
 	.CCLK_EN_P(ga_cclk_en_p),
