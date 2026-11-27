@@ -8,6 +8,7 @@ module crt_filter_blank_test_top (
 	input  VSYNC_I,
 	input  BYTE_OWNER,
 	input  H_CONTEXT_CLEAR,
+	input  WRAPPED_HSYNC_REARM,
 	input  [1:0] SYNC_FILTER,
 	input  HSYNC_RAW,
 	input  VSYNC_RAW,
@@ -19,6 +20,8 @@ module crt_filter_blank_test_top (
 	output HBLANK_LIVE,
 	output VBLANK,
 	output SHIFT,
+	output START_GEN, END_GEN,
+	output [15:0] SYNC_OBSERVATION,
 	output HSYNC_SELECTED,
 	output VSYNC_SELECTED,
 	output HBLANK_SELECTED,
@@ -37,13 +40,13 @@ module crt_filter_blank_test_top (
 		.HBLANK_LIVE(HBLANK_LIVE),
 		.VBLANK(VBLANK),
 		.SHIFT(SHIFT),
-		.EXTRA_BYTE(), .START_GEN(), .END_GEN(),
-		.SYNC_OBSERVATION(),
+		.EXTRA_BYTE(), .START_GEN(START_GEN), .END_GEN(END_GEN),
+		.SYNC_OBSERVATION(SYNC_OBSERVATION),
+		.SOURCE_MISSING(NO_HSYNC_DEBUG),
 		.H_CONTEXT_CLEAR(H_CONTEXT_CLEAR),
+		.WRAPPED_HSYNC_REARM(WRAPPED_HSYNC_REARM),
 		.BYTE_PHASE_RECOVERY(BYTE_OWNER && SYNC_FILTER == 2'd0)
 	);
-
-	assign NO_HSYNC_DEBUG = dut.no_hsync;
 
 	crt_filter_output_select selector (
 		.MODE(SYNC_FILTER),

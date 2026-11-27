@@ -27,6 +27,7 @@ module crt_filter
 	input      VSYNC_I,
     input      H_CONTEXT_CLEAR,
     input      BYTE_PHASE_RECOVERY,
+    input      WRAPPED_HSYNC_REARM,
 	output reg HSYNC_O,
 	output reg VSYNC_O,
 	output reg HBLANK,
@@ -206,24 +207,65 @@ end
 
 reg hsync_mask;
 reg raw_hs_delayed;
+reg raw_hs_master_d, wrapped_hs_context_d, wrapped_hs_armed;
+wire wrapped_hs_context = WRAPPED_HSYNC_REARM && !H_CONTEXT_CLEAR && !no_hsync;
+initial begin
+    raw_hs_master_d = 0;
+    wrapped_hs_context_d = 0;
+    wrapped_hs_armed = 0;
+end
 initial hsync_mask = 0; // separate from the decl: newer Verilator flags
                         // declaration initializers later assigned in
                         // always blocks (PROCASSINIT), older ones reject
                         // the lint name — this form is portable.
 // check for too frequent HSYNCs (S&KOH)
 always @(posedge CLK) begin : hsyncfilt
-	reg [8:0] line_time;
+    localparam [8:0] MIN_LOW_TICKS = 9'd190;
+    localparam [8:0] WRAPPED_HIGH_BUDGET = 9'd60;
+    // A 64-us raster may arrive one character early after R2 moves.
+    // Include the low-sample clock that retires the mask.
+    localparam [8:0] WRAPPED_MIN_PERIOD = MIN_LOW_TICKS + WRAPPED_HIGH_BUDGET + 9'd2;
+    reg [8:0] line_time;
+    reg [6:0] pulse_width;
 
-	if(CE_4) begin
-		raw_hs_delayed <= HSYNC_I;
-		if (hsync_mask) begin
-			if (~&line_time) line_time <= line_time + 1'd1;
-			if (!HSYNC_I & line_time >= 190) hsync_mask <= 0; // clear the mask after enough time
-		end
+    // Track the selected physical edge at master-clock resolution. A context
+    // change or an R0 write retires precisely this pulse, even between CE4
+    // samples. Neither event clears a live short-pulse exclusion window.
+    raw_hs_master_d <= HSYNC_I;
+    wrapped_hs_context_d <= wrapped_hs_context;
+    if (!wrapped_hs_context)
+        wrapped_hs_armed <= 1'b0;
+    else if (HSYNC_I && !raw_hs_master_d)
+        wrapped_hs_armed <= wrapped_hs_context_d && !hsync_mask;
+    else if (CE_4 && !HSYNC_I && raw_hs_delayed)
+        wrapped_hs_armed <= 1'b0;
 
-		if (HSYNC_I & ~raw_hs_delayed & !hsync_mask) line_time <= 0; // new line detected
-		if (~HSYNC_I & raw_hs_delayed & !hsync_mask) hsync_mask <= 1; // start to mask after the first hsync seen
-	end
+    if (CE_4) begin
+        raw_hs_delayed <= HSYNC_I;
+        if (!hsync_mask) begin
+            if (HSYNC_I && !raw_hs_delayed) pulse_width <= 7'd1;
+            else if (HSYNC_I && !(&pulse_width)) pulse_width <= pulse_width + 1'd1;
+
+            if (!HSYNC_I && raw_hs_delayed) begin
+                // MODEL LIMIT (B26): A single C3 wrap can last up
+                // to 31 characters. The ASIC emits monitor C-HSYNC inside
+                // the long internal pulse (French ACCC v1.11 §14.5.3 p.139).
+                // On the trained cadence, cap the high time charged to
+                // Full admission so SHAKER D6 admits the early next line.
+                // The exact monitor rearm aperture is unmeasured.
+                if (wrapped_hs_armed && wrapped_hs_context &&
+                    pulse_width > 7'd64 && pulse_width <= 7'd124 &&
+                    hSyncSize >= WRAPPED_MIN_PERIOD)
+                    line_time <= {2'd0, pulse_width} - WRAPPED_HIGH_BUDGET;
+                else
+                    line_time <= 9'd0;
+                hsync_mask <= 1'b1;
+            end
+        end else begin
+            if (!(&line_time)) line_time <= line_time + 1'd1;
+            if (!HSYNC_I && line_time >= MIN_LOW_TICKS) hsync_mask <= 1'b0;
+        end
+    end
 end
 
 wire hsync_i = no_hsync ? hsync : (HSYNC_I & ~hsync_mask);

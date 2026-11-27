@@ -54,6 +54,9 @@ struct Sample {
     uint8_t vblank_selected;
     uint8_t no_hsync;
     uint8_t shift;
+    uint8_t start_gen;
+    uint8_t end_gen;
+    uint16_t sync_observation;
 };
 
 class CrtFilterBench {
@@ -67,6 +70,7 @@ public:
         dut_->VSYNC_I = 0;
         dut_->BYTE_OWNER = 1;
         dut_->H_CONTEXT_CLEAR = 0;
+        dut_->WRAPPED_HSYNC_REARM = 0;
         dut_->SYNC_FILTER = 0;
         dut_->HSYNC_RAW = 0;
         dut_->VSYNC_RAW = 0;
@@ -148,6 +152,12 @@ public:
             run_line_ce();
     }
 
+    void configure_wrapped_rearm(bool eligible, bool clear = false) {
+        dut_->WRAPPED_HSYNC_REARM = eligible;
+        dut_->H_CONTEXT_CLEAR = clear;
+        dut_->eval();
+    }
+
     Sample configure_byte_owner(bool eligible, bool clear) {
         dut_->BYTE_OWNER = eligible;
         dut_->H_CONTEXT_CLEAR = clear;
@@ -190,6 +200,9 @@ private:
             static_cast<uint8_t>(dut_->VBLANK_SELECTED),
             static_cast<uint8_t>(dut_->NO_HSYNC_DEBUG),
             static_cast<uint8_t>(dut_->SHIFT),
+            static_cast<uint8_t>(dut_->START_GEN),
+            static_cast<uint8_t>(dut_->END_GEN),
+            static_cast<uint16_t>(dut_->SYNC_OBSERVATION),
         };
     }
 
@@ -197,6 +210,182 @@ private:
     std::unique_ptr<Vcrt_filter_blank_test_top> dut_;
     uint64_t master_cycle_ = 0;
 };
+
+// Per SHAKER D6 0381 on a Plus, R3 can be updated behind C3 and wrap
+// (French ACCC v1.11 §14.5.3 p.139). CRTC widths of 20/21 characters
+// still belong to ordinary rasters, including successive R2=52/51 starts.
+void test_full_keeps_wrapped_hsync_cadence() {
+    constexpr unsigned frame_lines = 312;
+    constexpr unsigned raw_vs_line = 240;
+    constexpr unsigned shorter = 252;
+    constexpr unsigned longer = 260;
+    CrtFilterBench tb;
+    std::vector<unsigned> vertical_rises;
+    std::vector<unsigned> horizontal_rises;
+    unsigned time = 0;
+    unsigned displaced_lines = 0;
+    Sample previous{};
+    auto record = [&](bool hsync, bool vsync) {
+        const auto sample = tb.tick_ce(hsync, vsync);
+        if (sample.vsync_selected && !previous.vsync_selected)
+            vertical_rises.push_back(time);
+        const bool rise = sample.hsync_selected && !previous.hsync_selected;
+        if (rise)
+            horizontal_rises.push_back(time);
+        previous = sample;
+        ++time;
+        return rise;
+    };
+    auto frames = [&](unsigned count, bool wrapped, unsigned unwrapped_width = 64) {
+        for (unsigned frame = 0; frame < count; ++frame) {
+            for (unsigned line = 0; line < frame_lines; ++line) {
+                // R2 moves one character during the VSYNC neighborhood.
+                const bool moved = wrapped && line >= raw_vs_line &&
+                    line < raw_vs_line+16;
+                const unsigned period = moved ? (line & 1 ? longer : shorter) : kLineCeTicks;
+                const unsigned width = wrapped ? (line & 1 ? 84 : 80) : unwrapped_width;
+                bool selected_on_true_line = false;
+                for (unsigned tick = 0; tick < period; ++tick) {
+                    const bool vs = (line > raw_vs_line && line < raw_vs_line+16) ||
+                        (line == raw_vs_line && tick >= 48) ||
+                        (line == raw_vs_line+16 && tick < 48);
+                    // A four-CE spur near the next line is still inside
+                    // the exclusion window of the wrapped pulse.
+                    const bool spur = wrapped && tick >= 240 && tick < 244;
+                    const bool rise = record(tick < width || spur, vs);
+                    if (rise && tick >= 4 && tick <= 12)
+                        selected_on_true_line = true;
+                }
+                if (wrapped && frame != 0 &&
+                    (line + 2 < raw_vs_line || line > raw_vs_line + 18) &&
+                    !selected_on_true_line)
+                    ++displaced_lines;
+            }
+        }
+    };
+    tb.configure_wrapped_rearm(true);
+    frames(3, false);
+    const auto first_h = horizontal_rises.size();
+    const auto first_v = vertical_rises.size();
+    if (first_v < 2 || vertical_rises[first_v - 1] - vertical_rises[first_v - 2] !=
+        frame_lines*kLineCeTicks)
+        fail("unwrapped 64-CE raw HS broke the neighboring control");
+    frames(4, true);
+    if (vertical_rises.size() != first_v + 4)
+        fail("wrapped raw HS lost a Full frame");
+    for (unsigned i = first_v + 1; i < vertical_rises.size(); ++i) {
+        const auto start = vertical_rises[i - 1];
+        const auto finish = vertical_rises[i];
+        const auto frame_ticks = frame_lines * kLineCeTicks;
+        if (finish - start < frame_ticks - 4 || finish - start > frame_ticks + 4)
+            fail("wrapped raw HS broke the Full vertical period");
+        unsigned lines = 0;
+        for (unsigned j = first_h; j < horizontal_rises.size(); ++j)
+            lines += horizontal_rises[j] >= start && horizontal_rises[j] < finish;
+        if (lines != frame_lines)
+            fail("wrapped raw HS lost a line or admitted the short spur");
+    }
+
+    if (displaced_lines)
+        fail("Full shifted from the genuine raster to a short false HSYNC");
+
+    // Loss immediately after the wrapped regime must fall back to the
+    // measured line cadence, then normal raw pulses take ownership again.
+    for (unsigned tick = 0; tick < 65540; ++tick)
+        record(false, false);
+    if (!previous.no_hsync)
+        fail("wrapped-source loss did not enable Full fallback");
+    const auto fallback = horizontal_rises.size();
+    for (unsigned tick = 0; tick < 4*kLineCeTicks; ++tick)
+        record(false, false);
+    if (horizontal_rises.size() < fallback + 3)
+        fail("Full horizontal cadence stopped after wrapped-source loss");
+    for (unsigned i = fallback + 1; i < horizontal_rises.size(); ++i) {
+        if (horizontal_rises[i] - horizontal_rises[i - 1] != kLineCeTicks)
+            fail("wrapped-source loss changed the established Full horizontal cadence");
+    }
+    const auto before_return = vertical_rises.size();
+    frames(4, false, kRawSyncWidthTicks);
+    if (previous.no_hsync || vertical_rises.size() < before_return + 3)
+        fail("ordinary raw sync did not reacquire Full after wrapped-source loss");
+    for (unsigned i = horizontal_rises.size() - 8; i < horizontal_rises.size(); ++i) {
+        if (horizontal_rises[i] - horizontal_rises[i - 1] != kLineCeTicks)
+            fail("ordinary raw sync recovered to the wrong line cadence");
+    }
+}
+
+
+// The public pulse tags reach both the RGB and Full acquisition owners. Check
+// the tags when timing context changes between CE4 samples and before the fall.
+void test_wrapped_hsync_rearm_requires_same_live_source() {
+    enum class Boundary {
+        none, enabled_after_rise, ineligible_at_fall, geometry_dropped,
+        context_cleared, restored_high, short_raster_alias, clear_live_mask,
+    };
+    struct Case {
+        const char* name;
+        Boundary boundary;
+        bool admitted;
+    };
+    const std::array<Case, 8> cases = {{
+        {"stable Plus raster", Boundary::none, true},
+        {"geometry became eligible during HS", Boundary::enabled_after_rise, false},
+        {"geometry ineligible at the fall", Boundary::ineligible_at_fall, false},
+        {"brief geometry invalidation during HS", Boundary::geometry_dropped, false},
+        {"brief source clear during HS", Boundary::context_cleared, false},
+        {"restored high on context clear", Boundary::restored_high, false},
+        {"ineligible R0=15 alias learned nominal cadence", Boundary::short_raster_alias, false},
+        {"source clear in a live mask", Boundary::clear_live_mask, false},
+    }};
+    for (const auto& test : cases) {
+        CrtFilterBench tb;
+        const auto boundary = test.boundary;
+        tb.settle();
+        if (boundary == Boundary::short_raster_alias) {
+            // R0=15 gives 64 CE4 per real line. Three rises are suppressed
+            // per admitted pulse, so its learned period aliases to 256.
+            for (unsigned frame = 0; frame < 4; ++frame)
+                for (unsigned line = 0; line < 312; ++line)
+                    tb.run_line_ce(64, 0, 16, line >= 240 && line < 256);
+        }
+        const unsigned next_rise = boundary == Boundary::clear_live_mask ? 128 :
+                                   boundary == Boundary::short_raster_alias ? 256 : 252;
+        const unsigned invalidation = (boundary == Boundary::clear_live_mask ? 100 : 40) *
+                                      kClksPerCe + 7;
+        const auto raw = [&](unsigned clock) {
+            return clock < 80 * kClksPerCe ||
+                (clock >= next_rise * kClksPerCe && clock < (next_rise + 16) * kClksPerCe);
+        };
+        bool eligible = boundary != Boundary::enabled_after_rise &&
+                        boundary != Boundary::short_raster_alias;
+        bool start_before = false, end_before = false;
+        Sample last{};
+        for (unsigned clock = 0; clock <= (next_rise + 18) * kClksPerCe; ++clock) {
+            if (clock == invalidation && boundary == Boundary::enabled_after_rise)
+                eligible = true;
+            if (clock == 80*kClksPerCe && boundary == Boundary::ineligible_at_fall)
+                eligible = false;
+            const bool geometry_valid = eligible &&
+                !(clock == invalidation && boundary == Boundary::geometry_dropped);
+            const bool clear = (clock == invalidation &&
+                (boundary == Boundary::context_cleared || boundary == Boundary::clear_live_mask)) ||
+                (clock == 0 && boundary == Boundary::restored_high);
+            tb.configure_wrapped_rearm(geometry_valid, clear);
+            last = tb.tick_clk(clock % kClksPerCe == 0, clock != 0 && raw(clock - 1),
+                               false, raw(clock), false);
+            if (clock == (next_rise - 1)*kClksPerCe) {
+                start_before = last.start_gen;
+                end_before = last.end_gen;
+                if (boundary == Boundary::short_raster_alias &&
+                    (last.sync_observation & 0x1ff) != 256)
+                    fail("short physical raster did not exercise a nominal learned cadence");
+            }
+        }
+        if ((start_before != last.start_gen) != test.admitted ||
+            (end_before != last.end_gen) != test.admitted)
+            fail(std::string("unexpected wrapped-pulse admission after ") + test.name);
+    }
+}
 
 void test_full_mode_baseline() {
     CrtFilterBench tb;
@@ -866,11 +1055,13 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 16> kTests = {{
+constexpr std::array<TestCase, 18> kTests = {{
     {"Full HSYNC relocks an early step and releases before another VSYNC", test_full_relocks_early_phase_and_releases_without_vsync},
     {"Full keeps the short-pulse midpoint slot through a VSYNC anchor", test_full_keeps_midpoint_slot_through_vsync_anchor},
     {"Full crop preserves the BU fixed monitor-sync grid", test_full_preserves_bu_crop_phase},
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
+    {"Full keeps the raster through a wrapped CRTC HSYNC", test_full_keeps_wrapped_hsync_cadence},
+    {"Wrapped HSYNC rearm requires one eligible source", test_wrapped_hsync_rearm_requires_same_live_source},
     {"Live HBLANK preserves master phase and the +3-pixel R2.JIT shift", test_live_blank_master_phase_and_r2jit},
     {"raw force blank longer than the scaler minimum remains blank", test_long_raw_force_blank_wins},
     {"too-frequent raw sync does not restart the acquisition window", test_frequent_sync_does_not_restart_window},
