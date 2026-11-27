@@ -236,6 +236,49 @@ void classic0_in_paper_aperture(){
       "Type0 in-paper DAC blackout must include eight-dot byte phase");
 }
 
+// Original SHAKER D3 left aperture: a raw pulse can begin in
+// border and reach the next enabled scanline. The same geometry
+// in vertical border has no incoming display to delay.
+void classic_wrap_aperture(unsigned type) {
+ Bench bench(type, {5}, false, false, 25, 60);
+ bench.boot();
+ const auto active = bench.capture();
+ bench.until([&] { return bench.d.c4 == 26 && bench.d.c9 == 0 && bench.d.c0 == 0; },
+             1000000, "no vertical-border control row");
+ vector<Pixel> border;
+ border.reserve(8192);
+ for (unsigned clock = 0; clock < 8192; ++clock) border.push_back(bench.tick());
+
+ for (bool display : {true, false}) {
+  vector<Pixel> dots;
+  for (const auto& pixel : display ? active : border) if (pixel.ce) dots.push_back(pixel);
+  unsigned checked = 0;
+  for (unsigned start = 1; start + 94 < dots.size(); ++start) {
+   if (dots[start-1].hs || !dots[start].hs) continue;
+   need(dots[start].c0 == 60 && !dots[start].de && dots[start].shift,
+        "wrapping raw HS must start in shifted border");
+   bool wrapped = false;
+   bool entered_display = false;
+   for (unsigned dot = 0; dot < 80; ++dot) {
+    const auto& sample = dots[start + dot];
+    need(sample.hs, "the programmed wrapping raw HS has 80 dots");
+    wrapped |= sample.c0 == 0;
+    entered_display |= sample.de;
+   }
+   need(!dots[start+80].hs && wrapped && entered_display == display,
+        "raw pulse must wrap with the expected incoming display");
+   const unsigned blank_start = display ? 10 : 2;
+   for (unsigned dot = 0; dot < 92; ++dot) {
+    const bool black = dot >= blank_start && dot < blank_start + 80;
+    need((dots[start+dot].ga == 0) == black,
+         "wrapping HS type " + to_string(type) + " must blank the selected aperture at dot " + to_string(dot));
+   }
+   ++checked;
+  }
+  need(checked == 1, "one complete wrapping aperture in each qualified window");
+ }
+}
+
 unsigned compare_left8(const vector<Pixel>& a,const vector<Pixel>& b,unsigned lo,unsigned hi){
  unsigned count=0;for(unsigned i=0;i+32<a.size();i++)if(a[i].ce&&a[i].c0>=lo&&a[i].c0<=hi&&a[i+32].c0>=lo&&a[i+32].c0<=hi){
   need(b[i].rgb==a[i+32].rgb,"French14.4 public LEFT8 mismatch");count++;
@@ -492,6 +535,8 @@ int main(int argc,char**argv){
  Verilated::commandArgs(argc,argv);cout<<unitbuf;
  try {
   classic0_in_paper_aperture();
+  classic_wrap_aperture(0);
+  classic_wrap_aperture(1);
   Bench border4(1,{4},false,true),border5(1,{5},false,true);border4.boot();auto a=border4.capture();border5.boot();auto b=border5.capture();
   need(compare_left8(a,b,8,31)==752,"entire border sample window");
   unsigned staticRuns=0,anchors=0,transportRuns=0;

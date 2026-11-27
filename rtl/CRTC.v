@@ -71,6 +71,7 @@ module CRTC
 	output reg       VSYNC,
 	output reg       HSYNC,
 	output reg       HSYNC_RESTART,
+	output reg       HSYNC_WRAP_DISPLAY,
 	output           DE,
 	output           DE_SAMPLE_NEXT,
 	output           FIELD,
@@ -542,6 +543,22 @@ reg        register_write_d;
 reg        type0_short_r3_jit;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
+
+// MODEL LIMIT (B26): original SHAKER D3 left apertures qualify an
+// ordinary HS pulse that reaches the next enabled display line.
+// Predict only interior progressive wraps using register values
+// at the actual HS launch. Exclude JIT, restart and pulses at
+// least a full line wide. The DAC owns this choice through the fall.
+wire [8:0] hsync_end_char = {1'b0, R2_h_sync_pos} + {5'd0, R3_h_sync_width};
+wire [7:0] following_row = {1'b0, row} + 8'd1;
+wire ordinary_hs_crosses_display_wrap = !SNA_LOAD && (CRTC_TYPE == hsync_type_d) &&
+                          (hcc == R2_h_sync_pos) && (hsc == 0) &&
+                          ({4'd0, R3_h_sync_width} <= R0_h_total) &&
+                          (R2_h_sync_pos <= R0_h_total) &&
+                          (hsync_end_char > {1'b0, R0_h_total}) &&
+                          (R1_h_displayed != 0) && (R8_skew == 0) &&
+                          !R8_interlace[0] && !in_adj && vde && vde_r &&
+                          (following_row < {1'b0, R6_v_displayed});
 // ACCC v1.11 FR section 15.3.2 p.150, 15.3.4 p.152: on type 1, when C0 == R2
 // at the character where C3l reaches R3l, HSYNC does not end; C3l (the 4-bit
 // hsc) keeps counting, wraps, and the test repeats at the next C3l == R3l.
@@ -630,6 +647,8 @@ wire type0_r3_terminal_write = register_write & ~register_write_d &
 					(DI[3:0] != 0) & (DI[3:0] != R3_h_sync_width);
 
 always @(posedge CLOCK) begin
+	// Publish the registered qualification on the same edge as raw HS.
+	HSYNC_WRAP_DISPLAY <= 0;
 
 	if(~nRESET) begin
 		hsc                       <= 0;
@@ -747,6 +766,7 @@ always @(posedge CLOCK) begin
 				if (type1_hsync_start_pending) begin
 					if (type1_hsync_start_count == 0) begin
 						HSYNC                     <= 1;
+						HSYNC_WRAP_DISPLAY        <= ordinary_hs_crosses_display_wrap;
 						hsync_phaseful            <= 1;
 						hsync_start_phase         <= hsync_char_phase;
 						type1_hsync_start_pending <= 0;
@@ -758,8 +778,9 @@ always @(posedge CLOCK) begin
 					type1_hsync_start_count   <= 3;
 				end
 			end else if (hsync_on) begin
-				HSYNC          <= 1;
-				hsync_phaseful <= 0;
+				HSYNC              <= 1;
+				HSYNC_WRAP_DISPLAY <= ordinary_hs_crosses_display_wrap;
+				hsync_phaseful     <= 0;
 			end
 		end
 

@@ -441,6 +441,7 @@ wire crtc_de = classic_crtc2 ? type2_crtc_de : legacy_crtc_de;
 wire crtc_field = !classic_crtc2 && legacy_crtc_field;
 wire crtc_frame_field = !classic_crtc2 && legacy_crtc_frame_field;
 wire crtc_hsync_restart = !classic_crtc2 && legacy_crtc_restart;
+wire legacy_hs_wrap_display;
 wire [13:0] MA = classic_crtc2 ? type2_ma : legacy_ma;
 wire  [4:0] RA = classic_crtc2 ? type2_ra : legacy_ra;
 wire  [7:0] crtc_dout = classic_crtc2 ? type2_crtc_dout : legacy_crtc_dout;
@@ -475,6 +476,7 @@ CRTC crtc
 	.VSYNC(legacy_crtc_vs),
 	.HSYNC(legacy_crtc_hs),
 	.HSYNC_RESTART(legacy_crtc_restart),
+	.HSYNC_WRAP_DISPLAY(legacy_hs_wrap_display),
 	.DE(legacy_crtc_de),
 	.DE_SAMPLE_NEXT(legacy_de_sample_next),
 	.FIELD(legacy_crtc_field),
@@ -1506,7 +1508,8 @@ initial begin
     full_aperture_shift = 0;
     full_aperture_history = 0;
 end
-wire full_aperture_at_rise = de_sel && crtc_shift;
+wire classic_wrap_display = !plus_mode && !crtc_type[1] && legacy_hs_wrap_display;
+wire full_aperture_at_rise = crtc_shift && (de_sel || classic_wrap_display);
 wire full_aperture_delayed = hs_sel &&
     (rgb_raw_rise ? full_aperture_at_rise : full_aperture_shift);
 wire full_video_hs = full_aperture_clear ? hs_sel :

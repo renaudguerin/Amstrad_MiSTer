@@ -79,6 +79,7 @@ module crtc_cpu_phase_top(
    .SNA_PALETTE({8'h1f, 112'd0, 8'h06, 8'h0b}), .SNA_CONFIG(8'h02)
  );
  CRTC crtc(
+     .HSYNC_WRAP_DISPLAY(),
    .CLOCK(clk), .CLKEN(cn), .nCLKEN(cp), .nRESET(~reset), .CRTC_TYPE(crtc_type),
    .ENABLE(selected_write), .nCS(1'b0), .R_nW(1'b0), .RS(bus_rs),
    .DI(selected_data), .DO(),

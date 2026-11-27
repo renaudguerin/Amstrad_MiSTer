@@ -279,7 +279,7 @@ module p1_video_test_top (
 		.ENABLE(vid_enable), .nCS(vid_nCS), .R_nW(vid_R_nW), .RS(vid_RS),
 		.DI(vid_di), .DO(c_crtc_dout),
 		.SNA_LOAD(1'b0), .SNA_ADDR(5'b0), .SNA_REGS(144'b0),
-		.VSYNC(c_crtc_vs), .HSYNC(c_crtc_hs), .HSYNC_RESTART(c_crtc_hsync_restart), .DE(c_crtc_de), .DE_SAMPLE_NEXT(de_sample_next),
+		.VSYNC(c_crtc_vs), .HSYNC(c_crtc_hs), .HSYNC_WRAP_DISPLAY(), .HSYNC_RESTART(c_crtc_hsync_restart), .DE(c_crtc_de), .DE_SAMPLE_NEXT(de_sample_next),
 		.FIELD(c_field), .CURSOR(c_cursor),
 		.MA(c_ma), .RA(c_ra)
 	);
