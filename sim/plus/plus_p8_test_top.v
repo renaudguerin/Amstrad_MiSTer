@@ -631,7 +631,7 @@ module plus_p8_test_top (
 
 		.PIXEN(1'b1),
 		.VIDEOD(16'd0),
-		.VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(),
+		.VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(), .HSYNC_WRAP_DISPLAY(),
 		.MODE_UPDATE_EN(video_mode_update_en),
 		.GAMODE(ga_mode_out),
 		.BORDER_I(ga_border_out),

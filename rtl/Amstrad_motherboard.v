@@ -575,6 +575,7 @@ wire  [11:0] plus_pal_rdata;
 // retaining the classic MMU and peripherals (French ACCC §29.1 pp.294–295).
 wire [13:0] ma_sel = plus_mode ? plus_ma : classic_crtc4 ? type4_ma : MA;
 wire [4:0]  ra_sel = plus_mode ? plus_ra : classic_crtc4 ? type4_ra : RA;
+wire        plus_hs_wrap_display;
 wire        hs_sel = plus_mode ? plus_crtc_hs : classic_crtc4 ? type4_crtc_hs : crtc_hs;
 wire        vs_sel = plus_mode ? plus_crtc_vs : classic_crtc4 ? type4_crtc_vs : crtc_vs;
 wire        de_sel = plus_mode ? plus_crtc_de : classic_crtc4 ? type4_crtc_de : crtc_de;
@@ -705,6 +706,7 @@ asic_video #(.BYTE_DISPLAY_METADATA(1'b1), .EXTERNAL_VIDEO_HSYNC(1'b1)) asic_vid
 	.DO(plus_crtc_dout),
 
 	.HSYNC(plus_crtc_hs),
+	.HSYNC_WRAP_DISPLAY(plus_hs_wrap_display),
 	.VSYNC(plus_crtc_vs),
 	.DE(plus_crtc_de),
 	.FIELD(plus_field),
@@ -778,6 +780,7 @@ asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
 	.DI(classic_crtc_di),
 	.DO(type4_crtc_dout),
 	.HSYNC(type4_crtc_hs),
+	.HSYNC_WRAP_DISPLAY(),
 	.VSYNC(type4_crtc_vs),
 	.DE(type4_crtc_de),
 	.FIELD(type4_field),
@@ -1509,7 +1512,8 @@ initial begin
     full_aperture_history = 0;
 end
 wire classic_wrap_display = !plus_mode && !crtc_type[1] && legacy_hs_wrap_display;
-wire full_aperture_at_rise = crtc_shift && (de_sel || classic_wrap_display);
+wire wrap_display_at_rise = plus_mode ? plus_hs_wrap_display : classic_wrap_display;
+wire full_aperture_at_rise = crtc_shift && (de_sel || wrap_display_at_rise);
 wire full_aperture_delayed = hs_sel &&
     (rgb_raw_rise ? full_aperture_at_rise : full_aperture_shift);
 wire full_video_hs = full_aperture_clear ? hs_sel :

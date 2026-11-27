@@ -66,6 +66,7 @@ module asic_video #(
 	// RA the scanline address C9 (which carries the adjustment index on
 	// types 3/4, ACCC §11.2.6).
 	output reg       HSYNC,
+	output reg       HSYNC_WRAP_DISPLAY,
 	output reg       VSYNC,
 	output           DE,
 	output           FIELD,
@@ -836,7 +837,23 @@ wire       hsync_end_hit             = (hsc_next == hsync_width);
 wire       hsync_end_start_collision = (hsync_width != 4'd0) &&
                                         hsync_start;
 
+wire [8:0] hsync_end_char = {1'b0, R2_h_sync_pos} + {5'd0, R3_h_sync_width};
+wire [7:0] following_charline = {1'b0, charline} + 8'd1;
+// MODEL LIMIT (B26): original Plus SHAKER D3 left apertures qualify
+// an ordinary pulse that reaches the next enabled display raster,
+// including an HS fall coincident with the C0=0 display start.
+// Select the RGB aperture at launch, using stable programmed widths.
+wire hsync_launch_data_write = (wr_now && RS) || (wr_commit && wr_rs_q);
+wire ordinary_hs_crosses_display_wrap = !hsync_launch_data_write &&
+    !hsync_position_pending && !hsync_width_pending &&
+    (r0_live == R0_h_total) && (R2_h_sync_pos != 0) && (R2_h_sync_pos <= r0_live) &&
+    (R3_h_sync_width != 0) && ({4'd0, R3_h_sync_width} <= r0_live) &&
+    (hsync_end_char > {1'b0, r0_live}) && (R1_h_displayed != 0) &&
+    (R8_skew == 0) && !R8_interlace[0] && !in_adj && !interlace_line &&
+    vde && !vde_reseed && !last_charline && (following_charline < {1'b0, R6_v_displayed});
+
 always @(posedge CLOCK) begin
+    HSYNC_WRAP_DISPLAY <= 1'b0;
 	if (!nRESET) begin
 		HSYNC    <= 1'b0;
 		in_hsync <= 1'b0;
@@ -862,6 +879,7 @@ always @(posedge CLOCK) begin
 		else if (hsync_start) begin
 			in_hsync <= 1'b1;
 			HSYNC    <= 1'b1;
+			HSYNC_WRAP_DISPLAY <= EXTERNAL_VIDEO_HSYNC && ordinary_hs_crosses_display_wrap;
 			hsc      <= 4'd0;
 		end
 	end
@@ -1141,9 +1159,7 @@ wire s1_bit1 = ~(hcc == {1'b0, R0_h_total[7:1]});           // 0 at C0=R0/2
 wire s1_bit2 = ~((R0_h_total >= R1_h_displayed) &&
                  (hcc == (R1_h_displayed - 8'd1)));         // 0 at C0=R1-1
 wire s1_bit3 = ~(hcc == R2_h_sync_pos);                     // 0 at C0=R2
-wire [8:0] status1_hsync_end = {1'b0, R2_h_sync_pos} +
-                               {5'd0, R3_h_sync_width};
-wire s1_bit4 = ~(hcc == status1_hsync_end);                 // 0 at C0=R2+R3l
+wire s1_bit4 = ~(hcc == hsync_end_char);                 // 0 at C0=R2+R3l
 // FR §21.3.4.1 p248 gives opposite event polarity at R3h=0:
 // fifteen HIGH lines, LOW outside that band (original DU03C0 check).
 wire s1_bit5 = (R3_v_sync_width == 0) ?
