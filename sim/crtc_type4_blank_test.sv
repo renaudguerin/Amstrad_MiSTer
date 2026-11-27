@@ -176,7 +176,7 @@ module crtc_type4_blank_test;
 	                                 input logic [3:0] width, input bit rewrite_width,
 	                                 input logic [7:0] mixed_byte,
 	                                 input logic [3:0] expected [10],
-	                                 input logic [11:0] ordinary_first_dot);
+	                                 input logic [11:0] plus_rgb_at_aperture);
 		bit aligned;
 		int raw_fall, qualification, unblank;
 		raw_fall = 48 + 16 * int'(width);
@@ -249,8 +249,8 @@ module crtc_type4_blank_test;
 			    {red[1], green[1], blue[1]} !== TEST_RGB[expected[dot - unblank]])
 				$fatal(1, "40226 Mode %0d to Mode %0d dot %0d rewrite=%0b: RGB=%03x expected=%03x",
 				       old_mode, mode, dot, rewrite_width, {red[1], green[1], blue[1]}, TEST_RGB[expected[dot - unblank]]);
-			if (dot == unblank && {red[0], green[0], blue[0]} !== ordinary_first_dot)
-				$fatal(1, "40489 mode change leaked the 40226 transition");
+			if (dot == unblank && {red[0], green[0], blue[0]} !== plus_rgb_at_aperture)
+				$fatal(1, "40489 aperture RGB mismatch for Mode %0d to %0d", old_mode, mode);
 			if (width == 3 && dot == unblank && {red[1], green[1], blue[1]} !== 12'h0f0)
 				$fatal(1, "40226 mixed byte triggered by a write after a three-character pulse");
 			repeat (3) step(0, 0);
@@ -295,9 +295,12 @@ module crtc_type4_blank_test;
 
 		// Independent bit patterns make b0, b1, b2, b3 and b4 distinguishable.
 		// Next byte 6C emits 6,6,6 in Mode 0, 2,2,3 in Mode 1 and 2,2,2 in Mode 3.
-		verify_mode_change(2, 0, 2, 0, 8'ha6, '{1,4,4,4,4,4,4,6,6,6}, 12'hf6f);
-		verify_mode_change(2, 0, 2, 0, 8'h51, '{0,3,3,0,0,0,0,6,6,6}, 12'hf00);
-		verify_mode_change(2, 0, 2, 0, 8'h2b, '{1,2,2,5,5,5,5,6,6,6}, 12'hf60);
+		// At the 40226 aperture the 40489 is already on its second
+		// mixed dot. Distinct inks in the original Plus BI peer distinguish
+		// its residual pen here from each 40226 first-dot expectation.
+		verify_mode_change(2, 0, 2, 0, 8'ha6, '{1,4,4,4,4,4,4,6,6,6}, TEST_RGB[4]);
+		verify_mode_change(2, 0, 2, 0, 8'h51, '{0,3,3,0,0,0,0,6,6,6}, TEST_RGB[3]);
+		verify_mode_change(2, 0, 2, 0, 8'h2b, '{1,2,2,5,5,5,5,6,6,6}, TEST_RGB[2]);
 		verify_mode_change(2, 3, 2, 0, 8'ha6, '{1,0,0,0,0,0,0,2,2,2}, 12'h00f);
 		verify_mode_change(2, 3, 2, 0, 8'h51, '{0,3,3,0,0,0,0,2,2,2}, 12'hf00);
 		verify_mode_change(2, 3, 2, 0, 8'h2b, '{1,2,2,1,1,1,1,2,2,2}, 12'h0f0);

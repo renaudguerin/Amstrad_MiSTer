@@ -6,6 +6,7 @@
 // the pulse: FR §9.3.4.1 p54 leaves the exact type3 mixed pixel unresolved.
 #include "Vasic_mode_latch_test_top.h"
 #include "verilated.h"
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -36,7 +37,10 @@ struct Bench {
         }
         throw std::runtime_error("fixture timed out");
     }
-    Bench(unsigned pulse_chars, bool no_hsync) {
+    Bench(unsigned pulse_chars, bool no_hsync, uint16_t video_word = 0xffff,
+          uint8_t snapshot_mode = 0) {
+        d.video_word = video_word;
+        d.snapshot_mode = snapshot_mode;
         d.RESET_N = 0; d.sna_load = 0; d.snapshot_hs = 0; d.ga_iorq_n = 1; d.ga_data = 0;
         for (unsigned i = 0; i < 5; ++i) d.regs[i] = 0;
         const uint8_t registers[18] = {
@@ -52,14 +56,14 @@ struct Bench {
         until([&] { return d.hcc == 2; });
         mode_events = 0; width = 0;
     }
-    void request_mode2() {
-        d.ga_data = 0x82; d.ga_iorq_n = 0;
+    void request_mode(unsigned mode) {
+        d.ga_data = 0x80 | mode; d.ga_iorq_n = 0;
         for (unsigned i = 0; i < character_ticks; ++i) {
             tick();
-            if (!stored && d.requested_mode == 2) stored = ticks;
+            if (!stored && d.requested_mode == mode) stored = ticks;
         }
         d.ga_iorq_n = 1; tick();
-        if (d.requested_mode != 2 || !stored)
+        if (d.requested_mode != mode || !stored)
             throw std::runtime_error("RMR request not stored by the GA");
     }
     bool score(const char* name, unsigned expected_pen) {
@@ -95,7 +99,7 @@ bool restore_running_pulse() {
     b.run(3 * character_ticks);
     // The restored pulse's delayed window has closed. A real request
     // inside it would be a valid update, not a phantom event.
-    b.request_mode2();
+    b.request_mode(2);
     bool pass = b.mode_events == 0;
     std::cout << "restore-running-pulse: no phantom mode event "
               << (pass ? "PASS\n" : "FAIL\n");
@@ -105,6 +109,30 @@ bool restore_running_pulse() {
     b.until([&] { return !b.d.hs; });
     b.run(3 * character_ticks);
     return b.score("post-restore-fresh-pulse", 1) && pass;
+}
+
+// Original Plus SHAKER BI uses the first byte of a qualified Mode 2
+// to 0 transition. F6 emits a different residual pen from its ordinary
+// Mode 0 decode. The asymmetric A9 following byte pins byte handoff.
+bool mixed_byte(unsigned pulse, uint8_t first_byte, const std::array<unsigned,16>& expected) {
+    Bench b(pulse, false, 0xa900 | first_byte, 2);
+    b.request_mode(0);
+    b.until([&] { return bool(b.d.hs); });
+    b.until([&] { return !b.d.hs; });
+    b.until([&] { return bool(b.d.mode_event); });
+    if (b.width != pulse * character_ticks || !b.d.de)
+        throw std::runtime_error("mixed-byte pulse or display qualification");
+    unsigned wrong = 0;
+    for (unsigned i = 0; i < expected.size(); ++i) {
+        b.until([&] { return bool(b.d.dot); });
+        b.tick();
+        if (b.d.pen_o != expected[i]) {
+            std::cout << "mixed-byte width=" << pulse << " dot=" << i
+                      << " got=" << unsigned(b.d.pen_o) << " expected=" << expected[i] << '\n';
+            ++wrong;
+        }
+    }
+    return wrong == 0;
 }
 
 bool exercise(const std::string& name) {
@@ -121,7 +149,7 @@ bool exercise(const std::string& name) {
         const unsigned start = b.ticks;
         b.run(during ? character_ticks : early ? 6 * character_ticks + 8 :
               late ? 7 * character_ticks + 8 : 3 * character_ticks + 8);
-        b.request_mode2();
+        b.request_mode(2);
         // Guard actual GA storage time, not merely when the driver raised IORQ.
         const unsigned accepted = b.stored - start;
         // For N=3, p52's one-us ASIC delay plus R3-limited GA interval
@@ -132,7 +160,7 @@ bool exercise(const std::string& name) {
             throw std::runtime_error("early request missed the source 6-to-7us window");
         if (late && !(accepted > 7 * character_ticks && accepted < 8 * character_ticks))
             throw std::runtime_error("late request missed the source after-7us window");
-    } else b.request_mode2();
+    } else b.request_mode(2);
     if (absent) b.until([&] { return b.d.hcc == 30; });
     else {
         // The post-fall request already crossed this pulse. Waiting for
@@ -157,6 +185,9 @@ int main(int argc, char** argv) {
                 "after-short-fall", "no-hsync"})
             pass = exercise(name) && pass;
         pass = restore_running_pulse() && pass;
+        pass = mixed_byte(2, 0xf6, {5,5,4,4,4,4,4,4, 7,7,7,7,8,8,8,8}) && pass;
+        pass = mixed_byte(2, 0x28, {1,0,1,1,1,1,1,1, 7,7,7,7,8,8,8,8}) && pass;
+        pass = mixed_byte(3, 0xf6, {13,13,13,13,7,7,7,7, 7,7,7,7,8,8,8,8}) && pass;
         std::cout << "asic-mode-latch: " << (pass ? "PASS" : "FAIL") << '\n';
         return pass ? 0 : 1;
     } catch (const std::exception& error) {
