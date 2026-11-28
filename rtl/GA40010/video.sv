@@ -27,8 +27,8 @@
 
 // Abstract GA40010 output/serializer model; no literal silicon-stage claim.
 // French ACCC v1.11 §§9.1, 9.3.4 pp47,56–67 defines the pixel rules.
-// Byte/epoch identities below serve control; causal test metadata lives only
-// in a separate simulation monitor, outside this production module.
+// The outgoing byte can supply pixels across a mode change. Its saved cursor
+// and the validity of the last colour lookup govern that handoff.
 module video (
  input clk, cen_16, input [7:0] S, input DISPEN_BUF, PHI_N,
  input [1:0] MODE, input MODE_SYNC, MODE_SYNC_EN,
@@ -44,10 +44,8 @@ reg byte_valid=0;
 reg [3:0] cursor=0, age=0;
 reg [1:0] active_mode=0, pending_mode=0;
 reg mode_pending=0;
-reg [15:0] byte_id=0, epoch_id=0;
-reg anchor_valid=0;
+reg anchor_valid=0, anchor_owns_byte=0;
 reg [3:0] anchor_cursor=0, anchor_age=0;
-reg [15:0] anchor_byte_id=0;
 reg [4:0] colour=0;
 // French ACCC v1.11 §9.2.2 pp49-50: the GA40010 ink-change position is
 // common to all modes. Mode2's byte stream starts one pixel-M2 earlier,
@@ -55,8 +53,7 @@ reg [4:0] colour=0;
 // its two inks and border one cen_16 earlier than the colour lookup;
 // delaying the serializer instead would move ordinary static pixels.
 reg [4:0] mode2_ink0=0, mode2_ink1=0, mode2_border=0;
-reg [15:0] token_epoch=0;
-reg token_valid=0, permit=0, await_colour=1;
+reg colour_in_phase=0, permit=0;
 reg blank_stage1=1, blank_stage2=1;
 wire mode_is_0=active_mode==0, mode_is_1=active_mode==1, mode_is_2=active_mode==2;
 wire [7:0] shift_reg=cursor>=8?8'd0:(byte_reg<<cursor);
@@ -88,12 +85,9 @@ wire shift=advance(active_mode,event_age)&&!load;
 wire keep=!shift&&!load;
 wire [3:0] normal_cursor=sat_add(cursor,{3'd0,shift});
 wire accept=cen_16&&mode_pending&&(PHASE_P||PHASE_N);
-wire [15:0] anchor_epoch_after=PHASE_P?epoch_id+16'd1:epoch_id;
-wire [15:0] pending_epoch_now=refresh?epoch_id:token_epoch;
-wire pending_valid_now=refresh?byte_valid:token_valid;
-wire anchor_valid_after=PHASE_P?byte_valid:anchor_valid;
-wire invalidate=accept&&pending_valid_now&&anchor_valid_after&&(pending_epoch_now==anchor_epoch_after);
-wire arrival=cen_16&&await_colour&&refresh&&byte_valid&&!accept;
+// A positive phase starts a new interval after this dot's colour lookup.
+wire invalidate=accept&&!PHASE_P&&anchor_valid&&(refresh?byte_valid:colour_in_phase);
+wire arrival=cen_16&&!permit&&refresh&&byte_valid&&!accept;
 wire [3:0] replay_cursor=sat_add(anchor_cursor,replay_steps(pending_mode,anchor_age,event_age));
 
 always @(posedge clk) begin
@@ -103,12 +97,11 @@ always @(posedge clk) begin
   // The caller supplies zero for hardware reset and SNA_CONFIG for apply.
   // A later HSYNC is not guaranteed (e.g. R3=0).
   active_mode<=MODEL_MODE;pending_mode<=MODEL_MODE;mode_pending<=0;
-  byte_id<=0;epoch_id<=0;
-  anchor_valid<=0;anchor_cursor<=0;anchor_age<=0;anchor_byte_id<=0;
+  anchor_valid<=0;anchor_cursor<=0;anchor_age<=0;anchor_owns_byte<=0;
   colour<=0;
   mode2_ink0<=0;mode2_ink1<=0;mode2_border<=0;
-  token_epoch<=0;token_valid<=0;
-  permit<=0;await_colour<=1;blank_stage1<=1;blank_stage2<=1;
+  colour_in_phase<=0;
+  permit<=0;blank_stage1<=1;blank_stage2<=1;
   BLUE_OE_N<=0;BLUE<=0;GREEN_OE_N<=0;GREEN<=0;RED_OE_N<=0;RED<=0;
  end else begin
   if(cen_16) begin
@@ -125,21 +118,25 @@ always @(posedge clk) begin
    end
    blank_stage1<=FORCE_BLANK||!(permit||arrival);
    blank_stage2<=blank_stage1;
-   if(arrival) begin permit<=1;await_colour<=0;end
+   if(arrival) permit<=1;
    if(refresh) begin
     colour<=u1005?display_ink:display_border;
-    token_epoch<=epoch_id;token_valid<=byte_valid;
    end
-   if(load) begin byte_reg<=VIDEO;cursor<=0;age<=0;byte_valid<=VIDEO_VALID;byte_id<=byte_id+16'd1;end
+   if(PHASE_P) colour_in_phase<=0;
+   else if(refresh) colour_in_phase<=byte_valid;
+   if(load) begin byte_reg<=VIDEO;cursor<=0;age<=0;byte_valid<=VIDEO_VALID;end
    else begin cursor<=normal_cursor;age<=event_age;end
+   // The anchor describes the outgoing byte, even when LOAD and PHASE_P coincide.
+   if(load) anchor_owns_byte<=0;
+   else if(PHASE_P) anchor_owns_byte<=byte_valid;
    if(PHASE_P) begin
     anchor_cursor<=normal_cursor;anchor_age<=event_age;
-    anchor_byte_id<=byte_id;anchor_valid<=byte_valid;epoch_id<=epoch_id+16'd1;
+    anchor_valid<=byte_valid;
    end
    if(accept) begin
     active_mode<=pending_mode;mode_pending<=0;
-    if(!PHASE_P&&anchor_valid&&anchor_byte_id==byte_id)cursor<=replay_cursor;
-    if(invalidate) begin blank_stage1<=1;blank_stage2<=1;permit<=0;await_colour<=1;end
+    if(!PHASE_P&&anchor_owns_byte)cursor<=replay_cursor;
+    if(invalidate) begin blank_stage1<=1;blank_stage2<=1;permit<=0;end
    end
   end
   // Last assignment queues a coincident new request for a subsequent Q.
