@@ -8,6 +8,7 @@
 // (hardware observations).
 module amstrad_video_output (
     input CLK_VIDEO, ce_16, raw_crt, native_cadence, pixel_vblank, plus_mode,
+    input plus_full_pixel, plus_full_vblank,
     input [1:0] mode, scale, ar, integer_scale,
     input [2:0] mix,
     input [3:0] r4, g4, b4,
@@ -58,7 +59,8 @@ wire       hq2x = (scale == 1) & ~(raw_crt | native_cadence);
 amstrad_video_color video_color (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
     .hq2x(hq2x), .pixel_rate_select(pixel_rate_select & ~(raw_crt | native_cadence)),
-    .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
+    .pixel_vblank(pixel_vblank), .plus_full_pixel(plus_full_pixel),
+    .plus_full_vblank(plus_full_vblank), .plus_mode(plus_mode),
     .mode(mode), .mix(mix), .r4(r4), .g4(g4), .b4(b4),
     .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl), .ce_pix(ce_pix),
     .R_out(R), .G_out(G), .B_out(B),

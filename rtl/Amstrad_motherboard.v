@@ -171,6 +171,7 @@ module Amstrad_motherboard #(
 	// uses the sampled blank tag in Full.
 	output        raw_crt,
 	output        pixel_vblank,
+	output        plus_full_video, plus_full_vblank,
 	output        native_cadence,
 
 	input  [15:0] vram_din,
@@ -1343,6 +1344,13 @@ reg [2:0] filter_h_owner;
 always @(posedge clk) filter_h_owner <= {plus_mode, crtc_type};
 wire filter_h_owner_changed = filter_h_owner != {plus_mode, crtc_type};
 wire filter_h_clear = reset | sna_load | sync_filter_commit | filter_h_owner_changed;
+
+// MODEL LIMIT (B26): Plus Full asserts the Gate Array blank before the
+// aligned pixel tag arrives. The 2 us and 3 us SHAKER DT bursts agree on
+// this onset in AmSpirit. The stock falling edge remains unmeasured, so
+// the converter also keeps the original aligned tag through release.
+assign plus_full_video = plus_mode && sync_filter_applied == 2'd0 && !filter_h_clear;
+assign plus_full_vblank = plus_full_video && vblank_ga;
 
 // The optional receiver owns presentation only. The raw chip pins and
 // filtered horizontal timing remain the source for video and CPU logic.

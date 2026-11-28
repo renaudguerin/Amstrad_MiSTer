@@ -493,6 +493,9 @@ module p10_boot_test_top #(
 	wire       mb_vblank;
 	wire       mb_hsync;
 	wire       mb_vsync;
+`ifdef B6_VIDEO_BOUNDARY
+	wire mb_plus_full_video, mb_plus_full_vblank;
+`endif
 	wire [7:0] mb_audio_l;
 	wire [7:0] mb_audio_r;
 
@@ -630,6 +633,8 @@ module p10_boot_test_top #(
 		// fixture-local copy of either.
 		.raw_crt(b6_raw_crt),
 		.pixel_vblank(b6_pixel_vblank),
+		.plus_full_video(mb_plus_full_video),
+		.plus_full_vblank(mb_plus_full_vblank),
 `endif
 		.vram_din(vram_dout),
 		.vram_addr(vram_addr),
@@ -903,7 +908,8 @@ module p10_boot_test_top #(
     wire [21:0] b6_gamma;
     amstrad_video_color b6_color (
         .CLK_VIDEO(clk), .ce_16(ce_16), .hq2x(1'b0),
-        .pixel_vblank(b6_pixel_vblank),
+        .pixel_vblank(b6_pixel_vblank), .plus_full_pixel(mb_plus_full_video),
+        .plus_full_vblank(mb_plus_full_vblank),
         .pixel_rate_select(1'b0), .plus_mode(plus_mode), .mode(mb_mode),
         .mix(3'd0), .r4(mb_red), .g4(mb_green), .b4(mb_blue),
         .hs(mb_hsync), .vs(mb_vsync), .hbl(mb_hblank), .vbl(mb_vblank),
@@ -915,7 +921,9 @@ module p10_boot_test_top #(
     assign b6_gamma[20:0] = 21'd0; // production gamma pipeline, correction disabled
     amstrad_video_output b6_output (
         .CLK_VIDEO(clk), .ce_16(ce_16), .native_cadence(b6_native_cadence), .raw_crt(b6_raw_crt),
-        .pixel_vblank(b6_pixel_vblank), .plus_mode(plus_mode), .mode(mb_mode),
+        .pixel_vblank(b6_pixel_vblank), .plus_full_pixel(mb_plus_full_video),
+        .plus_full_vblank(mb_plus_full_vblank),
+        .plus_mode(plus_mode), .mode(mb_mode),
         .scale(2'd0), .ar(2'd0), .integer_scale(2'd0), .mix(3'd0),
         .r4(mb_red), .g4(mb_green), .b4(mb_blue),
         .hs(mb_hsync), .vs(mb_vsync), .hbl(mb_hblank), .vbl(mb_vblank),

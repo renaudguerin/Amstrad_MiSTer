@@ -15,7 +15,7 @@ wire ce;
 wire [23:0] rgb;
 wire [3:0] converted_meta;
 amstrad_video_color dut(.CLK_VIDEO(clk),.ce_16(ce16),.hq2x(hq),
-    .pixel_vblank(tag),
+    .pixel_vblank(tag), .plus_full_pixel(1'b0), .plus_full_vblank(1'b0),
     .pixel_rate_select(fs),.plus_mode(plus),.mode(mode),.mix(mix),
     .r4(r),.g4(g),.b4(b),.hs(meta[3]),.vs(meta[2]),.hbl(meta[1]),.vbl(meta[0]),
     .ce_pix(ce),.R_out(rgb[23:16]),.G_out(rgb[15:8]),.B_out(rgb[7:0]),
