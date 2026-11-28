@@ -3,6 +3,7 @@
 #define B6_BOUNDARY_LIBRARY
 #include "b6_video_boundary_test.cpp"
 #include <deque>
+#include <optional>
 
 namespace {
 // Palette packing, sprite size/priority and scroll semantics are the fixture's
@@ -79,10 +80,15 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
     uint8_t history=0,even=0,odd=0;
     bool history_valid=false,even_valid=false,odd_valid=false;
     std::deque<unsigned> pens;
-    // Existing output-mask contract: 15 native dots after raw HS. This
-    // emulator-derived alignment predates this fixture repair; it is not a
-    // silicon timing claim. Replay public HS input history independently,
-    // retaining nonuniform palette/scroll/sprite and final transport checks.
+    // The shifted Full byte carries DE from its accepted fetch. Follow it
+    // through word assembly and the even/odd serializer latches. Other
+    // bytes use the character's live DE.
+    bool retained_de=false;
+    std::optional<bool> fetched_de, low_de, high_de, even_de, odd_de;
+    // R2=42 puts HS inside the R1=44 display on active lines. A shifted
+    // Full pulse then enters the regular 15-dot mask one byte later.
+    bool previous_hs=false, shift_pulse=false;
+    uint8_t shifted_hs_history=0;
     std::deque<bool> horizontal_blank;
     constexpr unsigned blank_delay_dots = 15;
     // Expected values advance independently through each documented register.
@@ -99,7 +105,11 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
         const bool high=d.b6_bs,shift=d.b6_shift;
         const unsigned expected_byte=mode==0&&shift?(high?word&255:history):(high?word>>8:word&255);
         const bool byte_valid=!(mode==0&&shift&&!high&&!history_valid);
-        if(fetch&&mode==0&&shift&&high) {history=d.dbg_raw_de?word>>8:0;history_valid=true;}
+        if(fetch&&mode==0&&shift&&high) {
+            retained_de=d.dbg_raw_de;
+            history=retained_de?word>>8:0;
+            history_valid=true;
+        }
         const unsigned oldword=d.dbg_video_plus_vidword, oldbyte=d.dbg_video_vram_byte;
         unsigned assembled=oldword;
         if(d.dbg_video_cclk_p) assembled=(assembled&0xff00)|oldbyte;
@@ -109,6 +119,9 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
         const bool output_enable=d.b6_mixer_ce;
         if(output_enable) {final_rgb=mixer_input;final_valid=mi_valid;}
         mixer_input=gamma_output; mi_valid=go_valid;
+        const bool hs=d.b6_plus_hsync;
+        if(hs&&!previous_hs) shift_pulse=mode==0&&shift&&d.dbg_raw_de;
+        previous_hs=hs;
         if(ce) {
             gamma_output=gamma_input; go_valid=gi_valid;
             gamma_input=converted; gi_valid=converted_valid;
@@ -126,10 +139,11 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
             const unsigned delayed=scroll&&delayed_valid?pens[pens.size()-scroll]:pen;
             pens.push_back(pen);
             if(pens.size()>16) pens.pop_front();
-            const bool de=d.b6_plus_de;
+            const bool de=(dot<8?even_de:odd_de).value_or(d.b6_plus_de);
             const bool blank_valid=horizontal_blank.size()==blank_delay_dots;
             const bool blank=blank_valid&&horizontal_blank.front();
-            horizontal_blank.push_back(d.b6_plus_hsync);
+            horizontal_blank.push_back((hs&&!shift_pulse)||(shifted_hs_history&0x80));
+            shifted_hs_history=(shifted_hs_history<<1)|(hs&&shift_pulse);
             if(blank_valid) horizontal_blank.pop_front();
             const unsigned x=d.b6_plus_hp,y=d.b6_plus_line;
             const bool spr=sprites&&y>=40&&y<56&&((x>=100&&x<164)||(x>=700&&x<764));
@@ -150,10 +164,23 @@ Layers layers_run(unsigned mode,unsigned scroll,bool sprites) {
                 r.screen1+=de&&!blank&&!spr&&delayed;
             }
             // Input latches consume the OLD assembled word on this edge.
-            if(d.dbg_video_cclk_n) {even=oldword&255;even_valid=true;}
-            else if(dot==7) {odd=oldword>>8;odd_valid=true;}
+            if(d.dbg_video_cclk_n) {
+                even=oldword&255;
+                even_valid=true;
+                even_de=low_de;
+            } else if(dot==7) {
+                odd=oldword>>8;
+                odd_valid=true;
+                odd_de=high_de;
+            }
             rendered=expected_pixel;rendered_valid=pixel_valid;
             converted=expected_color;converted_valid=color_valid;
+        }
+        if(d.dbg_video_cclk_p) low_de=fetched_de;
+        if(d.dbg_video_cclk_n) high_de=fetched_de;
+        if(fetch) {
+            if(mode==0&&shift&&!high) fetched_de=retained_de;
+            else fetched_de.reset();
         }
         h.tick();
         if(fetch) {
