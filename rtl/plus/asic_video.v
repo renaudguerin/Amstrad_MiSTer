@@ -1333,7 +1333,7 @@ reg  [1:0] type4_previous_mode;
 reg  [1:0] type4_requested_mode;
 reg        type4_mode_pending;
 reg        type4_mixed_byte;
-reg        type3_mode2_exit_byte;
+reg        type3_mixed_byte;
 wire       short_mode_handoff = mode_hsync_history == 4'b0110 && pix_cnt == 4'd0;
 wire       type4_mode_start = type4_mode_pending && PIXEN && pix_cnt == 4'd2;
 
@@ -1396,7 +1396,7 @@ always @(posedge CLOCK) begin
 		type4_requested_mode <= 2'b00;
 		type4_mode_pending <= 1'b0;
 		type4_mixed_byte <= 1'b0;
-		type3_mode2_exit_byte <= 1'b0;
+		type3_mixed_byte <= 1'b0;
 	end
 	else if (SNA_LOAD) begin
 		// The settled header owns the decoder while the GA restores its
@@ -1404,12 +1404,13 @@ always @(posedge CLOCK) begin
 		mode_q <= SNA_MODE;
 		type4_mode_pending <= 1'b0;
 		type4_mixed_byte <= 1'b0;
-		type3_mode2_exit_byte <= 1'b0;
+		type3_mixed_byte <= 1'b0;
 	end
 	else if (MODE_UPDATE_EN) begin
 		type4_mixed_byte <= 1'b0;
-		type3_mode2_exit_byte <= !ASIC_40226 && short_mode_handoff &&
-		                         mode_q == 2'd2 && GAMODE == 2'd0;
+		type3_mixed_byte <= !ASIC_40226 && short_mode_handoff &&
+		                    ((mode_q == 2'd2 && GAMODE == 2'd0) ||
+		                     (mode_q == 2'd0 && GAMODE == 2'd2));
 		if (ASIC_40226 && mode_q != GAMODE && short_mode_handoff) begin
 			type4_previous_mode <= mode_q;
 			type4_requested_mode <= GAMODE;
@@ -1426,7 +1427,7 @@ always @(posedge CLOCK) begin
 	end
 	else if (PIXEN && pix_cnt == 4'd7) begin
 		type4_mixed_byte <= 1'b0;
-		type3_mode2_exit_byte <= 1'b0;
+		type3_mixed_byte <= 1'b0;
 	end
 end
 
@@ -1441,6 +1442,7 @@ wire [2:0] mode2_position = ASIC_40226 ? s + 3'd1 : s;
 wire [1:0] serializer_mode = type4_mode_start ? type4_requested_mode : mode_q;
 wire [2:0] mixed_mode2_position = s - (type4_previous_mode == 2'd1 ? 3'd1 : 3'd2);
 wire [3:0] type3_first_residual = {1'b0, vbyte[2], vbyte[0], vbyte[4]};
+wire [2:0] type3_mode2_entry_bit = s[2] ? 3'd6 - {1'b0, s[1:0]} : 3'd5;
 
 reg [3:0] pen_nib;
 always @(*) begin
@@ -1461,17 +1463,25 @@ always @(*) begin
 	endcase
 	// The first unblanked dot used the outgoing mode. The incoming
 	// decoder now sees the rest of an already shifting byte (FR §9.3.4.5).
-	// MODEL LIMIT (B26): AmSpirit's original BI two-character HSYNC
-	// retains Mode 2's cursor into the first Mode 0 byte. The first dot
-	// also depends on the old Mode 2 bit. The Type 3 dot phase is open in
-	// French ACCC v1.11 §9.3.4.1 p.54. Subsequent bytes use steady Mode 0.
-	if (type3_mode2_exit_byte && !pix_cnt[3]) begin
-		case (s)
-			3'd0: pen_nib = vbyte[5] ?
-				(type3_first_residual == 0 ? 4'd1 : type3_first_residual) : 4'd0;
-			3'd1: pen_nib = type3_first_residual;
-			default: pen_nib = {1'b0, vbyte[1], 1'b0, vbyte[3]};
-		endcase
+	if (type3_mixed_byte && !pix_cnt[3]) begin
+		if (serializer_mode == 2'd2) begin
+			// MODEL LIMIT (B26): the Plus AR one-hot peer probe
+			// yields B5 for four dots, then B6/B5/B4/B3. The
+			// 40226 has its own documented sequence (§9.3.4.5.2,
+			// pp.69–70). The Plus physical dot phase is unmeasured.
+			pen_nib = {3'b000, vbyte[type3_mode2_entry_bit]};
+		end else begin
+			// MODEL LIMIT (B26): the original BI peer retains
+			// Mode 2's cursor into the first Mode 0 byte. Its first
+			// dot also depends on the old Mode 2 bit. French ACCC
+			// v1.11 §9.3.4.1 p.54 leaves the Type 3 dot phase open.
+			case (s)
+				3'd0: pen_nib = vbyte[5] ?
+					(type3_first_residual == 0 ? 4'd1 : type3_first_residual) : 4'd0;
+				3'd1: pen_nib = type3_first_residual;
+				default: pen_nib = {1'b0, vbyte[1], 1'b0, vbyte[3]};
+			endcase
+		end
 	end
 	if (type4_mode_start || type4_mixed_byte) begin
 		if (type4_previous_mode == 2'd2) begin
