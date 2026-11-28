@@ -1283,7 +1283,48 @@ end
 // Its live owner mux still exposes one pre-edge stale dot to gamma/mixer;
 // Raw has that same consumer exposure. This limits it, not end-to-end removal.
 wire crt_pixel_invalidate = reset | sna_load | sync_filter_commit | ~rgb_owner_match;
-assign pixel_vblank = crt_response_active ? (crt_raw_vblank | crt_pixel_invalidate) : source_pixel_vblank;
+// MODEL LIMIT (B26): In Full Plus video, keep the aligned blank tag
+// through the next short raw HS interval. SHAKER DT 02EF at three R9
+// phases needs this visual handoff in AmSpirit. The physical ASIC blank
+// count and the alternate video profiles retain their original timing.
+localparam [6:0] FULL_TAIL_AGE_LIMIT = 7'd65;
+reg full_tail_old_hs, full_tail_old_tag, full_tail_short_pair, full_tail_pending;
+reg [6:0] full_tail_age, full_tail_period;
+wire full_tail_hfall = full_tail_old_hs && !hs_sel;
+wire [6:0] full_tail_age_next = full_tail_age == FULL_TAIL_AGE_LIMIT ?
+                                FULL_TAIL_AGE_LIMIT : full_tail_age + 1'b1;
+// The blank tag is published after the same edge that captures HS.
+// At the next pixel sample, one elapsed interval is still age zero.
+wire full_tail_in_period = !full_tail_hfall && full_tail_age_next < full_tail_period;
+wire full_tail_begin = full_tail_old_tag && !source_pixel_vblank &&
+                       full_tail_short_pair && full_tail_age == 0;
+wire full_tail_blank = plus_full_video && full_tail_in_period &&
+                       (full_tail_begin || full_tail_pending);
+always @(posedge clk) begin
+    if (!plus_full_video) begin
+        full_tail_old_hs <= hs_sel;
+        full_tail_old_tag <= 0;
+        full_tail_short_pair <= 0;
+        full_tail_pending <= 0;
+        full_tail_age <= FULL_TAIL_AGE_LIMIT;
+        full_tail_period <= FULL_TAIL_AGE_LIMIT;
+    end else if (ce_16) begin
+        full_tail_old_hs <= hs_sel;
+        full_tail_old_tag <= source_pixel_vblank;
+        if (full_tail_hfall) begin
+            full_tail_age <= 0;
+            full_tail_period <= full_tail_age_next;
+            full_tail_short_pair <= full_tail_age_next != FULL_TAIL_AGE_LIMIT &&
+                                    full_tail_age_next == full_tail_period;
+        end else begin
+            full_tail_age <= full_tail_age_next;
+        end
+        if (!full_tail_in_period) full_tail_pending <= 0;
+        else if (full_tail_begin) full_tail_pending <= 1;
+    end
+end
+assign pixel_vblank = crt_response_active ? (crt_raw_vblank | crt_pixel_invalidate) :
+                                           (source_pixel_vblank | full_tail_blank);
 
 // Sync filter modes.  crt_filter does two separable jobs: it regenerates a
 // stable HSYNC/VSYNC so the scaler can lock even when the CRTC emits
