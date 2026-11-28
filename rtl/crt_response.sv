@@ -392,7 +392,8 @@ module crt_response_vertical (
     logic saw_real_vs, active, synthetic_vs, synthetic_vblank;
     logic stop_pending, ignore_real_vs, await_real_frame;
     logic [8:0] ga_vs_age;
-    logic ga_vs_in_window, rejected_ga_vs;
+    logic old_ga_vs, old_raw_vs, short_in_epoch;
+    logic rejected_ga_vs, consecutive_short_vs;
 
     wire [1:0] hsync = {hs, raw_hs};
     wire [1:0] rise = hsync & ~old_hs;
@@ -407,7 +408,7 @@ module crt_response_vertical (
     wire unsuitable = !enable || real_v || source_missing || !h_locked;
     wire start_frame = rise[1] && !unsuitable &&
         (active ? (!stop_pending && line == LAST_LINE) :
-                  (saw_real_vs && (allow_sync_absence || rejected_ga_vs) &&
+                  (saw_real_vs && (allow_sync_absence || consecutive_short_vs) &&
                    quiet_lines == QUIET_LINES - 1'b1));
     assign acq_vs = active ? synthetic_vs : (vs && !ignore_real_vs);
     assign acq_vblank = active ? synthetic_vblank : (vblank || await_real_frame);
@@ -435,10 +436,15 @@ module crt_response_vertical (
             ignore_real_vs <= 0;
             await_real_frame <= 0;
             ga_vs_age <= 0;
-            ga_vs_in_window <= 0;
+            old_ga_vs <= ga_vs;
+            old_raw_vs <= raw_vs;
+            short_in_epoch <= 0;
             rejected_ga_vs <= 0;
+            consecutive_short_vs <= 0;
         end else if (ce_16) begin
             old_hs <= hsync;
+            old_ga_vs <= ga_vs;
+            old_raw_vs <= raw_vs;
             if (!enable) begin
                 stable_hs <= 0;
                 dot_age[0] <= LINE_DOTS;
@@ -457,24 +463,40 @@ module crt_response_vertical (
                 if (vs && raw_vs) saw_real_vs <= 1;
             end
 
-            // Keep normally acquired VS as pass-through. Change the
-            // watchdog's interpretation only after observing the whole
-            // short shaped pulse within the blanked raw CRTC episode.
-            if (!enable || source_missing || !stable_hs[1]) begin
+            // A Plus entry needs short pulses in two successive raw
+            // vertical episodes. One incomplete pulse after relock
+            // cannot establish a rejected shaped-VS source.
+            if (!raw_vs) begin
+                short_in_epoch <= 0;
+                if (old_raw_vs && !short_in_epoch) begin
+                    rejected_ga_vs <= 0;
+                    consecutive_short_vs <= 0;
+                end
+            end
+
+            if (!enable || source_missing || !stable_hs[1] ||
+                (ga_vs && !vertical_window)) begin
                 ga_vs_age <= 0;
-                ga_vs_in_window <= 0;
+                short_in_epoch <= 0;
                 rejected_ga_vs <= 0;
+                consecutive_short_vs <= 0;
             end else if (ga_vs) begin
-                if (ga_vs_age < GA_VS_MIN_DOTS)
+                // Count only after observing a rise while locked.
+                // Relock during a high pulse must wait for the next rise.
+                if ((!old_ga_vs || ga_vs_age != 0) && ga_vs_age < GA_VS_MIN_DOTS)
                     ga_vs_age <= ga_vs_age + 1'b1;
-                ga_vs_in_window <= vertical_window &&
-                                   (ga_vs_age == 0 || ga_vs_in_window);
-                if (ga_vs_long) rejected_ga_vs <= 0;
+                if (ga_vs_long) begin
+                    rejected_ga_vs <= 0;
+                    consecutive_short_vs <= 0;
+                end
             end else begin
-                if (ga_vs_age != 0 && ga_vs_age < GA_VS_MIN_DOTS)
-                    rejected_ga_vs <= saw_real_vs && ga_vs_in_window;
+                if (ga_vs_age != 0 && ga_vs_age < GA_VS_MIN_DOTS && saw_real_vs) begin
+                    if (rejected_ga_vs && !short_in_epoch)
+                        consecutive_short_vs <= 1;
+                    rejected_ga_vs <= 1;
+                    short_in_epoch <= raw_vs;
+                end
                 ga_vs_age <= 0;
-                ga_vs_in_window <= 0;
             end
 
             // A real aligned pulse seen before handoff is unavailable in
@@ -496,7 +518,8 @@ module crt_response_vertical (
             end
 
             if (unsuitable) quiet_lines <= 0;
-            else if (!active && saw_real_vs && rise[1] && !start_frame)
+            else if (!active && saw_real_vs && rise[1] && !start_frame &&
+                     quiet_lines != QUIET_LINES - 1'b1)
                 quiet_lines <= quiet_lines + 1'b1;
 
             if (start_frame) begin
