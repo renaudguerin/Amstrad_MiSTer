@@ -46,7 +46,7 @@ module asic_blank_alignment_top (
     asic_video restore_leaf (
         .CLOCK(clk), .CLKEN(life_ce), .nRESET(life_reset_n),
         .ENABLE(1'b0), .nCS(1'b1), .R_nW(1'b1), .RS(1'b0), .DI(8'd0),
-        .HSYNC(life_raw_hs), .VIDEO_HSYNC(life_raw_hs), .FRAME_FIELD(), .SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
+        .HSYNC(life_raw_hs), .VIDEO_HSYNC(life_raw_hs), .PROGRESSIVE(), .FRAME_FIELD(), .SPLT(8'd0), .SSA(14'd0), .SSCR(8'd0),
         .PIXEN(life_pix), .VIDEOD(16'd0), .VIDEO_BYTE_DE(4'd0), .VIDEO_BYTE_CLEAR(1'b0), .VIDEO_DE_SAMPLE(), .HSYNC_WRAP_DISPLAY(), .HSYNC_WRAP_REARM(), .MODE_UPDATE_EN(1'b0), .GAMODE(2'd1),
         .BORDER_I(5'd11), .INKR_I({16{5'd11}}),
         .RGB_R(red), .RGB_G(green), .RGB_B(blue),

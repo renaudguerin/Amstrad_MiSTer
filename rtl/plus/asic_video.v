@@ -72,6 +72,7 @@ module asic_video #(
 	output           DE,
 	output           FIELD,
 	output           FRAME_FIELD,
+	output           PROGRESSIVE, // Current R8 excludes both interlace modes
 	output    [13:0] MA,
 	output     [4:0] RA,
 
@@ -229,6 +230,7 @@ reg [1:0] R8_skew;         // bits 5:4, SKEW-DISPTMG (types 0/3/4, §19.1)
 // ParityC9 on entry as required by §19.8.4; §19.6.4/§19.7.3 additionally give
 // it the CRTC3/4 even-frame line and MID-VSYNC phase.
 reg [1:0] R8_interlace;
+assign PROGRESSIVE = R8_interlace == 2'b00;
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;

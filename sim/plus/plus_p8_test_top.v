@@ -612,7 +612,7 @@ module plus_p8_test_top (
 		.DI(video_crtc_din),
 		.DO(video_crtc_dout),
 
-		.HSYNC(video_hs), .VIDEO_HSYNC(video_hs),
+		.HSYNC(video_hs), .VIDEO_HSYNC(video_hs), .PROGRESSIVE(),
 		.VSYNC(video_vs),
 		.FIELD(),
 		.FRAME_FIELD(),
