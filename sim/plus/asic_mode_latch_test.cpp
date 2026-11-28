@@ -111,12 +111,11 @@ bool restore_running_pulse() {
     return b.score("post-restore-fresh-pulse", 1) && pass;
 }
 
-// Original Plus SHAKER BI uses the first byte of a qualified Mode 2
-// to 0 transition. F6 emits a different residual pen from its ordinary
-// Mode 0 decode. The asymmetric A9 following byte pins byte handoff.
-bool mixed_byte(unsigned pulse, uint8_t first_byte, const std::array<unsigned,16>& expected) {
-    Bench b(pulse, false, 0xa900 | first_byte, 2);
-    b.request_mode(0);
+// The asymmetric A9 following byte pins byte handoff in both directions.
+bool mixed_byte(unsigned pulse, unsigned from, unsigned to, uint8_t first_byte,
+                const std::array<unsigned,16>& expected) {
+    Bench b(pulse, false, 0xa900 | first_byte, from);
+    b.request_mode(to);
     b.until([&] { return bool(b.d.hs); });
     b.until([&] { return !b.d.hs; });
     b.until([&] { return bool(b.d.mode_event); });
@@ -127,7 +126,8 @@ bool mixed_byte(unsigned pulse, uint8_t first_byte, const std::array<unsigned,16
         b.until([&] { return bool(b.d.dot); });
         b.tick();
         if (b.d.pen_o != expected[i]) {
-            std::cout << "mixed-byte width=" << pulse << " dot=" << i
+            std::cout << "mixed-byte " << from << " to " << to
+                      << " width=" << pulse << " dot=" << i
                       << " got=" << unsigned(b.d.pen_o) << " expected=" << expected[i] << '\n';
             ++wrong;
         }
@@ -185,9 +185,23 @@ int main(int argc, char** argv) {
                 "after-short-fall", "no-hsync"})
             pass = exercise(name) && pass;
         pass = restore_running_pulse() && pass;
-        pass = mixed_byte(2, 0xf6, {5,5,4,4,4,4,4,4, 7,7,7,7,8,8,8,8}) && pass;
-        pass = mixed_byte(2, 0x28, {1,0,1,1,1,1,1,1, 7,7,7,7,8,8,8,8}) && pass;
-        pass = mixed_byte(3, 0xf6, {13,13,13,13,7,7,7,7, 7,7,7,7,8,8,8,8}) && pass;
+        // Original Plus SHAKER BI supplies the short Mode 2 to 0 cases.
+        pass = mixed_byte(2, 2, 0, 0xf6, {5,5,4,4,4,4,4,4, 7,7,7,7,8,8,8,8}) && pass;
+        pass = mixed_byte(2, 2, 0, 0x28, {1,0,1,1,1,1,1,1, 7,7,7,7,8,8,8,8}) && pass;
+        pass = mixed_byte(3, 2, 0, 0xf6, {13,13,13,13,7,7,7,7, 7,7,7,7,8,8,8,8}) && pass;
+        // The original Plus SHAKER AR right checker seam uses 55/AA on
+        // alternating rasters. The peer keeps the leading Mode 2 pen for
+        // four dots, then emits four mixed-byte pens before the next byte.
+        pass = mixed_byte(2, 0, 2, 0x55, {0,0,0,0,1,0,1,0, 1,0,1,0,1,0,0,1}) && pass;
+        pass = mixed_byte(2, 0, 2, 0xaa, {1,1,1,1,0,1,0,1, 1,0,1,0,1,0,0,1}) && pass;
+        // The peer's one-hot byte probe distinguishes B5 from B7, which
+        // the alternating checker alone cannot do.
+        pass = mixed_byte(2, 0, 2, 0x20, {1,1,1,1,0,1,0,0, 1,0,1,0,1,0,0,1}) && pass;
+        pass = mixed_byte(2, 0, 2, 0x80, {0,0,0,0,0,0,0,0, 1,0,1,0,1,0,0,1}) && pass;
+        pass = mixed_byte(2, 0, 2, 0x40, {0,0,0,0,1,0,0,0, 1,0,1,0,1,0,0,1}) && pass;
+        pass = mixed_byte(2, 0, 2, 0x10, {0,0,0,0,0,0,1,0, 1,0,1,0,1,0,0,1}) && pass;
+        pass = mixed_byte(2, 0, 2, 0x08, {0,0,0,0,0,0,0,1, 1,0,1,0,1,0,0,1}) && pass;
+        pass = mixed_byte(3, 0, 2, 0x55, {0,1,0,1,0,1,0,1, 1,0,1,0,1,0,0,1}) && pass;
         std::cout << "asic-mode-latch: " << (pass ? "PASS" : "FAIL") << '\n';
         return pass ? 0 : 1;
     } catch (const std::exception& error) {

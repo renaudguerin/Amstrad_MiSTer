@@ -307,7 +307,9 @@ module crtc_type4_blank_test;
 
 		// FR §9.3.4.5.2 p.70: Mode 0 supplies its full first pen.
 		verify_mode_change(0, 1, 2, 0, 8'h2b, '{14,2,2,0,0,3,3,2,2,3}, 12'h0f0);
-		verify_mode_change(0, 2, 2, 0, 8'ha6, '{13,1,0,1,0,0,0,1,1,0}, 12'hf00);
+		// The original Plus AR probe places A6 bit 5 on this second
+		// mixed dot. The 40226 still starts with the full Mode 0 pen.
+		verify_mode_change(0, 2, 2, 0, 8'ha6, '{13,1,0,1,0,0,0,1,1,0}, TEST_RGB[1]);
 		verify_mode_change(0, 3, 2, 0, 8'ha6, '{13,1,1,2,2,2,2,2,2,2}, 12'h00f);
 		// FR §9.3.4.5.3 p.71: Mode 1 reuses the second pair, then
 		// takes later pens from the portion of the byte still shifting.
