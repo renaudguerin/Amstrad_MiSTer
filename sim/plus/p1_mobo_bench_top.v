@@ -150,6 +150,8 @@ module p1_mobo_bench_top (
 		.hsync(hsync_o),
 		.vsync(vsync_o),
 		.field(vsync_field),
+		.plus_full_video(),
+		.plus_full_vblank(),
 
 		.native_cadence(),
 		.vram_din(16'd0),

@@ -121,6 +121,8 @@ module b8_palette_bench_top (
 		.hsync(),
 		.vsync(),
 		.field(),
+		.plus_full_video(),
+		.plus_full_vblank(),
 
 		.vram_din(16'd0),
 		.vram_addr(),

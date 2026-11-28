@@ -140,6 +140,8 @@ module ssm_provider_top #(parameter CRTC_KIND=0) (
 `endif
  .raw_crt(),
  .pixel_vblank(),
+ .plus_full_video(),
+ .plus_full_vblank(),
  .vram_din('0),
  .vram_addr(),
  .rom_map('0),

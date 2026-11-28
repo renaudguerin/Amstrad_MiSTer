@@ -211,6 +211,8 @@ module p10_dma_mobo_test_top (
 		.hsync(hsync),
 		.vsync(vsync),
 		.field(field),
+		.plus_full_video(),
+		.plus_full_vblank(),
 
 		.vram_din(vram_din_i),
 		.vram_addr(vram_addr),

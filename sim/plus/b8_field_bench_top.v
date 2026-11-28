@@ -125,6 +125,8 @@ module b8_field_bench_top (
 		.vsync(mb_vsync),
 		.field(mb_field),
 		.frame_field(vga_f1),
+		.plus_full_video(),
+		.plus_full_vblank(),
 
 		.native_cadence(),
 		.vram_din(16'd0),
