@@ -8,7 +8,7 @@ module amstrad_video_color (
     // B6 raw vertical-blank tag, sampled by the motherboard on the native
     // dot enable beside the pixel it belongs to
     // (hardware observations).
-    input pixel_vblank,
+    input pixel_vblank, plus_full_pixel, plus_full_vblank,
     input [1:0] mode,
     input [2:0] mix,
     input [3:0] r4, g4, b4,
@@ -114,12 +114,20 @@ end
 // pixel.  Masking after conversion is what makes this exact zero: a classic
 // force-blank DAC pair is a calibrated near-black entry, not 24-bit zero, and
 // the horizontal force blank deliberately keeps that native rendering.
-reg vbl_mask;
+reg vbl_mask, plus_full_rgb;
 always @(posedge CLK_VIDEO) begin
     if (ce_pix) vbl_mask <= pixel_vblank;
+    if (!plus_full_pixel) plus_full_rgb <= 1'b0;
+    else if (ce_pix) plus_full_rgb <= 1'b1;
 end
 
-assign R_out = vbl_mask ? 8'd0 : (plus_mode ? plus_rgb[23:16] : R);
-assign G_out = vbl_mask ? 8'd0 : (plus_mode ? plus_rgb[15:8] : G);
-assign B_out = vbl_mask ? 8'd0 : (plus_mode ? plus_rgb[7:0] : B);
+// Full eligibility belongs to the registered RGB sample. A live profile
+// commit can precede both the presentation delay and the adaptive RGB latch.
+// Invalidation also suppresses the old sample before the next pixel enable.
+// The aligned tag carries the established Gate Array release to the sink.
+wire vertical_pixel_blank = vbl_mask |
+    (plus_mode && plus_full_pixel && plus_full_rgb && plus_full_vblank);
+assign R_out = vertical_pixel_blank ? 8'd0 : (plus_mode ? plus_rgb[23:16] : R);
+assign G_out = vertical_pixel_blank ? 8'd0 : (plus_mode ? plus_rgb[15:8] : G);
+assign B_out = vertical_pixel_blank ? 8'd0 : (plus_mode ? plus_rgb[7:0] : B);
 endmodule

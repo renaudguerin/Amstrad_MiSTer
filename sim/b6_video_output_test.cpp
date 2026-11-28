@@ -18,6 +18,7 @@ struct Bench {
     unsigned first_active_dot=0;
     Bench() {
         d.ce_16=0; d.native_cadence=0; d.raw_crt=0; d.pixel_vblank=0; d.plus_mode=1;
+        d.plus_full_pixel=0; d.plus_full_vblank=0;
         d.mode=0; d.scale=0; d.ar=0; d.integer_scale=0; d.mix=0;
         d.r4=13; d.g4=7; d.b4=2; d.hs=0; d.vs=0; d.hbl=1; d.vbl=1;
         d.pixel_rate_select=0; d.forced_scandoubler=0; d.field_in=0;

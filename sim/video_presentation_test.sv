@@ -8,14 +8,17 @@ module video_presentation_test;
     logic [1:0] mode = 0;
     logic [11:0] rgb = 0;
     logic override_valid = 0;
+    logic plus_full = 0, plus_full_vblank = 0;
     wire [1:0] out_mode;
     wire [11:0] out_rgb;
     wire out_plus, out_raw, out_native, out_tag, out_field, out_frame;
+    wire out_plus_full;
     wire out_hs, out_vs, out_hb, out_vb, out_progress;
     amstrad_video_presentation presentation (
         .clk(clk), .rgb_in(rgb), .full_phase_rgb(12'hd9a), .full_phase_valid(override_valid),
         .plus_in(plus), .mode_in(mode), .raw_crt_in(raw), .native_cadence_in(1'b0),
         .pixel_vblank_in(tag), .field_in(field), .frame_field_in(frame_field),
+        .plus_full_in(plus_full), .plus_full_out(out_plus_full),
         .hs_in(hs), .vs_in(vs), .hblank_in(hb), .vblank_in(vb), .progress_in(progress_pixel),
         .rgb_out(out_rgb), .plus_out(out_plus), .mode_out(out_mode), .raw_crt_out(out_raw),
         .native_cadence_out(out_native), .pixel_vblank_out(out_tag), .field_out(out_field),
@@ -37,6 +40,8 @@ module video_presentation_test;
         amstrad_video_output video (
             .CLK_VIDEO(clk), .ce_16(ce16), .raw_crt((lane == 1) ? out_raw : raw),
             .native_cadence((lane == 1) ? out_native : 1'b0), .pixel_vblank((lane == 1) ? out_tag : tag),
+            .plus_full_vblank(lane == 1 && plus_full_vblank),
+            .plus_full_pixel(lane == 1 ? out_plus_full : plus_full),
             .plus_mode((lane == 1) ? out_plus : plus), .mode((lane == 1) ? out_mode : mode),
             .scale(2'd0), .ar(2'd0), .integer_scale(2'd0), .mix(3'd0),
             .r4(lane_rgb[11:8]), .g4(lane_rgb[7:4]), .b4(lane_rgb[3:0]),
@@ -60,6 +65,18 @@ module video_presentation_test;
     video_t history [0:7];
     logic delayed_f1 [0:7];
     integer count;
+    task automatic sample_clocks(input int clocks);
+        count = 0;
+        for (int i = 0; i < clocks; i++) begin
+            ce16 = i[1:0] == 0;
+            #1;
+            if (path_output[1].obs_ce) count++;
+            clk = 1;
+            #1;
+            clk = 0;
+        end
+    endtask
+
     initial begin
         for (int frame = 0; frame < 8; frame++) begin
             for (int y = 0; y < 24; y++) begin
@@ -116,6 +133,74 @@ module video_presentation_test;
         end
         if (out_rgb != 12'hd9a)
             $fatal(1, "qualified phase tap missed an active packet");
+
+        // Plus Full can assert its Gate Array blank while the incoming
+        // filtered field still has DE and the displayed tag is in flight.
+        // Keep a known lit pixel on both sides of the mask's lifetime.
+        override_valid = 0;
+        raw = 0;
+        plus = 1;
+        mode = 0;
+        tag = 0;
+        // Two frame starts transfer the new fastest mode through the
+        // previous-frame cadence selector. This leaves one CE per 16 clocks.
+        repeat (2) begin
+            vs = 0;
+            sample_clocks(48);
+            vs = 1;
+            sample_clocks(48);
+        end
+        vs = 0;
+        sample_clocks(48);
+        if (count != 3)
+            $fatal(1, "Plus profile handoff did not reach the slowest adaptive rate");
+        if (path_output[1].obs_rgb !== 24'h113355 || !path_output[1].vga_de)
+            $fatal(1, "Plus blank edge control is not visible");
+
+        // Live Full eligibility can follow a Raw Pixels commit while the
+        // presentation delay and colour latch still hold the older pixel.
+        plus_full = 1;
+        plus_full_vblank = 1;
+        sample_clocks(8);
+        #1;
+        if (!out_plus_full || path_output[1].obs_rgb !== 24'h113355)
+            $fatal(1, "Plus Full onset blacked an outgoing Raw Pixels sample");
+        plus_full_vblank = 0;
+        sample_clocks(48);
+
+        plus_full_vblank = 1;
+        #1;
+        if (path_output[1].obs_rgb !== 24'd0 || path_output[1].obs_vb)
+            $fatal(1, "Plus Full Gate Array blank onset missed the active pixel");
+        tag = 1;
+        sample_clocks(48);
+        plus_full_vblank = 0;
+        #1;
+        if (path_output[1].obs_rgb !== 24'd0)
+            $fatal(1, "Plus Full Gate Array release lost the aligned trailing tag");
+        tag = 0;
+        sample_clocks(48);
+        if (path_output[1].obs_rgb !== 24'h113355)
+            $fatal(1, "Plus blank release retained a stale mask");
+
+        // A one-clock invalidation can represent snapshot apply while
+        // staying in Full. The new GA blank must wait for the new pixel.
+        plus_full = 0;
+        ce16 = 0;
+        #1;
+        if (path_output[1].obs_ce)
+            $fatal(1, "Plus blank invalidation must fall between pixel enables");
+        clk = 1;
+        #1;
+        clk = 0;
+        plus_full = 1;
+        plus_full_vblank = 1;
+        #1;
+        if (path_output[1].obs_rgb !== 24'h113355)
+            $fatal(1, "Plus Full blank reused an invalidated RGB sample");
+        sample_clocks(48);
+        if (path_output[1].obs_rgb !== 24'd0)
+            $fatal(1, "Plus Full blank failed to rearm on a new RGB sample");
         $display("PASS fixed presentation through adaptive sampling, FIELD and Raw CRT");
         $finish;
     end
