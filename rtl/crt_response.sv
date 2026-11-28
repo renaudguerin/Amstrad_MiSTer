@@ -361,3 +361,209 @@ module crt_response (
         end
     end
 endmodule
+
+// Provisional loss-of-lock presentation for the private V1 mode. Original
+// B4 019A retains 1024-dot HS and source RGB without a VS pulse. AmSpirit
+// Lite 1.18.3 completes 350-line displays with rows 55..325 visible.
+// The watchdog and first synthetic line are policy, not measured CRT phase.
+module crt_response_vertical (
+    input  logic clk, ce_16, reset, enable, source_missing,
+    input  logic allow_sync_absence, owner_changed,
+    input  logic raw_hs, raw_vs, ga_vs, hs, vs, hblank, vblank,
+    output logic acq_vs, acq_vblank, synthetic_busy
+);
+    localparam logic [10:0] LINE_DOTS = 11'd1024;
+    // 4608 nominal lines exceed the 128*32+31 static register span.
+    // Dynamic software can still produce longer valid intervals.
+    localparam logic [12:0] QUIET_LINES = 13'd4608;
+    localparam logic [8:0] LAST_LINE = 9'd349;
+    localparam logic [10:0] PULSE_LAST_DOT = 11'd2047;
+    // Experimental receiver threshold. Original DT 02FD has 8 us
+    // of shaped GA VS, while 02FC and ordinary modes have 325/256 us.
+    // Neither the exact CRT threshold nor its hysteresis is measured.
+    localparam logic [8:0] GA_VS_MIN_DOTS = 9'd256;
+
+    logic [1:0] old_hs, stable_hs;
+    logic [10:0] dot_age [0:1];
+    logic [12:0] quiet_lines;
+    logic [8:0] line;
+    logic [10:0] pulse_left;
+    logic [2:0] output_drain;
+    logic saw_real_vs, active, synthetic_vs, synthetic_vblank;
+    logic stop_pending, ignore_real_vs, await_real_frame;
+    logic [8:0] ga_vs_age;
+    logic old_ga_vs, old_raw_vs, short_in_epoch;
+    logic rejected_ga_vs, consecutive_short_vs;
+
+    wire [1:0] hsync = {hs, raw_hs};
+    wire [1:0] rise = hsync & ~old_hs;
+    wire vertical_window = raw_vs && vblank;
+    wire ga_vs_long = ga_vs && ga_vs_age >= GA_VS_MIN_DOTS - 1'b1;
+    wire real_v = rejected_ga_vs ? ga_vs_long || (ga_vs && !vertical_window)
+                                  : vs || raw_vs || ga_vs;
+    // Shaping bursts in a rejected vertical episode can disturb raw H
+    // even after GA VS falls. Aligned H must remain locked throughout.
+    wire h_locked = stable_hs[1] &&
+                    (stable_hs[0] || (rejected_ga_vs && vertical_window));
+    wire unsuitable = !enable || owner_changed || real_v || source_missing || !h_locked;
+    wire start_frame = rise[1] && !unsuitable &&
+        (active ? (!stop_pending && line == LAST_LINE) :
+                  (saw_real_vs && (allow_sync_absence || consecutive_short_vs) &&
+                   quiet_lines == QUIET_LINES - 1'b1));
+    assign acq_vs = active ? synthetic_vs : (vs && !ignore_real_vs);
+    assign acq_vblank = active ? synthetic_vblank : (vblank || await_real_frame);
+    // Retain native cadence until the converter/mixer has carried the last
+    // admitted pulse sample. An overlapping aligned pulse must also finish
+    // before another mode can select the undelayed real timing.
+    assign synthetic_busy = synthetic_vs || (output_drain != 0) ||
+                            (active && vs) || ignore_real_vs;
+
+    // Acquisition history belongs to the live source. Clear it even when
+    // the owner changes between native dot strobes.
+    always_ff @(posedge clk) begin
+        if (reset || owner_changed) begin
+            old_hs <= hsync;
+            stable_hs <= 0;
+            dot_age[0] <= LINE_DOTS;
+            dot_age[1] <= LINE_DOTS;
+            quiet_lines <= 0;
+            saw_real_vs <= 0;
+            ga_vs_age <= 0;
+            old_ga_vs <= ga_vs;
+            old_raw_vs <= raw_vs;
+            short_in_epoch <= 0;
+            rejected_ga_vs <= 0;
+            consecutive_short_vs <= 0;
+        end else if (ce_16) begin
+            old_hs <= hsync;
+            old_ga_vs <= ga_vs;
+            old_raw_vs <= raw_vs;
+            if (!enable) begin
+                stable_hs <= 0;
+                dot_age[0] <= LINE_DOTS;
+                dot_age[1] <= LINE_DOTS;
+                saw_real_vs <= 0;
+            end else begin
+                for (int i = 0; i < 2; i++) begin
+                    if (rise[i]) begin
+                        stable_hs[i] <= dot_age[i] == LINE_DOTS - 1'b1;
+                        dot_age[i] <= 0;
+                    end else if (dot_age[i] != LINE_DOTS) begin
+                        dot_age[i] <= dot_age[i] + 1'b1;
+                        if (dot_age[i] == LINE_DOTS - 1'b1) stable_hs[i] <= 0;
+                    end
+                end
+                if (vs && raw_vs) saw_real_vs <= 1;
+            end
+
+            // A Plus entry needs short pulses in two successive raw
+            // vertical episodes. One incomplete pulse after relock
+            // cannot establish a rejected shaped-VS source.
+            if (!raw_vs) begin
+                short_in_epoch <= 0;
+                if (old_raw_vs && !short_in_epoch) begin
+                    rejected_ga_vs <= 0;
+                    consecutive_short_vs <= 0;
+                end
+            end
+
+            if (!enable || source_missing || !stable_hs[1] ||
+                (ga_vs && !vertical_window)) begin
+                ga_vs_age <= 0;
+                short_in_epoch <= 0;
+                rejected_ga_vs <= 0;
+                consecutive_short_vs <= 0;
+            end else if (ga_vs) begin
+                // Count only after observing a rise while locked.
+                // Relock during a high pulse must wait for the next rise.
+                if ((!old_ga_vs || ga_vs_age != 0) && ga_vs_age < GA_VS_MIN_DOTS)
+                    ga_vs_age <= ga_vs_age + 1'b1;
+                if (ga_vs_long) begin
+                    rejected_ga_vs <= 0;
+                    consecutive_short_vs <= 0;
+                end
+            end else begin
+                if (ga_vs_age != 0 && ga_vs_age < GA_VS_MIN_DOTS && saw_real_vs) begin
+                    if (rejected_ga_vs && !short_in_epoch)
+                        consecutive_short_vs <= 1;
+                    rejected_ga_vs <= 1;
+                    short_in_epoch <= raw_vs;
+                end
+                ga_vs_age <= 0;
+            end
+
+            if (unsuitable) quiet_lines <= 0;
+            else if (!active && saw_real_vs && rise[1] && !start_frame &&
+                     quiet_lines != QUIET_LINES - 1'b1)
+                quiet_lines <= quiet_lines + 1'b1;
+        end
+    end
+
+    // A live owner change retires at the same blanking boundary as loss of
+    // lock. An already emitted pulse and its drain keep their full length.
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            active <= 0;
+            line <= 0;
+            synthetic_vs <= 0;
+            synthetic_vblank <= 1;
+            pulse_left <= 0;
+            output_drain <= 0;
+            stop_pending <= 0;
+            ignore_real_vs <= 0;
+            await_real_frame <= 0;
+        end else if (ce_16) begin
+
+            // A real aligned pulse seen before handoff is unavailable in
+            // full. Suppress it through its falling edge and keep DE blank
+            // until a complete real VS can start the next acquisition.
+            ignore_real_vs <= vs && (active || ignore_real_vs);
+            if (await_real_frame && !active && vs && !ignore_real_vs && (hblank || vblank))
+                await_real_frame <= 0;
+
+            // Commit the full width when the synthetic pulse opens. Lost
+            // horizontal edges cannot lengthen or truncate an admitted pulse.
+            if (synthetic_vs && pulse_left == 0) begin
+                synthetic_vs <= 0;
+                output_drain <= 3'd4;
+            end else if (synthetic_vs) begin
+                pulse_left <= pulse_left - 1'b1;
+            end else if (output_drain != 0) begin
+                output_drain <= output_drain - 1'b1;
+            end
+
+            if (start_frame) begin
+                active <= 1;
+                stop_pending <= 0;
+                await_real_frame <= 0;
+                line <= 0;
+                synthetic_vs <= 1;
+                pulse_left <= PULSE_LAST_DOT;
+                synthetic_vblank <= 1;
+            end else if (active) begin
+                if (stop_pending || unsuitable) begin
+                    stop_pending <= 1;
+                    // Hold the current visible row until its HBLANK. Keep
+                    // the synthetic mux through the complete pulse, allowing
+                    // a coincident real pulse to be recognized and discarded.
+                    if (hblank) begin
+                        synthetic_vblank <= 1;
+                        if (!synthetic_vs) begin
+                            active <= 0;
+                            await_real_frame <= 1;
+                        end
+                    end
+                end else if (rise[1]) begin
+                    line <= line + 1'b1;
+                    if (line == 9'd54) synthetic_vblank <= 0;
+                    if (line == 9'd325) synthetic_vblank <= 1;
+                end
+            end
+        end
+
+        if (!reset && owner_changed) begin
+            if (active) stop_pending <= 1;
+            else if (!synthetic_busy) await_real_frame <= 0;
+        end
+    end
+endmodule

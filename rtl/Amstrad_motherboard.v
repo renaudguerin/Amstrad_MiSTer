@@ -275,6 +275,7 @@ wire crt_raw_vblank, crt_response_available, crt_source_missing;
 wire crt_hs, crt_vs, crt_hbl, crt_vbl, crt_field, crt_frame_field;
 wire rgb_owner_match;
 wire crt_hs_aligned, crt_vs_aligned, crt_hbl_aligned, crt_vbl_aligned;
+wire crt_vs_acquisition, crt_vbl_acquisition, crt_synthetic_busy;
 wire crt_field_aligned, crt_frame_field_aligned;
 reg [5:0] crt_tuple_alignment [0:3];
 integer crt_align_i;
@@ -585,7 +586,7 @@ wire        de_sel = plus_mode ? plus_crtc_de : classic_crtc4 ? type4_crtc_de : 
 // Classic FIELD stays with the classic CRTC; Plus FIELD comes from the ASIC's
 // own frame parity (see asic_video FIELD). Unselected-engine perturbation must
 // not reach the pin.
-wire        plus_field, plus_frame_field;
+wire        plus_field, plus_frame_field, plus_progressive;
 wire source_field = plus_mode ? plus_field : classic_crtc4 ? type4_field : crtc_field;
 assign field = crt_response_active ? crt_field_aligned : source_field;
 // Platform F1 uses frame identity from the selected CRTC.
@@ -714,6 +715,7 @@ asic_video #(.BYTE_DISPLAY_METADATA(1'b1), .EXTERNAL_VIDEO_HSYNC(1'b1)) asic_vid
 	.DE(plus_crtc_de),
 	.FIELD(plus_field),
 	.FRAME_FIELD(plus_frame_field),
+	.PROGRESSIVE(plus_progressive),
 	.MA(plus_ma),
 	.RA(plus_ra),
 
@@ -789,6 +791,7 @@ asic_video #(.ASIC_40226(1'b1)) crtc4_vid (
 	.DE(type4_crtc_de),
 	.FIELD(type4_field),
 	.FRAME_FIELD(),
+	.PROGRESSIVE(),
 	.MA(type4_ma),
 	.RA(type4_ra),
 	.HCC(), .LINE(), .ROW(), .ADJ(),
@@ -1256,7 +1259,8 @@ wire vblank_ga = integrated_timing ? plus_vblank : ga_vblank_o;
 // delayed profile only when neither live nor delayed raster is visible.
 wire response_transition = crt_response_active || (ENABLE_CRT_RESPONSE && sync_filter_req == 2'd3);
 assign sync_filter_commit = (sync_filter_applied != sync_filter_req) &
-                            vblank_filtered & (~response_transition | crt_vbl_aligned) & ~cpu_n;
+                            vblank_filtered & (~response_transition | crt_vbl_acquisition) & ~cpu_n &
+                            ~crt_synthetic_busy;
 
 always @(posedge clk) begin
 	if (reset) sync_filter_applied <= sync_filter_req;
@@ -1310,9 +1314,9 @@ assign pixel_vblank = crt_response_active ? (crt_raw_vblank | crt_pixel_invalida
 // the integration test contract B1 for the evidence.
 wire profile_hsync, profile_vsync, profile_hblank, profile_vblank;
 assign hsync = crt_response_active ? crt_hs_aligned : profile_hsync;
-assign vsync = crt_response_active ? crt_vs_aligned : profile_vsync;
+assign vsync = crt_response_active ? crt_vs_acquisition : profile_vsync;
 assign hblank = crt_response_active ? crt_hbl_aligned : profile_hblank;
-assign vblank = crt_response_active ? crt_vbl_aligned : profile_vblank;
+assign vblank = crt_response_active ? crt_vbl_acquisition : profile_vblank;
 crt_filter_output_select crt_filter_output_select
 (
 	.MODE(sync_filter_applied),
@@ -1337,8 +1341,34 @@ assign ssm_sync_observation = {1'b0, filter_sync_observation, sync_filter_applie
 // Horizontal acquisition speculation belongs to this live timing owner.
 reg [2:0] filter_h_owner;
 always @(posedge clk) filter_h_owner <= {plus_mode, crtc_type};
-wire filter_h_clear = reset | sna_load | sync_filter_commit |
-                      (filter_h_owner != {plus_mode, crtc_type});
+wire filter_h_owner_changed = filter_h_owner != {plus_mode, crtc_type};
+wire filter_h_clear = reset | sna_load | sync_filter_commit | filter_h_owner_changed;
+
+// The optional receiver owns presentation only. The raw chip pins and
+// filtered horizontal timing remain the source for video and CPU logic.
+generate
+if (ENABLE_CRT_RESPONSE) begin : g_crt_response_vertical
+    wire classic_progressive = !integrated_timing && !classic_crtc2 &&
+                               !crtc_type && snap_crtc_regs[65:64] == 2'b00;
+    crt_response_vertical acquisition (
+        .clk(clk), .ce_16(ce_16), .reset(reset | sna_load | sync_filter_commit),
+        .owner_changed(filter_h_owner_changed),
+        .enable(crt_response_active &&
+                (classic_progressive || (plus_mode && plus_progressive))),
+        .allow_sync_absence(classic_progressive),
+        .source_missing(crt_source_missing), .raw_hs(hs_sel),
+        .raw_vs(vs_sel), .ga_vs(vsync_ga),
+        .hs(crt_hs_aligned), .vs(crt_vs_aligned),
+        .hblank(crt_hbl_aligned), .vblank(crt_vbl_aligned),
+        .acq_vs(crt_vs_acquisition), .acq_vblank(crt_vbl_acquisition),
+        .synthetic_busy(crt_synthetic_busy)
+    );
+end else begin : g_no_crt_response_vertical
+    assign crt_vs_acquisition = crt_vs_aligned;
+    assign crt_vbl_acquisition = crt_vbl_aligned;
+    assign crt_synthetic_busy = 1'b0;
+end
+endgenerate
 
 crt_filter crt_filter
 (
