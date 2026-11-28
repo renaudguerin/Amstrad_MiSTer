@@ -1341,8 +1341,8 @@ assign ssm_sync_observation = {1'b0, filter_sync_observation, sync_filter_applie
 // Horizontal acquisition speculation belongs to this live timing owner.
 reg [2:0] filter_h_owner;
 always @(posedge clk) filter_h_owner <= {plus_mode, crtc_type};
-wire filter_h_clear = reset | sna_load | sync_filter_commit |
-                      (filter_h_owner != {plus_mode, crtc_type});
+wire filter_h_owner_changed = filter_h_owner != {plus_mode, crtc_type};
+wire filter_h_clear = reset | sna_load | sync_filter_commit | filter_h_owner_changed;
 
 // The optional receiver owns presentation only. The raw chip pins and
 // filtered horizontal timing remain the source for video and CPU logic.
@@ -1351,7 +1351,8 @@ if (ENABLE_CRT_RESPONSE) begin : g_crt_response_vertical
     wire classic_progressive = !integrated_timing && !classic_crtc2 &&
                                !crtc_type && snap_crtc_regs[65:64] == 2'b00;
     crt_response_vertical acquisition (
-        .clk(clk), .ce_16(ce_16), .reset(filter_h_clear),
+        .clk(clk), .ce_16(ce_16), .reset(reset | sna_load | sync_filter_commit),
+        .owner_changed(filter_h_owner_changed),
         .enable(crt_response_active &&
                 (classic_progressive || (plus_mode && plus_progressive))),
         .allow_sync_absence(classic_progressive),

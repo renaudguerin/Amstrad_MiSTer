@@ -368,7 +368,7 @@ endmodule
 // The watchdog and first synthetic line are policy, not measured CRT phase.
 module crt_response_vertical (
     input  logic clk, ce_16, reset, enable, source_missing,
-    input  logic allow_sync_absence,
+    input  logic allow_sync_absence, owner_changed,
     input  logic raw_hs, raw_vs, ga_vs, hs, vs, hblank, vblank,
     output logic acq_vs, acq_vblank, synthetic_busy
 );
@@ -405,7 +405,7 @@ module crt_response_vertical (
     // even after GA VS falls. Aligned H must remain locked throughout.
     wire h_locked = stable_hs[1] &&
                     (stable_hs[0] || (rejected_ga_vs && vertical_window));
-    wire unsuitable = !enable || real_v || source_missing || !h_locked;
+    wire unsuitable = !enable || owner_changed || real_v || source_missing || !h_locked;
     wire start_frame = rise[1] && !unsuitable &&
         (active ? (!stop_pending && line == LAST_LINE) :
                   (saw_real_vs && (allow_sync_absence || consecutive_short_vs) &&
@@ -418,23 +418,16 @@ module crt_response_vertical (
     assign synthetic_busy = synthetic_vs || (output_drain != 0) ||
                             (active && vs) || ignore_real_vs;
 
+    // Acquisition history belongs to the live source. Clear it even when
+    // the owner changes between native dot strobes.
     always_ff @(posedge clk) begin
-        if (reset) begin
+        if (reset || owner_changed) begin
             old_hs <= hsync;
             stable_hs <= 0;
             dot_age[0] <= LINE_DOTS;
             dot_age[1] <= LINE_DOTS;
             quiet_lines <= 0;
             saw_real_vs <= 0;
-            active <= 0;
-            line <= 0;
-            synthetic_vs <= 0;
-            synthetic_vblank <= 1;
-            pulse_left <= 0;
-            output_drain <= 0;
-            stop_pending <= 0;
-            ignore_real_vs <= 0;
-            await_real_frame <= 0;
             ga_vs_age <= 0;
             old_ga_vs <= ga_vs;
             old_raw_vs <= raw_vs;
@@ -499,6 +492,28 @@ module crt_response_vertical (
                 ga_vs_age <= 0;
             end
 
+            if (unsuitable) quiet_lines <= 0;
+            else if (!active && saw_real_vs && rise[1] && !start_frame &&
+                     quiet_lines != QUIET_LINES - 1'b1)
+                quiet_lines <= quiet_lines + 1'b1;
+        end
+    end
+
+    // A live owner change retires at the same blanking boundary as loss of
+    // lock. An already emitted pulse and its drain keep their full length.
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            active <= 0;
+            line <= 0;
+            synthetic_vs <= 0;
+            synthetic_vblank <= 1;
+            pulse_left <= 0;
+            output_drain <= 0;
+            stop_pending <= 0;
+            ignore_real_vs <= 0;
+            await_real_frame <= 0;
+        end else if (ce_16) begin
+
             // A real aligned pulse seen before handoff is unavailable in
             // full. Suppress it through its falling edge and keep DE blank
             // until a complete real VS can start the next acquisition.
@@ -516,11 +531,6 @@ module crt_response_vertical (
             end else if (output_drain != 0) begin
                 output_drain <= output_drain - 1'b1;
             end
-
-            if (unsuitable) quiet_lines <= 0;
-            else if (!active && saw_real_vs && rise[1] && !start_frame &&
-                     quiet_lines != QUIET_LINES - 1'b1)
-                quiet_lines <= quiet_lines + 1'b1;
 
             if (start_frame) begin
                 active <= 1;
@@ -549,6 +559,11 @@ module crt_response_vertical (
                     if (line == 9'd325) synthetic_vblank <= 1;
                 end
             end
+        end
+
+        if (!reset && owner_changed) begin
+            if (active) stop_pending <= 1;
+            else if (!synthetic_busy) await_real_frame <= 0;
         end
     end
 endmodule
